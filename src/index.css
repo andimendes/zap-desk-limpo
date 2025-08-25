@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Adicionamos estas regras para garantir que o layout principal
+  ocupe 100% da altura da tela, o que é necessário para a
+  sidebar funcionar corretamente.
+*/
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* Melhora a renderização das fontes */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
