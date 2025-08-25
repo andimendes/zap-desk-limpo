@@ -30,18 +30,26 @@ Deno.serve(async (req) => {
     if (inviteError) throw inviteError;
     const newUser = inviteData.user;
 
+    if (!newUser) {
+      throw new Error("Não foi possível criar o utilizador.");
+    }
+
     const { data: rolesData, error: rolesError } = await adminAuthClient
       .from('roles')
       .select('id')
       .in('name', roles);
     if (rolesError) throw rolesError;
 
-    const userRolesData = rolesData.map(role => ({
-      user_id: newUser.id,
-      role_id: role.id
-    }));
+    if (!rolesData || rolesData.length === 0) {
+        // Se nenhum cargo for encontrado, podemos decidir se isso é um erro ou não.
+        // Por agora, vamos apenas registar e continuar.
+        console.warn(`Nenhum cargo encontrado para os nomes: ${roles.join(', ')}`);
+    } else {
+        const userRolesData = rolesData.map(role => ({
+          user_id: newUser.id,
+          role_id: role.id
+        }));
 
-    if (userRolesData.length > 0) {
         const { error: userRolesError } = await adminAuthClient
           .from('user_roles')
           .insert(userRolesData);
@@ -53,9 +61,10 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error('Erro na função de convite:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...headers, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500, // Usar 500 para erros internos do servidor
     });
   }
 });
