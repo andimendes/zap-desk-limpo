@@ -41,8 +41,6 @@ Deno.serve(async (req) => {
     if (rolesError) throw rolesError;
 
     if (!rolesData || rolesData.length === 0) {
-        // Se nenhum cargo for encontrado, podemos decidir se isso é um erro ou não.
-        // Por agora, vamos apenas registar e continuar.
         console.warn(`Nenhum cargo encontrado para os nomes: ${roles.join(', ')}`);
     } else {
         const userRolesData = rolesData.map(role => ({
@@ -64,7 +62,7 @@ Deno.serve(async (req) => {
     console.error('Erro na função de convite:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...headers, 'Content-Type': 'application/json' },
-      status: 500, // Usar 500 para erros internos do servidor
+      status: 500,
     });
   }
 });
