@@ -27,7 +27,6 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-            {/* --- BARRA LATERAL (SIDEBAR) --- */}
             <aside className="w-64 flex flex-col bg-gray-800 text-white p-4 dark:bg-gray-800">
                 <div className="flex items-center justify-center py-4 mb-6">
                     <img 
@@ -49,10 +48,7 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
                     <NavLink icon={<BarChart2 size={20} />} active={activePage === 'relatorios'} onClick={() => setActivePage('relatorios')}>Relatórios</NavLink>
                 </nav>
 
-                {/* --- ÁREA DO UTILIZADOR (PARTE INFERIOR) --- */}
                 <div className="mt-auto">
-                    
-                    {/* <-- CORREÇÃO FINAL AQUI: Usamos profile.roles.includes('admin') --> */}
                     {profile?.roles?.includes('admin') && (
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Admin</p>
@@ -63,13 +59,15 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
                             >
                                 Cargos e Permissões
                             </NavLink>
+                            {/* **INÍCIO DA CORREÇÃO** - Texto alterado para "Equipe" */}
                             <NavLink 
                                 icon={<Users size={20} />} 
                                 active={activePage === 'gestao-de-equipa'} 
                                 onClick={() => setActivePage('gestao-de-equipa')}
                             >
-                                Equipa
+                                Equipe
                             </NavLink>
+                            {/* **FIM DA CORREÇÃO** */}
                         </>
                     )}
                     
