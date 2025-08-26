@@ -1,12 +1,120 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { UserPlus, Mail, Send, Check, Shield, Edit, X } from 'lucide-react';
+import { UserPlus, X, Save, LoaderCircle } from 'lucide-react';
+
+// --- Componente do Modal de Edição ---
+// Este componente irá aparecer quando clicar em "Editar"
+const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
+  // DEBUG: Confirma que o modal está a ser renderizado com os dados corretos
+  console.log('Modal de Edição a renderizar para o utilizador:', user);
+
+  const [selectedRoles, setSelectedRoles] = useState([]);
+
+  useEffect(() => {
+    if (user && user.user_roles) {
+      const currentUserRoles = user.user_roles.map(role => role.roles.name);
+      setSelectedRoles(currentUserRoles);
+    }
+  }, [user]);
+
+  const handleRoleChange = (roleName) => {
+    setSelectedRoles(prevRoles =>
+      prevRoles.includes(roleName)
+        ? prevRoles.filter(r => r !== roleName)
+        : [...prevRoles, roleName]
+    );
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(user.id, selectedRoles);
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <form onSubmit={handleSubmit}>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Utilizador</h3>
+              <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <X size={20} className="text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="flex items-center gap-4 mb-6">
+              <img
+                className="h-16 w-16 rounded-full object-cover"
+                src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.full_name}&background=random`}
+                alt={user.full_name}
+              />
+              <div>
+                <p className="font-bold text-lg text-gray-900 dark:text-gray-100">{user.full_name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Atribuir Cargos
+              </label>
+              <div className="space-y-2">
+                {allRoles.map((role) => (
+                  <label key={role.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles.includes(role.name)}
+                      onChange={() => handleRoleChange(role.name)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700 dark:text-gray-300">{role.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300"
+            >
+              {isSaving ? (
+                <>
+                  <LoaderCircle size={16} className="animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Salvar Alterações
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 
 const GestaoDeEquipaPage = () => {
     const [team, setTeam] = useState([]);
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isInviteModalOpen, setInviteModalOpen] = useState(false);
+
+    // --- ESTADOS ADICIONADOS PARA A LÓGICA DE EDIÇÃO ---
+    const [editingUser, setEditingUser] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const fetchTeamAndRoles = useCallback(async () => {
         setLoading(true);
@@ -18,14 +126,33 @@ const GestaoDeEquipaPage = () => {
             .from('roles')
             .select('*');
 
-        if (!profilesError) setTeam(profilesData);
-        if (!rolesError) setRoles(rolesData);
+        if (!profilesError) setTeam(profilesData || []);
+        if (!rolesError) setRoles(rolesData || []);
         setLoading(false);
     }, []);
 
     useEffect(() => {
         fetchTeamAndRoles();
     }, [fetchTeamAndRoles]);
+
+    // --- FUNÇÃO PARA GUARDAR AS ALTERAÇÕES DO UTILIZADOR ---
+    const handleSaveUser = async (userId, newRoles) => {
+        setIsSaving(true);
+        
+        const { data, error } = await supabase.functions.invoke('update-user-roles', {
+          body: { userId, roles: newRoles },
+        });
+    
+        if (error) {
+          alert(`Erro ao atualizar cargos: ${error.message}`);
+        } else {
+          console.log('Sucesso ao guardar:', data);
+          setEditingUser(null); // Fecha o modal
+          fetchTeamAndRoles(); // Recarrega os dados para mostrar as alterações
+        }
+        
+        setIsSaving(false);
+    };
 
     return (
         <div className="p-4 md:p-8 bg-gray-100 min-h-full dark:bg-gray-900">
@@ -74,7 +201,16 @@ const GestaoDeEquipaPage = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Editar</button>
+                                        {/* --- BOTÃO EDITAR ATUALIZADO --- */}
+                                        <button 
+                                            onClick={() => {
+                                                console.log('Botão Editar clicado para o utilizador:', member);
+                                                setEditingUser(member);
+                                            }} 
+                                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                        >
+                                            Editar
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -83,6 +219,17 @@ const GestaoDeEquipaPage = () => {
                 </div>
             </div>
             {isInviteModalOpen && <InviteUserModal roles={roles} onClose={() => setInviteModalOpen(false)} onInviteSent={fetchTeamAndRoles} />}
+            
+            {/* --- RENDERIZAÇÃO CONDICIONAL DO MODAL DE EDIÇÃO --- */}
+            {editingUser && (
+                <EditUserModal
+                    user={editingUser}
+                    allRoles={roles}
+                    onClose={() => setEditingUser(null)}
+                    onSave={handleSaveUser}
+                    isSaving={isSaving}
+                />
+            )}
         </div>
     );
 };
