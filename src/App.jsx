@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'; // <-- Adicionado useEffect
+import React, 'useState', 'useEffect' } from 'react';
+
 // --- Importações do React Router ---
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
@@ -14,6 +15,7 @@ import PlaceholderPage from '@/pages/PlaceholderPage';
 import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
 import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
 import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
+import UpdatePasswordPage from '@/pages/UpdatePasswordPage'; // --- 1. ALTERAÇÃO AQUI: IMPORTAR A NOVA PÁGINA ---
 
 // Importações de Componentes de Layout
 import MainLayout from '@/components/layout/MainLayout';
@@ -23,6 +25,7 @@ import SettingsModal from '@/components/layout/SettingsModal';
  * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
  */
 const AppContent = () => {
+  // ... (O restante do seu componente AppContent permanece exatamente igual)
   const { session, loading, profile } = useAuth();
   const [activePage, setActivePage] = useState('chamados');
   const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -74,31 +77,30 @@ const AppContent = () => {
  * Componente raiz da aplicação.
  */
 function App() {
-  // --- NOVO: Efeito para alterar o título e o favicon ---
+  // --- O seu efeito para alterar o título e o favicon permanece igual ---
   useEffect(() => {
-    // Altera o título da aba do navegador
     document.title = 'Zap Desk';
-
-    // Procura por um favicon existente
     let favicon = document.querySelector("link[rel*='icon']");
-    
-    // Se não existir, cria um novo
     if (!favicon) {
       favicon = document.createElement('link');
       favicon.rel = 'icon';
       document.getElementsByTagName('head')[0].appendChild(favicon);
     }
-    
-    // Define o tipo e o caminho da imagem para o novo favicon
     favicon.type = 'image/png';
     favicon.href = 'https://f005.backblazeb2.com/file/Zap-Contabilidade/%C3%8Dcone+-+Colorido.png';
-  }, []); // O array vazio [] garante que este efeito só é executado uma vez
+  }, []);
 
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Rotas Públicas */}
           <Route path="/confirmacao" element={<ConfirmacaoPage />} />
+          
+          {/* --- 2. ALTERAÇÃO AQUI: ADICIONAR A NOVA ROTA --- */}
+          <Route path="/update-password" element={<UpdatePasswordPage />} />
+          
+          {/* Rota "Curinga" que lida com o login ou o conteúdo principal da app */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
