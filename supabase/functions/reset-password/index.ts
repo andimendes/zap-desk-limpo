@@ -36,6 +36,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
+    console.error("Erro na função reset-password:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
