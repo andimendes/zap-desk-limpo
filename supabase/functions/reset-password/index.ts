@@ -12,16 +12,21 @@ serve(async (req) => {
 
   try {
     const { email } = await req.json();
-    if (!email) { throw new Error('O email é obrigatório.'); }
+    if (!email) { 
+      throw new Error('O email é obrigatório.'); 
+    }
 
+    // --- MUDANÇA IMPORTANTE ---
+    // Para esta operação, usamos a chave pública (anon key), pois é uma ação
+    // que qualquer utilizador pode iniciar, e não uma ação de administrador.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '' // Usar a ANON_KEY aqui!
     );
 
-    // Envia o email de recuperação de senha
+    // Esta função envia o email de redefinição de senha que você personalizou no painel.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${origin}/update-password` // Página para onde o utilizador será redirecionado
+        redirectTo: `${origin}/confirmacao` // A página para onde o utilizador vai para definir a nova senha.
     });
 
     if (error) { throw error; }
