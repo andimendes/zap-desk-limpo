@@ -1,4 +1,4 @@
-// supabase/functions/resend-invite/index.ts
+// supabase/functions/invite-user/index.ts
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -11,34 +11,41 @@ serve(async (req) => {
   }
 
   try {
-    const { email } = await req.json();
-    if (!email) throw new Error('O e-mail é obrigatório.');
+    const { email, fullName, role } = await req.json();
+    if (!email || !fullName || !role) {
+      throw new Error('Email, nome completo (fullName) e cargo (role) são obrigatórios.');
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email,
+    // --- LÓGICA CORRIGIDA E OFICIAL ---
+    // Este método envia o email de convite padrão que você personalizou no painel do Supabase,
+    // garantindo que o token de confirmação seja gerado e tratado corretamente.
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName, role: role },
     });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message.includes('User already registered')) {
+        return new Response(JSON.stringify({ error: 'Este e-mail já está em uso.' }), {
+           status: 409,
+           headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
+       });
+     }
+      throw error;
+    }
 
-    // NOTA: Este método não envia o email. Ele apenas gera o link.
-    // A sua aplicação front-end deve dizer "Convite reenviado" e o utilizador
-    // deve procurar o email original ou o administrador pode partilhar o link (data.properties.action_link).
-    // Se quiser reenviar um email personalizado, precisará de integrar um serviço como o Resend aqui.
+    return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: data.user }), {
+      headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
+    });
 
-    return new Response(
-      JSON.stringify({ message: 'Novo link de convite gerado com sucesso!', link: data.properties.action_link }),
-      { headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
+    });
   }
 });

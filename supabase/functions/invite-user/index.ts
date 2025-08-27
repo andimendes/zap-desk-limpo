@@ -21,40 +21,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // --- MUDANÇA DE LÓGICA ---
-    // Passo 1: Cria o utilizador sem senha (ele fica "à espera" de uma senha)
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      email_confirm: true, // Já marca o email como confirmado
-      user_metadata: {
-        full_name: fullName,
-        role: role
-      },
+    // --- LÓGICA CORRIGIDA E OFICIAL ---
+    // Este método envia o email de convite padrão que você personalizou no painel do Supabase,
+    // garantindo que o token de confirmação seja gerado e tratado corretamente.
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName, role: role },
     });
 
-    if (createError) {
-      if (createError.message.includes('User already registered')) {
+    if (error) {
+      if (error.message.includes('User already registered')) {
         return new Response(JSON.stringify({ error: 'Este e-mail já está em uso.' }), {
            status: 409,
            headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
        });
      }
-      throw createError;
+      throw error;
     }
 
-    // Passo 2: Envia um email de "recuperação de senha" que, na prática,
-    // servirá para o utilizador definir a sua PRIMEIRA senha.
-    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-        redirectTo: `${origin}/update-password`
-    });
-
-    if (resetError) {
-        // Se falhar aqui, é uma boa prática apagar o utilizador que acabámos de criar
-        await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-        throw new Error(`Utilizador criado, mas falha ao enviar o email de definição de senha: ${resetError.message}`);
-    }
-
-    return new Response(JSON.stringify({ message: 'Convite enviado com sucesso! O utilizador receberá um email para definir a sua senha.' }), {
+    return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: data.user }), {
       headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
     });
 
