@@ -86,8 +86,7 @@ const GestaoDeEquipaPage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    // --- NOVO: Estado para controlar o reenvio ---
-    const [resendingInvite, setResendingInvite] = useState(null); // Guarda o ID do utilizador
+    const [resendingInvite, setResendingInvite] = useState(null);
 
     const fetchTeamAndRoles = useCallback(async () => {
         setLoading(true);
@@ -127,13 +126,9 @@ const GestaoDeEquipaPage = () => {
         setUserToDelete(null);
     };
 
-    // --- NOVO: Função para reenviar o convite ---
     const handleResendInvite = async (member) => {
         setResendingInvite(member.id);
-        const { error } = await supabase.functions.invoke('resend-invite', {
-            body: { email: member.email },
-        });
-
+        const { error } = await supabase.functions.invoke('resend-invite', { body: { email: member.email } });
         if (error) {
             alert(`Erro ao reenviar convite: ${error.message}`);
         } else {
@@ -180,14 +175,8 @@ const GestaoDeEquipaPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.status === 'Aceite' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>{member.status}</span></td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end items-center gap-4">
-                                                {/* --- MUDANÇA: Lógica para mostrar botão de reenvio --- */}
                                                 {member.status === 'Pendente' && (
-                                                    <button 
-                                                        onClick={() => handleResendInvite(member)} 
-                                                        disabled={resendingInvite === member.id}
-                                                        className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 disabled:opacity-50"
-                                                        title="Reenviar Convite"
-                                                    >
+                                                    <button onClick={() => handleResendInvite(member)} disabled={resendingInvite === member.id} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 disabled:opacity-50" title="Reenviar Convite">
                                                         {resendingInvite === member.id ? <LoaderCircle size={14} className="animate-spin" /> : <Send size={14} />}
                                                     </button>
                                                 )}
@@ -211,19 +200,23 @@ const GestaoDeEquipaPage = () => {
     );
 };
 
-// O componente InviteUserModal permanece o mesmo
+// --- MUDANÇA: Componente InviteUserModal atualizado ---
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
-    const [selectedRoles, setSelectedRoles] = useState([]);
+    const [fullName, setFullName] = useState(''); // Novo estado para o nome
+    const [selectedRole, setSelectedRole] = useState(roles[0]?.name || ''); // Novo estado para o cargo
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
-    const handleRoleToggle = (roleName) => { setSelectedRoles(prev => prev.includes(roleName) ? prev.filter(r => r !== roleName) : [...prev, roleName]); };
+
     const handleInvite = async (e) => {
         e.preventDefault();
         setIsSending(true);
         setFeedback({ type: '', message: '' });
         try {
-            const { error } = await supabase.functions.invoke('invite-user', { body: { email, roles: selectedRoles }, });
+            // Chama a nova função com os dados completos
+            const { error } = await supabase.functions.invoke('invite-user-custom', { 
+                body: { email, fullName, role: selectedRole }, 
+            });
             if (error) throw new Error(error.message);
             setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
             setTimeout(() => { onClose(); onInviteSent(); }, 2000);
@@ -233,6 +226,7 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
             setIsSending(false);
         }
     };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
@@ -240,17 +234,28 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
                     <div className="p-6">
                         <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Convidar Novo Utilizador</h3><button type="button" onClick={onClose}><X className="text-gray-500 dark:text-gray-400" /></button></div>
                         <div className="space-y-4">
-                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail do Convidado</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div>
+                            {/* Novo campo para o nome completo */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargos</label>
-                                <div className="mt-2 space-y-2">{roles.map(role => (<label key={role.id} className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role.name)} onChange={() => handleRoleToggle(role.name)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" /><span className="text-gray-700 dark:text-gray-300">{role.name}</span></label>))}</div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label>
+                                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail do Convidado</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label>
+                                {/* Alterado para um dropdown para selecionar um único cargo */}
+                                <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                                    {roles.map(role => (<option key={role.id} value={role.name}>{role.name}</option>))}
+                                </select>
                             </div>
                         </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">
                         {feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}
                         <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
-                        <button type="submit" disabled={isSending} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button>
+                        <button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button>
                     </div>
                 </form>
             </div>
