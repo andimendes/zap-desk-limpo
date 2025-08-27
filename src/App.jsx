@@ -1,29 +1,30 @@
 import React, { useState } from 'react';
 // ATENÇÃO: Verifique se o ficheiro 'supabaseClient.js' está na pasta 'src' e foi enviado para o GitHub.
-import { supabase } from './supabaseClient';
+// Usando o alias '@' para caminhos absolutos a partir da pasta 'src'
+import { supabase } from '@/supabaseClient';
 // ATENÇÃO: Verifique se a pasta 'contexts' com 'AuthContext.jsx' existe e foi enviada para o GitHub.
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 // ATENÇÃO: Verifique se a pasta 'contexts' com 'ThemeContext.jsx' existe e foi enviada para o GitHub.
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // --- PÁGINAS ---
 // ATENÇÃO: Verifique se o ficheiro 'AuthPage.jsx' existe na pasta 'pages' e foi enviado para o GitHub.
-import AuthPage from './pages/AuthPage';
-// CORRIGIDO: O caminho agora aponta diretamente para o ficheiro index.jsx para evitar erros de resolução no build.
-import CargosEPermissoesPage from './pages/CargosEPermissoes/index.jsx';
+import AuthPage from '@/pages/AuthPage';
+// CORRIGIDO: Usando o alias '@' para um caminho mais robusto que evita erros de resolução.
+import CargosEPermissoesPage from '@/pages/CargosEPermissoes/index.jsx';
 
 // --- PÁGINAS COM PROBLEMAS (NÃO ENCONTRADAS NO GITHUB) ---
 // As importações abaixo foram comentadas porque os ficheiros não foram encontrados no seu repositório.
 // Para corrigir, envie os ficheiros para o GitHub e descomente as linhas.
-// import ClientesPage from './pages/ClientesPage';
-// import ChamadosPage from './pages/ChamadosPage';
-// import GestaoDeEquipaPage from './pages/admin/GestaoDeEquipaPage';
-import PlaceholderPage from './pages/PlaceholderPage'; // Assumindo que este ficheiro existe
+// import ClientesPage from '@/pages/ClientesPage';
+// import ChamadosPage from '@/pages/ChamadosPage';
+// import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipaPage';
+import PlaceholderPage from '@/pages/PlaceholderPage'; // Assumindo que este ficheiro existe
 
 // --- COMPONENTES ---
 // ATENÇÃO: Verifique se a pasta 'components' com os layouts e modais existe e foi enviada para o GitHub.
-import MainLayout from './components/layout/MainLayout';
-import SettingsModal from './components/layout/SettingsModal';
+import MainLayout from '@/components/layout/MainLayout';
+import SettingsModal from '@/components/layout/SettingsModal';
 
 
 const AppContent = () => {
