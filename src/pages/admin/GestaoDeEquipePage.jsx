@@ -1,33 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { UserPlus, X, Save, LoaderCircle } from 'lucide-react';
+import { UserPlus, X, Save, LoaderCircle, Pencil } from 'lucide-react';
 
-// --- Componente do Modal de Edição ---
-// Este componente irá aparecer quando clicar em "Editar"
+// --- Componente do Modal de Edição (sem alterações) ---
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
-  // DEBUG: Confirma que o modal está a ser renderizado com os dados corretos
-  console.log('Modal de Edição a renderizar para o utilizador:', user);
-
-  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
 
   useEffect(() => {
-    if (user && user.user_roles) {
-      const currentUserRoles = user.user_roles.map(role => role.roles.name);
-      setSelectedRoles(currentUserRoles);
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setSelectedRole(user.role || '');
     }
   }, [user]);
 
-  const handleRoleChange = (roleName) => {
-    setSelectedRoles(prevRoles =>
-      prevRoles.includes(roleName)
-        ? prevRoles.filter(r => r !== roleName)
-        : [...prevRoles, roleName]
-    );
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(user.id, selectedRoles);
+    onSave(user.id, { name, email, role: selectedRole }); 
   };
 
   if (!user) return null;
@@ -37,66 +28,45 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Utilizador</h3>
               <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
                 <X size={20} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="flex items-center gap-4 mb-6">
-              <img
-                className="h-16 w-16 rounded-full object-cover"
-                src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.full_name}&background=random`}
-                alt={user.full_name}
-              />
+            
+            <div className="space-y-4 mb-6">
               <div>
-                <p className="font-bold text-lg text-gray-900 dark:text-gray-100">{user.full_name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                <label htmlFor="userName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label>
+                <input id="userName" type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
+              </div>
+              <div>
+                <label htmlFor="userEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
+                <input id="userEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
               </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Atribuir Cargos
+                Atribuir Cargo
               </label>
-              <div className="space-y-2">
+              <select 
+                value={selectedRole} 
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+              >
                 {allRoles.map((role) => (
-                  <label key={role.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                    <input
-                      type="checkbox"
-                      checked={selectedRoles.includes(role.name)}
-                      onChange={() => handleRoleChange(role.name)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-700 dark:text-gray-300">{role.name}</span>
-                  </label>
+                  <option key={role.id} value={role.name}>{role.name}</option>
                 ))}
-              </div>
+              </select>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
-            >
+            <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {isSaving ? (
-                <>
-                  <LoaderCircle size={16} className="animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  Salvar Alterações
-                </>
-              )}
+            <button type="submit" disabled={isSaving} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300">
+              {isSaving ? <><LoaderCircle size={16} className="animate-spin" /> Salvando...</> : <><Save size={16} /> Salvar Alterações</>}
             </button>
           </div>
         </form>
@@ -105,29 +75,29 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   );
 };
 
-
+// --- Componente Principal da Página ---
 const GestaoDeEquipaPage = () => {
     const [team, setTeam] = useState([]);
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isInviteModalOpen, setInviteModalOpen] = useState(false);
-
-    // --- ESTADOS ADICIONADOS PARA A LÓGICA DE EDIÇÃO ---
     const [editingUser, setEditingUser] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const fetchTeamAndRoles = useCallback(async () => {
         setLoading(true);
-        const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('*, user_roles(roles(name))');
         
-        const { data: rolesData, error: rolesError } = await supabase
-            .from('roles')
-            .select('*');
+        const { data: teamData, error: teamError } = await supabase.functions.invoke('get-team-members');
+        const { data: rolesData, error: rolesError } = await supabase.from('roles').select('*');
 
-        if (!profilesError) setTeam(profilesData || []);
-        if (!rolesError) setRoles(rolesData || []);
+        if (teamError) console.error("Erro ao buscar equipa:", teamError.message);
+        if (rolesError) console.error("Erro ao buscar cargos:", rolesError.message);
+
+        // <-- DEBUG 1: VER O QUE RECEBEMOS DA FUNÇÃO
+        console.log('Dados recebidos da Edge Function:', teamData);
+
+        setTeam(teamData?.teamMembers || []);
+        setRoles(rolesData || []);
         setLoading(false);
     }, []);
 
@@ -135,24 +105,16 @@ const GestaoDeEquipaPage = () => {
         fetchTeamAndRoles();
     }, [fetchTeamAndRoles]);
 
-    // --- FUNÇÃO PARA GUARDAR AS ALTERAÇÕES DO UTILIZADOR ---
-    const handleSaveUser = async (userId, newRoles) => {
+    const handleSaveUser = async (userId, updatedData) => {
         setIsSaving(true);
-        
-        const { data, error } = await supabase.functions.invoke('update-user-roles', {
-          body: { userId, roles: newRoles },
-        });
-    
-        if (error) {
-          alert(`Erro ao atualizar cargos: ${error.message}`);
-        } else {
-          console.log('Sucesso ao guardar:', data);
-          setEditingUser(null); // Fecha o modal
-          fetchTeamAndRoles(); // Recarrega os dados para mostrar as alterações
-        }
-        
+        alert(`Funcionalidade de salvar ainda não implementada.\nUserId: ${userId}\nNovos Dados: ${JSON.stringify(updatedData)}`);
         setIsSaving(false);
+        setEditingUser(null);
+        fetchTeamAndRoles();
     };
+
+    // <-- DEBUG 2: VER O QUE ESTÁ NO ESTADO ANTES DE RENDERIZAR
+    console.log("Estado 'team' que será renderizado na tabela:", team);
 
     return (
         <div className="p-4 md:p-8 bg-gray-100 min-h-full dark:bg-gray-900">
@@ -169,8 +131,8 @@ const GestaoDeEquipaPage = () => {
                         <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Nome</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Cargos</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Cargo</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Status do Convite</th>
                                 <th className="px-6 py-3 text-right text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Ações</th>
                             </tr>
                         </thead>
@@ -181,35 +143,24 @@ const GestaoDeEquipaPage = () => {
                                 <tr key={member.id}>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
-                                            <img className="h-10 w-10 rounded-full object-cover" src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=random`} alt={member.full_name} />
+                                            <img className="h-10 w-10 rounded-full object-cover" src={`https://ui-avatars.com/api/?name=${member.name ? member.name.replace(' ', '+') : 'NU'}&background=random`} alt={member.name} />
                                             <div className="ml-4">
-                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.full_name}</div>
+                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.name}</div>
                                                 <div className="text-sm text-gray-500 dark:text-gray-400">{member.email}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex flex-wrap gap-1">
-                                            {member.user_roles.map(role => (
-                                                <span key={role.roles.name} className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{role.roles.name}</span>
-                                            ))}
-                                        </div>
+                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{member.role}</span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.status === 'Ativo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.status === 'Aceite' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
                                             {member.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        {/* --- BOTÃO EDITAR ATUALIZADO --- */}
-                                        <button 
-                                            onClick={() => {
-                                                console.log('Botão Editar clicado para o utilizador:', member);
-                                                setEditingUser(member);
-                                            }} 
-                                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                                        >
-                                            Editar
+                                        <button onClick={() => setEditingUser(member)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1">
+                                            <Pencil size={14} /> Editar
                                         </button>
                                     </td>
                                 </tr>
@@ -218,9 +169,9 @@ const GestaoDeEquipaPage = () => {
                     </table>
                 </div>
             </div>
+
             {isInviteModalOpen && <InviteUserModal roles={roles} onClose={() => setInviteModalOpen(false)} onInviteSent={fetchTeamAndRoles} />}
             
-            {/* --- RENDERIZAÇÃO CONDICIONAL DO MODAL DE EDIÇÃO --- */}
             {editingUser && (
                 <EditUserModal
                     user={editingUser}
@@ -234,6 +185,7 @@ const GestaoDeEquipaPage = () => {
     );
 };
 
+// O componente InviteUserModal permanece o mesmo por enquanto
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
     const [selectedRoles, setSelectedRoles] = useState([]);
@@ -248,19 +200,13 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         e.preventDefault();
         setIsSending(true);
         setFeedback({ type: '', message: '' });
-
         try {
             const { error } = await supabase.functions.invoke('invite-user', {
                 body: { email, roles: selectedRoles },
             });
-
             if (error) throw new Error(error.message);
-
             setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
-            setTimeout(() => {
-                onClose();
-                onInviteSent();
-            }, 2000);
+            setTimeout(() => { onClose(); onInviteSent(); }, 2000);
         } catch (error) {
             setFeedback({ type: 'error', message: `Erro ao enviar convite: ${error.message}` });
         } finally {
@@ -305,6 +251,5 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         </div>
     );
 };
-
 
 export default GestaoDeEquipaPage;
