@@ -10,8 +10,8 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import SettingsModal from './components/layout/SettingsModal';
 import CargosEPermissoesPage from './pages/admin/CargosEPermissoesPage';
 
-// <-- NOVO: Importar a nova página de Gestão da Equipa
-import GestaoDeEquipaPage from './pages/admin/GestaoDeEquipaPage';
+// <-- CORREÇÃO: Alterado de 'admin' para 'Admin' para corresponder ao nome da sua pasta
+import GestaoDeEquipaPage from './pages/Admin/GestaoDeEquipaPage';
 
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
