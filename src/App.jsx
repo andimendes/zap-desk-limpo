@@ -1,91 +1,22 @@
-import React, { useState } from 'react';
-// ATENÇÃO: Verifique se o ficheiro 'supabaseClient.js' está na pasta 'src' e foi enviado para o GitHub.
-// Usando o alias '@' para caminhos absolutos a partir da pasta 'src'
-import { supabase } from '@/supabaseClient';
-// ATENÇÃO: Verifique se a pasta 'contexts' com 'AuthContext.jsx' existe e foi enviada para o GitHub.
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-// ATENÇÃO: Verifique se a pasta 'contexts' com 'ThemeContext.jsx' existe e foi enviada para o GitHub.
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// --- PÁGINAS ---
-// ATENÇÃO: Verifique se o ficheiro 'AuthPage.jsx' existe na pasta 'pages' e foi enviado para o GitHub.
-import AuthPage from '@/pages/AuthPage';
-// CORRIGIDO: Usando o alias '@' para um caminho mais robusto que evita erros de resolução.
-import CargosEPermissoesPage from '@/pages/CargosEPermissoes/index.jsx';
-
-// --- PÁGINAS COM PROBLEMAS (NÃO ENCONTRADAS NO GITHUB) ---
-// As importações abaixo foram comentadas porque os ficheiros não foram encontrados no seu repositório.
-// Para corrigir, envie os ficheiros para o GitHub e descomente as linhas.
-// import ClientesPage from '@/pages/ClientesPage';
-// import ChamadosPage from '@/pages/ChamadosPage';
-// import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipaPage';
-import PlaceholderPage from '@/pages/PlaceholderPage'; // Assumindo que este ficheiro existe
-
-// --- COMPONENTES ---
-// ATENÇÃO: Verifique se a pasta 'components' com os layouts e modais existe e foi enviada para o GitHub.
-import MainLayout from '@/components/layout/MainLayout';
-import SettingsModal from '@/components/layout/SettingsModal';
-
-
-const AppContent = () => {
-  const { session, loading, profile } = useAuth();
-  const [activePage, setActivePage] = useState('chamados');
-  const [isSettingsOpen, setSettingsOpen] = useState(false);
-
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
-  }
-
-  if (!session) {
-    // Se não houver ficheiro AuthPage, talvez queira redirecionar para LoginPage que já existe.
-    // Por enquanto, vamos manter AuthPage, mas verifique o nome do ficheiro.
-    return <AuthPage />;
-  }
-
-  const renderActivePage = () => {
-    switch (activePage) {
-      // case 'clientes': return <ClientesPage />; // Comentado porque o ficheiro não existe
-      // case 'chamados': return <ChamadosPage />; // Comentado porque o ficheiro não existe
-      case 'cargos-e-permissoes': return <CargosEPermissoesPage />;
-      // case 'gestao-de-equipa': return <GestaoDeEquipaPage />; // Comentado porque o ficheiro não existe
-
-      // Estas páginas usam um componente genérico 'PlaceholderPage'.
-      // Verifique se 'PlaceholderPage.jsx' existe na pasta 'pages'.
-      case 'crm': return <PlaceholderPage title="CRM" />;
-      case 'atendimento': return <PlaceholderPage title="Atendimento" />;
-      case 'base-conhecimento': return <PlaceholderPage title="Base de Conhecimento" />;
-      case 'financeiro': return <PlaceholderPage title="Financeiro" />;
-      case 'relatorios': return <PlaceholderPage title="Relatórios e Análises" />;
-      default: return <CargosEPermissoesPage />; // Alterado para uma página que existe
-    }
-  };
-
-  return (
-    <ThemeProvider>
-      <MainLayout
-        activePage={activePage}
-        setActivePage={setActivePage}
-        onOpenSettings={() => setSettingsOpen(true)}
-        profile={profile}
-      >
-        {renderActivePage()}
-      </MainLayout>
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        userProfile={profile}
-        userAuth={session.user}
-      />
-    </ThemeProvider>
-  );
-};
+// Vamos usar caminhos relativos e explícitos para garantir que o Vercel os encontre.
+// Estes dois ficheiros são os que existem com certeza no seu repositório.
+import LoginPage from './pages/LoginPage/index.jsx';
+import CargosEPermissoesPage from './pages/CargosEPermissoes/index.jsx';
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <Routes>
+        {/* Rota para a página de login */}
+        <Route path="/" element={<LoginPage />} />
+        
+        {/* Rota para a página de cargos e permissões */}
+        <Route path="/cargos-e-permissoes" element={<CargosEPermissoesPage />} />
+      </Routes>
+    </Router>
   );
 }
 
