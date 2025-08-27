@@ -1,18 +1,37 @@
 // supabase/functions/_shared/cors.ts
 
-// Este ficheiro define os cabeçalhos CORS para permitir que o seu site Vercel
-// e o seu ambiente de desenvolvimento local se comuniquem com as suas funções.
-
-// Lista de domínios autorizados
+/**
+ * Lista de domínios (origens) que têm permissão para aceder às suas funções.
+ * Adicione aqui todos os domínios necessários.
+ */
 const allowedOrigins = [
-  'https://zap-desk-limpo.vercel.app', // Domínio de produção
-  'http://localhost:5173', // Domínio de desenvolvimento Vite (padrão)
-  'http://localhost:3000', // Domínio de desenvolvimento (alternativo)
+  // ✅ ADICIONADO: O seu novo domínio de produção
+  'https://app.zapcontabilidade.com', 
+  
+  // Domínios anteriores e de desenvolvimento
+  'https://zap-desk-limpo.vercel.app', 
+  'http://localhost:3000',
+  'http://localhost:5173',
 ];
 
-export const corsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS', // Métodos permitidos
-});
+/**
+ * Função que gera os cabeçalhos CORS de forma segura.
+ * @param origin - A origem do pedido (ex: 'https://app.zapcontabilidade.com').
+ * @returns Um objeto com os cabeçalhos CORS apropriados.
+ */
+export function corsHeaders(origin: string) {
+  // Cabeçalhos que são sempre enviados
+  const headers = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // ✅ MÉTODOS ADICIONADOS
+  };
 
+  // ✅ LÓGICA CORRIGIDA:
+  // Apenas adiciona o cabeçalho 'Access-Control-Allow-Origin' se a origem
+  // do pedido estiver na nossa lista de permissões.
+  if (allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
+}
