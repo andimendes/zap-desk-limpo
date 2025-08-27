@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function AuthPage() {
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [fullName, setFullName] = useState('');
+    // Estados removidos: isSignUp, fullName
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -20,29 +19,7 @@ export default function AuthPage() {
         setLoading(false);
     };
 
-    const handleSignUp = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage({ type: '', content: '' });
-        
-        // <-- MUDANÇA AQUI: Ignoramos a variável 'data' que não estava a ser usada
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: fullName,
-                }
-            }
-        });
-
-        if (error) {
-            setMessage({ type: 'error', content: error.message });
-        } else {
-            setMessage({ type: 'success', content: 'Conta criada! Por favor, verifique o seu e-mail para ativar a conta.' });
-        }
-        setLoading(false);
-    };
+    // Função handleSignUp removida
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
@@ -51,17 +28,14 @@ export default function AuthPage() {
                     <img src="https://f005.backblazeb2.com/file/Zap-Contabilidade/Completo+-+Horizontal+-+Colorido.png" alt="Logo Zap Contabilidade" className="h-16 w-auto" />
                 </div>
                 
+                {/* Título agora é estático */}
                 <h2 className="text-center text-2xl font-bold text-gray-800">
-                    {isSignUp ? 'Crie a sua Conta' : 'Acesse sua Conta'}
+                    Acesse sua Conta
                 </h2>
                 
-                <form className="space-y-4" onSubmit={isSignUp ? handleSignUp : handleLogin}>
-                    {isSignUp && (
-                        <div>
-                            <label htmlFor="fullName" className="text-sm font-medium text-gray-700">Nome Completo</label>
-                            <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" required className="mt-1 block w-full px-3 py-2 border rounded-md" />
-                        </div>
-                    )}
+                {/* Formulário agora só faz login */}
+                <form className="space-y-4" onSubmit={handleLogin}>
+                    {/* Campo de nome completo removido */}
                     <div>
                         <label htmlFor="email" className="text-sm font-medium text-gray-700">E-mail</label>
                         <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required className="mt-1 block w-full px-3 py-2 border rounded-md" />
@@ -73,16 +47,12 @@ export default function AuthPage() {
                     {message.content && (<div className={`p-3 rounded-md text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message.content}</div>)}
                     
                     <button type="submit" disabled={loading} className="w-full justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300">
-                        {loading ? 'Aguarde...' : (isSignUp ? 'Criar Conta' : 'Entrar')}
+                        {/* Texto do botão agora é estático */}
+                        {loading ? 'Aguarde...' : 'Entrar'}
                     </button>
                 </form>
 
-                <p className="text-center text-sm text-gray-600">
-                    {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="font-medium text-blue-600 hover:text-blue-500 ml-1">
-                        {isSignUp ? 'Entrar' : 'Crie uma agora'}
-                    </button>
-                </p>
+                {/* --- MUDANÇA: Secção de "Criar conta" removida --- */}
             </div>
         </div>
     );
