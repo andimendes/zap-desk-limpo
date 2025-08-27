@@ -8,9 +8,9 @@ import ChamadosPage from './pages/ChamadosPage';
 import MainLayout from './components/layout/MainLayout';
 import PlaceholderPage from './pages/PlaceholderPage';
 import SettingsModal from './components/layout/SettingsModal';
-import CargosEPermissoesPage from './pages/admin/CargosEPermissoesPage';
 
-// <-- CORREÇÃO: Adicionado .jsx ao final do caminho da importação
+// <-- CORREÇÃO APLICADA A AMBOS OS FICHEIROS NA PASTA 'Admin' -->
+import CargosEPermissoesPage from './pages/Admin/CargosEPermissoesPage.jsx';
 import GestaoDeEquipaPage from './pages/Admin/GestaoDeEquipaPage.jsx';
 
 const AppContent = () => {
@@ -31,10 +31,7 @@ const AppContent = () => {
       case 'clientes': return <ClientesPage />;
       case 'chamados': return <ChamadosPage />;
       case 'cargos-e-permissoes': return <CargosEPermissoesPage />;
-      
-      // <-- NOVO: Adicionar o 'case' para a nova página de Equipa
       case 'gestao-de-equipa': return <GestaoDeEquipaPage />;
-
       case 'crm': return <PlaceholderPage title="CRM" />;
       case 'atendimento': return <PlaceholderPage title="Atendimento" />;
       case 'base-conhecimento': return <PlaceholderPage title="Base de Conhecimento" />;
@@ -50,7 +47,6 @@ const AppContent = () => {
         activePage={activePage} 
         setActivePage={setActivePage}
         onOpenSettings={() => setSettingsOpen(true)}
-        // Passamos o `profile` para o MainLayout para ele saber se mostra os botões de admin
         profile={profile}
       >
         {renderActivePage()}
