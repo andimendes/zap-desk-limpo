@@ -17,7 +17,6 @@ const AppContent = () => {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
-
   }
   if (!session) {
     return <AuthPage />;
