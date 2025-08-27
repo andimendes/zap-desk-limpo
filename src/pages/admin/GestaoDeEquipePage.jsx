@@ -264,3 +264,4 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
 };
 
 export default GestaoDeEquipaPage;
+
