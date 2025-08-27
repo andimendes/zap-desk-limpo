@@ -11,7 +11,8 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, name, email, role } = await req.json();
+    // Agora aceitamos um campo 'password' opcional
+    const { userId, name, email, role, password } = await req.json();
     if (!userId || !name || !email || !role) {
       throw new Error('Faltam dados obrigatórios (userId, name, email, role).');
     }
@@ -21,12 +22,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Objeto para guardar os dados a serem atualizados
+    const updatePayload: { email: string; user_metadata: any; password?: string } = {
+      email: email,
+      user_metadata: { full_name: name, role: role }
+    };
+
+    // ✅ NOVO: Se uma senha for enviada, adiciona-a ao payload
+    if (password) {
+      if (password.length < 6) {
+        throw new Error('A senha deve ter pelo menos 6 caracteres.');
+      }
+      updatePayload.password = password;
+    }
+
     const { data: updatedUser, error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
-      {
-        email: email,
-        user_metadata: { full_name: name, role: role }
-      }
+      updatePayload
     );
 
     if (error) { throw error; }
