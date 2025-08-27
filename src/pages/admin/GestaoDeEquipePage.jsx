@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send } from 'lucide-react';
 
-// --- Componente para o Modal de Confirmação ---
+// --- Componente para o Modal de Confirmação (não muda) ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
     if (!isOpen) return null;
     return (
@@ -30,7 +30,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
     );
 };
 
-// --- Componente do Modal de Edição ---
+// --- Componente do Modal de Edição (não muda) ---
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -76,7 +76,7 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   );
 };
 
-// --- Componente Principal da Página ---
+// --- Componente Principal da Página (não muda) ---
 const GestaoDeEquipaPage = () => {
     const [team, setTeam] = useState([]);
     const [roles, setRoles] = useState([]);
@@ -213,8 +213,8 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         setIsSending(true);
         setFeedback({ type: '', message: '' });
         try {
-            // Chama a função de convite personalizado
-            const { error } = await supabase.functions.invoke('send-custom-invitation', { 
+            // ✅ CORREÇÃO: Chama a função correta 'invite-user'
+            const { error } = await supabase.functions.invoke('invite-user', { 
                 body: { email, fullName, role: selectedRole }, 
             });
             if (error) throw new Error(error.message);
