@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-// --- NOVO: Importações do React Router ---
+import React, { useState, useEffect } from 'react'; // <-- Adicionado useEffect
+// --- Importações do React Router ---
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // Importações de Contextos
@@ -13,7 +13,6 @@ import ChamadosPage from '@/pages/ChamadosPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
 import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
-// --- NOVO: Importa a nova página de confirmação ---
 import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
 
 // Importações de Componentes de Layout
@@ -22,7 +21,6 @@ import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
  * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
- * O código aqui permanece praticamente o mesmo.
  */
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
@@ -74,19 +72,33 @@ const AppContent = () => {
 
 /**
  * Componente raiz da aplicação.
- * Agora envolve a aplicação com o Router e define as rotas principais.
  */
 function App() {
+  // --- NOVO: Efeito para alterar o título e o favicon ---
+  useEffect(() => {
+    // Altera o título da aba do navegador
+    document.title = 'Zap Desk';
+
+    // Procura por um favicon existente
+    let favicon = document.querySelector("link[rel*='icon']");
+    
+    // Se não existir, cria um novo
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(favicon);
+    }
+    
+    // Define o tipo e o caminho da imagem para o novo favicon
+    favicon.type = 'image/png';
+    favicon.href = 'https://f005.backblazeb2.com/file/Zap-Contabilidade/%C3%8Dcone+-+Colorido.png';
+  }, []); // O array vazio [] garante que este efeito só é executado uma vez
+
   return (
     <AuthProvider>
-      {/* --- NOVO: BrowserRouter envolve toda a aplicação --- */}
       <BrowserRouter>
-        {/* --- NOVO: Routes gere qual componente mostrar com base no URL --- */}
         <Routes>
-          {/* Rota para a nossa nova página de confirmação */}
           <Route path="/confirmacao" element={<ConfirmacaoPage />} />
-          
-          {/* Rota "catch-all": Qualquer outro URL carrega a aplicação principal */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
