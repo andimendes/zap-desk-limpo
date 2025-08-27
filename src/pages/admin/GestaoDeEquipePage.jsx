@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send } from 'lucide-react';
 
 // --- Componente para o Modal de Confirmação (sem alterações) ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
@@ -86,6 +86,8 @@ const GestaoDeEquipaPage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    // --- NOVO: Estado para controlar o reenvio ---
+    const [resendingInvite, setResendingInvite] = useState(null); // Guarda o ID do utilizador
 
     const fetchTeamAndRoles = useCallback(async () => {
         setLoading(true);
@@ -100,27 +102,15 @@ const GestaoDeEquipaPage = () => {
 
     useEffect(() => { fetchTeamAndRoles(); }, [fetchTeamAndRoles]);
 
-    // --- MUDANÇA: Função para salvar as alterações do utilizador ---
     const handleSaveUser = async (userId, updatedData) => {
         setIsSaving(true);
-        
-        const { error } = await supabase.functions.invoke('update-user-details', {
-            body: {
-                userId: userId,
-                name: updatedData.name,
-                email: updatedData.email,
-                role: updatedData.role
-            },
-        });
-
+        const { error } = await supabase.functions.invoke('update-user-details', { body: { userId, ...updatedData } });
         if (error) {
             alert(`Erro ao atualizar utilizador: ${error.message}`);
         } else {
-            // Sucesso! Fecha o modal e recarrega a lista da equipa
             setEditingUser(null);
             fetchTeamAndRoles();
         }
-        
         setIsSaving(false);
     };
 
@@ -135,6 +125,21 @@ const GestaoDeEquipaPage = () => {
         }
         setIsDeleting(false);
         setUserToDelete(null);
+    };
+
+    // --- NOVO: Função para reenviar o convite ---
+    const handleResendInvite = async (member) => {
+        setResendingInvite(member.id);
+        const { error } = await supabase.functions.invoke('resend-invite', {
+            body: { email: member.email },
+        });
+
+        if (error) {
+            alert(`Erro ao reenviar convite: ${error.message}`);
+        } else {
+            alert('Convite reenviado com sucesso!');
+        }
+        setResendingInvite(null);
     };
 
     return (
@@ -175,8 +180,19 @@ const GestaoDeEquipaPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.status === 'Aceite' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>{member.status}</span></td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end items-center gap-4">
-                                                <button onClick={() => setEditingUser(member)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"><Pencil size={14} /></button>
-                                                <button onClick={() => setUserToDelete(member)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"><Trash2 size={14} /></button>
+                                                {/* --- MUDANÇA: Lógica para mostrar botão de reenvio --- */}
+                                                {member.status === 'Pendente' && (
+                                                    <button 
+                                                        onClick={() => handleResendInvite(member)} 
+                                                        disabled={resendingInvite === member.id}
+                                                        className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 disabled:opacity-50"
+                                                        title="Reenviar Convite"
+                                                    >
+                                                        {resendingInvite === member.id ? <LoaderCircle size={14} className="animate-spin" /> : <Send size={14} />}
+                                                    </button>
+                                                )}
+                                                <button onClick={() => setEditingUser(member)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1" title="Editar"><Pencil size={14} /></button>
+                                                <button onClick={() => setUserToDelete(member)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1" title="Apagar"><Trash2 size={14} /></button>
                                             </div>
                                         </td>
                                     </tr>
