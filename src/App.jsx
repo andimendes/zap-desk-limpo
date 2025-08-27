@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Vamos usar caminhos relativos e explícitos para garantir que o Vercel os encontre.
-// Estes dois ficheiros são os que existem com certeza no seu repositório.
-import LoginPage from './pages/LoginPage/index.jsx';
-import CargosEPermissoesPage from './pages/CargosEPermissoes/index.jsx';
+// Usando o alias '@/' para criar caminhos absolutos e mais robustos.
+// Isto resolve os problemas de o Vercel não encontrar os ficheiros.
+import LoginPage from '@/pages/LoginPage/index.jsx';
+import CargosEPermissoesPage from '@/pages/CargosEPermissoes/index.jsx';
 
 function App() {
   return (
