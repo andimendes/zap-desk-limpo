@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 
-// --- NOVO: Componente para o Modal de Confirmação ---
+// --- Componente para o Modal de Confirmação (sem alterações) ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
     if (!isOpen) return null;
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
@@ -15,25 +14,14 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
                     </div>
                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                         <h3 className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">{title}</h3>
-                        <div className="mt-2">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{children}</p>
-                        </div>
+                        <div className="mt-2"><p className="text-sm text-gray-500 dark:text-gray-400">{children}</p></div>
                     </div>
                 </div>
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
-                    <button
-                        type="button"
-                        onClick={onConfirm}
-                        disabled={isDeleting}
-                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm disabled:bg-red-400"
-                    >
+                    <button type="button" onClick={onConfirm} disabled={isDeleting} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm disabled:bg-red-400">
                         {isDeleting ? 'Apagando...' : 'Sim, Apagar'}
                     </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                    >
+                    <button type="button" onClick={onClose} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
                         Cancelar
                     </button>
                 </div>
@@ -42,28 +30,14 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
     );
 };
 
-
 // --- Componente do Modal de Edição (sem alterações) ---
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name || '');
-      setEmail(user.email || '');
-      setSelectedRole(user.role || '');
-    }
-  }, [user]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(user.id, { name, email, role: selectedRole }); 
-  };
-
+  useEffect(() => { if (user) { setName(user.name || ''); setEmail(user.email || ''); setSelectedRole(user.role || ''); } }, [user]);
+  const handleSubmit = (e) => { e.preventDefault(); onSave(user.id, { name, email, role: selectedRole }); };
   if (!user) return null;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
@@ -71,11 +45,8 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Utilizador</h3>
-              <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                <X size={20} className="text-gray-500 dark:text-gray-400" />
-              </button>
+              <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} className="text-gray-500 dark:text-gray-400" /></button>
             </div>
-            
             <div className="space-y-4 mb-6">
               <div>
                 <label htmlFor="userName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label>
@@ -86,26 +57,15 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
                 <input id="userEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Atribuir Cargo
-              </label>
-              <select 
-                value={selectedRole} 
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-              >
-                {allRoles.map((role) => (
-                  <option key={role.id} value={role.name}>{role.name}</option>
-                ))}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Atribuir Cargo</label>
+              <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                {allRoles.map((role) => (<option key={role.id} value={role.name}>{role.name}</option>))}
               </select>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">
-            <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">
-              Cancelar
-            </button>
+            <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">Cancelar</button>
             <button type="submit" disabled={isSaving} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300">
               {isSaving ? <><LoaderCircle size={16} className="animate-spin" /> Salvando...</> : <><Save size={16} /> Salvar Alterações</>}
             </button>
@@ -124,7 +84,6 @@ const GestaoDeEquipaPage = () => {
     const [isInviteModalOpen, setInviteModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    // --- NOVO: Estados para a lógica de apagar ---
     const [userToDelete, setUserToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -141,32 +100,41 @@ const GestaoDeEquipaPage = () => {
 
     useEffect(() => { fetchTeamAndRoles(); }, [fetchTeamAndRoles]);
 
+    // --- MUDANÇA: Função para salvar as alterações do utilizador ---
     const handleSaveUser = async (userId, updatedData) => {
         setIsSaving(true);
-        alert(`Funcionalidade de salvar ainda não implementada.\nUserId: ${userId}\nNovos Dados: ${JSON.stringify(updatedData)}`);
-        setIsSaving(false);
-        setEditingUser(null);
-        fetchTeamAndRoles();
-    };
-
-    // --- NOVO: Função para executar a exclusão ---
-    const executeDelete = async () => {
-        if (!userToDelete) return;
-        setIsDeleting(true);
-
-        const { error } = await supabase.functions.invoke('delete-user', {
-            body: { userId: userToDelete.id },
+        
+        const { error } = await supabase.functions.invoke('update-user-details', {
+            body: {
+                userId: userId,
+                name: updatedData.name,
+                email: updatedData.email,
+                role: updatedData.role
+            },
         });
 
         if (error) {
+            alert(`Erro ao atualizar utilizador: ${error.message}`);
+        } else {
+            // Sucesso! Fecha o modal e recarrega a lista da equipa
+            setEditingUser(null);
+            fetchTeamAndRoles();
+        }
+        
+        setIsSaving(false);
+    };
+
+    const executeDelete = async () => {
+        if (!userToDelete) return;
+        setIsDeleting(true);
+        const { error } = await supabase.functions.invoke('delete-user', { body: { userId: userToDelete.id } });
+        if (error) {
             alert(`Erro ao apagar utilizador: ${error.message}`);
         } else {
-            // Remove o utilizador da lista local para atualizar a UI instantaneamente
             setTeam(prevTeam => prevTeam.filter(member => member.id !== userToDelete.id));
         }
-
         setIsDeleting(false);
-        setUserToDelete(null); // Fecha o modal
+        setUserToDelete(null);
     };
 
     return (
@@ -206,14 +174,9 @@ const GestaoDeEquipaPage = () => {
                                         <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{member.role}</span></td>
                                         <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.status === 'Aceite' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>{member.status}</span></td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            {/* --- MUDANÇA: Adicionado botão de apagar --- */}
                                             <div className="flex justify-end items-center gap-4">
-                                                <button onClick={() => setEditingUser(member)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1">
-                                                    <Pencil size={14} />
-                                                </button>
-                                                <button onClick={() => setUserToDelete(member)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1">
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <button onClick={() => setEditingUser(member)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"><Pencil size={14} /></button>
+                                                <button onClick={() => setUserToDelete(member)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"><Trash2 size={14} /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -223,19 +186,9 @@ const GestaoDeEquipaPage = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Modais */}
             {isInviteModalOpen && <InviteUserModal roles={roles} onClose={() => setInviteModalOpen(false)} onInviteSent={fetchTeamAndRoles} />}
             {editingUser && (<EditUserModal user={editingUser} allRoles={roles} onClose={() => setEditingUser(null)} onSave={handleSaveUser} isSaving={isSaving} />)}
-            
-            {/* --- NOVO: Renderiza o modal de confirmação --- */}
-            <ConfirmationModal
-                isOpen={!!userToDelete}
-                onClose={() => setUserToDelete(null)}
-                onConfirm={executeDelete}
-                isDeleting={isDeleting}
-                title={`Apagar Utilizador "${userToDelete?.name}"`}
-            >
+            <ConfirmationModal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} onConfirm={executeDelete} isDeleting={isDeleting} title={`Apagar Utilizador "${userToDelete?.name}"`}>
                 Tem a certeza de que quer apagar este utilizador? Esta ação é irreversível e removerá permanentemente o seu acesso.
             </ConfirmationModal>
         </>
