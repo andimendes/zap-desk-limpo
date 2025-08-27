@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send } from 'lucide-react';
 
-// --- Componente para o Modal de Confirmação (sem alterações) ---
+// --- Componente para o Modal de Confirmação ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
     if (!isOpen) return null;
     return (
@@ -30,7 +30,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
     );
 };
 
-// --- Componente do Modal de Edição (sem alterações) ---
+// --- Componente do Modal de Edição ---
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -200,11 +200,11 @@ const GestaoDeEquipaPage = () => {
     );
 };
 
-// --- MUDANÇA: Componente InviteUserModal atualizado ---
+// --- Componente do Modal de Convite ---
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
-    const [fullName, setFullName] = useState(''); // Novo estado para o nome
-    const [selectedRole, setSelectedRole] = useState(roles[0]?.name || ''); // Novo estado para o cargo
+    const [fullName, setFullName] = useState('');
+    const [selectedRole, setSelectedRole] = useState(roles[0]?.name || '');
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
 
@@ -213,8 +213,8 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         setIsSending(true);
         setFeedback({ type: '', message: '' });
         try {
-            // Chama a nova função com os dados completos
-            const { error } = await supabase.functions.invoke('invite-user-custom', { 
+            // Chama a função de convite personalizado
+            const { error } = await supabase.functions.invoke('send-custom-invitation', { 
                 body: { email, fullName, role: selectedRole }, 
             });
             if (error) throw new Error(error.message);
@@ -234,7 +234,6 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
                     <div className="p-6">
                         <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Convidar Novo Utilizador</h3><button type="button" onClick={onClose}><X className="text-gray-500 dark:text-gray-400" /></button></div>
                         <div className="space-y-4">
-                            {/* Novo campo para o nome completo */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label>
                                 <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
@@ -245,7 +244,6 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label>
-                                {/* Alterado para um dropdown para selecionar um único cargo */}
                                 <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                                     {roles.map(role => (<option key={role.id} value={role.name}>{role.name}</option>))}
                                 </select>
@@ -264,4 +262,3 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
 };
 
 export default GestaoDeEquipaPage;
-
