@@ -9,9 +9,9 @@ import MainLayout from './components/layout/MainLayout';
 import PlaceholderPage from './pages/PlaceholderPage';
 import SettingsModal from './components/layout/SettingsModal';
 
-// <-- CORREÇÃO: Caminho revertido para 'admin' minúsculo, com extensão .jsx -->
-import CargosEPermissoesPage from './pages/admin/CargosEPermissoesPage.jsx';
-import GestaoDeEquipaPage from './pages/admin/GestaoDeEquipaPage.jsx';
+// <-- CORREÇÃO: Caminhos padronizados para 'admin' minúsculo e sem extensão de ficheiro -->
+import CargosEPermissoesPage from './pages/admin/CargosEPermissoesPage';
+import GestaoDeEquipaPage from './pages/admin/GestaoDeEquipaPage';
 
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
