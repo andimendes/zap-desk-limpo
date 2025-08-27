@@ -9,8 +9,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 // --- PÁGINAS ---
 // ATENÇÃO: Verifique se o ficheiro 'AuthPage.jsx' existe na pasta 'pages' e foi enviado para o GitHub.
 import AuthPage from './pages/AuthPage';
-// CORRIGIDO: O caminho para CargosEPermissoes foi ajustado para a estrutura do seu repositório.
-import CargosEPermissoesPage from './pages/CargosEPermissoes';
+// CORRIGIDO: O caminho agora aponta diretamente para o ficheiro index.jsx para evitar erros de resolução no build.
+import CargosEPermissoesPage from './pages/CargosEPermissoes/index.jsx';
 
 // --- PÁGINAS COM PROBLEMAS (NÃO ENCONTRADAS NO GITHUB) ---
 // As importações abaixo foram comentadas porque os ficheiros não foram encontrados no seu repositório.
