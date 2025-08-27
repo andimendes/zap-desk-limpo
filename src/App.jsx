@@ -10,8 +10,8 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import SettingsModal from './components/layout/SettingsModal';
 import CargosEPermissoesPage from './pages/admin/CargosEPermissoesPage';
 
-// <-- CORREÇÃO: Alterado de 'admin' para 'Admin' para corresponder ao nome da sua pasta
-import GestaoDeEquipaPage from './pages/Admin/GestaoDeEquipaPage';
+// <-- CORREÇÃO: Adicionado .jsx ao final do caminho da importação
+import GestaoDeEquipaPage from './pages/Admin/GestaoDeEquipaPage.jsx';
 
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
