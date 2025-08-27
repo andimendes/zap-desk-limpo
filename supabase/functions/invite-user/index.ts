@@ -21,11 +21,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // --- LÓGICA CORRIGIDA E OFICIAL ---
-    // Este método envia o email de convite padrão que você personalizou no painel do Supabase,
-    // garantindo que o token de confirmação seja gerado e tratado corretamente.
+    // --- AJUSTE IMPORTANTE AQUI ---
+    // Adicionamos a opção "redirectTo" para garantir que o link no e-mail de convite
+    // aponte para a sua página de confirmação, onde o usuário poderá criar a senha.
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName, role: role },
+      redirectTo: `${origin}/confirmacao`, 
     });
 
     if (error) {
