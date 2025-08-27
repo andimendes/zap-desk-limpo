@@ -2,33 +2,23 @@
 
 /**
  * Lista de domínios (origens) que têm permissão para aceder às suas funções.
- * Adicione aqui todos os domínios necessários.
  */
 const allowedOrigins = [
-  // ✅ ADICIONADO: O seu novo domínio de produção
-  'https://app.zapcontabilidade.com', 
-  
-  // Domínios anteriores e de desenvolvimento
-  'https://zap-desk-limpo.vercel.app', 
-  'http://localhost:3000',
-  'http://localhost:5173',
+  'https://app.zapcontabilidade.com', // O seu novo domínio de produção
+  'https://zap-desk-limpo.vercel.app', // Domínio antigo (pode manter)
+  'http://localhost:3000',             // Para desenvolvimento local
+  'http://localhost:5173',             // Para desenvolvimento local com Vite
 ];
 
 /**
  * Função que gera os cabeçalhos CORS de forma segura.
- * @param origin - A origem do pedido (ex: 'https://app.zapcontabilidade.com').
- * @returns Um objeto com os cabeçalhos CORS apropriados.
  */
 export function corsHeaders(origin: string) {
-  // Cabeçalhos que são sempre enviados
   const headers = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // ✅ MÉTODOS ADICIONADOS
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   };
 
-  // ✅ LÓGICA CORRIGIDA:
-  // Apenas adiciona o cabeçalho 'Access-Control-Allow-Origin' se a origem
-  // do pedido estiver na nossa lista de permissões.
   if (allowedOrigins.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
   }
