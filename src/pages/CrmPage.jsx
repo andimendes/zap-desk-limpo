@@ -1,13 +1,13 @@
 // src/pages/CrmPage.jsx
 import React from 'react';
-import CrmBoard from '../components/crm/CrmBoard';
-import Layout from '../components/layout/Layout'; // Verifique se este é o seu componente de Layout principal
+import CrmBoard from '@/components/crm/CrmBoard';
+import MainLayout from '@/components/layout/MainLayout'; // <-- CORREÇÃO AQUI
 
 const CrmPage = () => {
   return (
-    <Layout>
+    <MainLayout> {/* <-- CORREÇÃO AQUI */}
       <CrmBoard />
-    </Layout>
+    </MainLayout>
   );
 };
 
