@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 
-// O MainLayout agora recebe o 'profile' para passar para a Sidebar
-export default function MainLayout({ children, activePage, setActivePage, profile }) {
+// O MainLayout agora recebe 'profile' e 'onOpenSettings' para passar para a Sidebar
+export default function MainLayout({ children, activePage, setActivePage, profile, onOpenSettings }) {
     const [isExpanded, setIsExpanded] = useState(true);
 
     return (
@@ -13,6 +13,7 @@ export default function MainLayout({ children, activePage, setActivePage, profil
                 activePage={activePage}
                 setActivePage={setActivePage}
                 profile={profile} // Passa o perfil para a Sidebar
+                onOpenSettings={onOpenSettings} // Passa a função para abrir o modal de configurações
             />
 
             <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${isExpanded ? 'ml-64' : 'ml-20'}`}>

@@ -1,14 +1,13 @@
 import React from 'react';
 import { supabase } from '../../supabaseClient';
-// Removido o 'useAuth' pois o perfil virá por props
 import { 
   Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
-  Users, Ticket, BookOpen, DollarSign, BarChart2, MessageSquare 
+  Users, Ticket, BookOpen, DollarSign, BarChart2, MessageSquare,
+  User as UserIcon // 1. Adicionar o ícone do utilizador
 } from 'lucide-react';
 
-// O componente agora recebe 'profile' como uma propriedade
-const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded }) => {
-  // A role é lida diretamente do profile recebido
+// O componente agora recebe 'profile' e 'onOpenSettings'
+const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   const userRole = profile?.role || 'Atendente';
 
   const navItems = {
@@ -74,8 +73,18 @@ const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded
         ))}
       </nav>
 
+      {/* 2. Adicionar a secção de perfil e configurações de volta */}
       <div className="p-3 border-t">
-        <ul><SidebarItem icon={<LogOut />} text="Sair" onClick={() => supabase.auth.signOut()} /></ul>
+        <div onClick={onOpenSettings} className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors group hover:bg-gray-100 text-gray-600`}>
+          <UserIcon size={20} />
+          <div className={`overflow-hidden transition-all flex flex-col ${isExpanded ? "w-52 ml-3" : "w-0"}`}>
+            <span className="font-semibold text-sm">{profile?.full_name || 'Utilizador'}</span>
+            <span className="text-xs text-blue-500">Ver Perfil e Configurações</span>
+          </div>
+        </div>
+        <ul>
+          <SidebarItem icon={<LogOut size={20} />} text="Sair" onClick={() => supabase.auth.signOut()} />
+        </ul>
       </div>
     </aside>
   );
