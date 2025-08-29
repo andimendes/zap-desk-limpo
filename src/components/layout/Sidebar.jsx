@@ -1,17 +1,54 @@
 import React from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, Ticket, Building, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Ticket, 
+  Building, 
+  Settings, 
+  LogOut, 
+  ChevronLeft, 
+  ChevronRight,
+  Briefcase, // Ícone para CRM
+  Users, // Ícone para Clientes
+  BookOpen, // Ícone para Base de Conhecimento
+  DollarSign, // Ícone para Financeiro
+  BarChart2, // Ícone para Relatórios
+  MessageSquare // Ícone para Atendimento
+} from 'lucide-react';
 
 const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded }) => {
   const { profile } = useAuth();
   const userRole = profile?.role || 'Atendente';
+
+  // --- 1. CORREÇÃO PRINCIPAL AQUI ---
+  // Unificámos os itens de admin num único link de "Configurações"
   const navItems = {
-    Atendente: [{ id: 'dashboard', text: 'Dashboard', icon: <LayoutDashboard /> }, { id: 'chamados', text: 'Meus Chamados', icon: <Ticket /> }],
-    Gerente: [{ id: 'dashboard', text: 'Dashboard', icon: <LayoutDashboard /> }, { id: 'chamados', text: 'Todos Chamados', icon: <Ticket /> }, { id: 'clientes', text: 'Clientes', icon: <Building /> }, { id: 'configuracoes', text: 'Gerenciar Equipe', icon: <Settings /> }],
-    ADM: [{ id: 'dashboard', text: 'Dashboard', icon: <LayoutDashboard /> }, { id: 'chamados', text: 'Todos Chamados', icon: <Ticket /> }, { id: 'clientes', text: 'Clientes', icon: <Building /> }, { id: 'configuracoes', text: 'Configurações', icon: <Settings /> }]
+    MENU: [
+      { id: 'chamados', text: 'Chamados', icon: <Ticket size={20} /> },
+      { id: 'clientes', text: 'Clientes', icon: <Users size={20} /> },
+    ],
+    'FUTUROS MÓDULOS': [
+      { id: 'crm', text: 'CRM', icon: <Briefcase size={20} /> },
+      { id: 'atendimento', text: 'Atendimento', icon: <MessageSquare size={20} /> },
+      { id: 'base-conhecimento', text: 'Base de Conhecimento', icon: <BookOpen size={20} /> },
+      { id: 'financeiro', text: 'Financeiro', icon: <DollarSign size={20} /> },
+      { id: 'relatorios', text: 'Relatórios', icon: <BarChart2 size={20} /> },
+    ],
+    ADMIN: [
+      // A rota 'configuracoes' agora abre a página unificada com abas
+      { id: 'configuracoes', text: 'Configurações', icon: <Settings size={20} /> },
+    ]
   };
-  const userNavItems = navItems[userRole] || [];
+
+  // Lógica para decidir quais secções mostrar com base na role do utilizador
+  const getVisibleSections = () => {
+    if (userRole === 'ADM' || userRole === 'Gerente') {
+      return ['MENU', 'FUTUROS MÓDULOS', 'ADMIN'];
+    }
+    // Adicionar mais lógicas para outras roles se necessário
+    return ['MENU'];
+  };
   
   const SidebarItem = ({ icon, text, active, onClick }) => (
     <li onClick={onClick} className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors group ${active ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"}`}>
@@ -30,10 +67,30 @@ const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded }) => {
         </div>
         <button onClick={() => setIsExpanded(c => !c)} className="p-2 rounded-lg bg-gray-50 hover:bg-gray-100">{isExpanded ? <ChevronLeft /> : <ChevronRight />}</button>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-2">
-        <ul>{userNavItems.map(item => <SidebarItem key={item.id} {...item} active={activePage === item.id} onClick={() => setActivePage(item.id)} />)}</ul>
+      
+      <nav className="flex-1 px-3 py-4">
+        {getVisibleSections().map(sectionTitle => (
+          <div key={sectionTitle} className="mb-4">
+            <h3 className={`text-xs font-semibold text-gray-400 uppercase transition-all ${isExpanded ? 'px-3' : 'text-center'}`}>
+              {isExpanded ? sectionTitle : '•'}
+            </h3>
+            <ul>
+              {navItems[sectionTitle].map(item => (
+                <SidebarItem 
+                  key={item.id} 
+                  icon={item.icon}
+                  text={item.text} 
+                  active={activePage === item.id} 
+                  onClick={() => setActivePage(item.id)} 
+                />
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
+
       <div className="p-3 border-t">
+        {/* Aqui pode adicionar informações do utilizador se desejar */}
         <ul><SidebarItem icon={<LogOut />} text="Sair" onClick={() => supabase.auth.signOut()} /></ul>
       </div>
     </aside>
