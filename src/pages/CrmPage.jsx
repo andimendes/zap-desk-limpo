@@ -1,14 +1,11 @@
 // src/pages/CrmPage.jsx
 import React from 'react';
 import CrmBoard from '@/components/crm/CrmBoard';
-import MainLayout from '@/components/layout/MainLayout'; // <-- CORREÇÃO AQUI
 
 const CrmPage = () => {
-  return (
-    <MainLayout> {/* <-- CORREÇÃO AQUI */}
-      <CrmBoard />
-    </MainLayout>
-  );
+  // A página agora apenas renderiza o componente principal do CRM.
+  // O Layout já é fornecido pelo App.jsx, evitando a duplicação.
+  return <CrmBoard />;
 };
 
 export default CrmPage;
