@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import AddNegocioModal from './AddNegocioModal';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'; // <-- 1. IMPORTAR
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
-// Componente para um único card de negócio (agora com props para o drag and drop)
+// Componente para um único card de negócio
 const NegocioCard = ({ negocio, index }) => {
   return (
     <Draggable draggableId={negocio.id} index={index}>
@@ -31,7 +31,7 @@ const NegocioCard = ({ negocio, index }) => {
   );
 };
 
-// Componente para uma coluna (agora uma área "soltável")
+// Componente para uma coluna (etapa) do funil
 const EtapaColuna = ({ etapa, negocios }) => {
   return (
     <div className="bg-gray-100 rounded-lg p-4 w-80 flex-shrink-0">
@@ -66,40 +66,69 @@ const CrmBoard = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // <-- CORREÇÃO: Função para buscar os dados do Supabase
   const fetchData = async () => {
-    // ... (a função fetchData permanece a mesma)
+    setLoading(true);
+    try {
+      const { data: funisData, error: funisError } = await supabase
+        .from('crm_funis')
+        .select('id')
+        .limit(1);
+      if (funisError) throw funisError;
+
+      if (funisData.length > 0) {
+        const funilId = funisData[0].id;
+
+        const { data: etapasData, error: etapasError } = await supabase
+          .from('crm_etapas')
+          .select('*')
+          .eq('funil_id', funilId)
+          .order('ordem', { ascending: true });
+        if (etapasError) throw etapasError;
+        setEtapas(etapasData);
+
+        const etapaIds = etapasData.map(e => e.id);
+        const { data: negociosData, error: negociosError } = await supabase
+          .from('crm_negocios')
+          .select('*')
+          .in('etapa_id', etapaIds);
+        if (negociosError) throw negociosError;
+        setNegocios(negociosData);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar dados do CRM:", error);
+      setError("Não foi possível carregar os dados do CRM.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // <-- CORREÇÃO: useEffect para chamar a função fetchData
   useEffect(() => {
-    // ... (o useEffect permanece o mesmo)
+    fetchData();
   }, []);
 
   const handleNegocioAdicionado = (novoNegocio) => {
     setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
   };
 
-  // <-- 2. FUNÇÃO PRINCIPAL PARA O DRAG AND DROP -->
   const handleOnDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
 
-    // Se o card for solto fora de uma coluna, não faz nada
-    if (!destination) {
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
 
-    // Se o card for solto na mesma posição em que começou, não faz nada
-    if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      return;
-    }
+    const negocioMovidoOriginal = negocios.find(n => n.id === draggableId);
+    const novosNegocios = Array.from(negocios);
+    const [reorderedItem] = novosNegocios.splice(source.index, 1);
+    novosNegocios.splice(destination.index, 0, reorderedItem);
+    
+    // Atualização otimista da UI
+    setNegocios(novosNegocios.map(n => 
+      n.id === draggableId ? { ...n, etapa_id: destination.droppableId } : n
+    ));
 
-    // Atualização otimista da UI (move o card visualmente antes de confirmar no DB)
-    const negocioMovido = negocios.find(n => n.id === draggableId);
-    const novosNegocios = negocios.filter(n => n.id !== draggableId);
-    negocioMovido.etapa_id = destination.droppableId;
-    novosNegocios.splice(destination.index, 0, negocioMovido);
-    setNegocios(novosNegocios);
-
-    // Atualizar a informação no Supabase
     try {
       const { error } = await supabase
         .from('crm_negocios')
@@ -109,8 +138,8 @@ const CrmBoard = () => {
       if (error) throw error;
     } catch (error) {
       console.error("Erro ao atualizar a etapa do negócio:", error);
-      // Se der erro, reverte a UI para o estado anterior
-      fetchData(); 
+      // Reverte a UI em caso de erro
+      setNegocios(negocios); 
     }
   };
 
@@ -124,7 +153,7 @@ const CrmBoard = () => {
 
   return (
     <>
-      <DragDropContext onDragEnd={handleOnDragEnd}> {/* <-- 3. ENVOLVER COM O CONTEXTO */}
+      <DragDropContext onDragEnd={handleOnDragEnd}>
         <div className="bg-gray-50 min-h-screen p-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-800">Central de Oportunidades</h1>
