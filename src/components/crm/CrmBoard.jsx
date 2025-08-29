@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import AddNegocioModal from './AddNegocioModal';
-import FunilSettingsModal from './FunilSettingsModal'; // <-- 1. IMPORTAR O NOVO MODAL
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Settings } from 'lucide-react'; // Ícone para as configurações
 
 // Componentes NegocioCard e EtapaColuna permanecem os mesmos...
 const NegocioCard = ({ negocio, index }) => {
@@ -61,14 +59,13 @@ const EtapaColuna = ({ etapa, negocios }) => {
 
 // Componente principal do Quadro CRM
 const CrmBoard = () => {
-  const [funis, setFunis] = useState([]); // <-- 2. ESTADO PARA GUARDAR TODOS OS FUNIS
-  const [funilSelecionadoId, setFunilSelecionadoId] = useState(''); // <-- 3. ESTADO PARA O FUNIL ATUAL
+  const [funis, setFunis] = useState([]);
+  const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapas, setEtapas] = useState([]);
   const [negocios, setNegocios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [isSettingsModalOpen, setSettingsModalOpen] = useState(false); // <-- 4. ESTADO PARA O MODAL DE CONFIGURAÇÕES
 
   // Função para buscar os dados iniciais (todos os funis)
   useEffect(() => {
@@ -79,7 +76,7 @@ const CrmBoard = () => {
         if (error) throw error;
         setFunis(data);
         if (data.length > 0) {
-          setFunilSelecionadoId(data[0].id); // Seleciona o primeiro funil por padrão
+          setFunilSelecionadoId(data[0].id);
         }
       } catch (error) {
         setError("Não foi possível carregar os funis.");
@@ -97,7 +94,6 @@ const CrmBoard = () => {
     const fetchEtapasENegocios = async () => {
       setLoading(true);
       try {
-        // Buscar etapas
         const { data: etapasData, error: etapasError } = await supabase
           .from('crm_etapas')
           .select('*')
@@ -106,7 +102,6 @@ const CrmBoard = () => {
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
 
-        // Buscar negócios
         const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
           const { data: negociosData, error: negociosError } = await supabase
@@ -116,7 +111,7 @@ const CrmBoard = () => {
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
         } else {
-          setNegocios([]); // Limpa os negócios se não houver etapas
+          setNegocios([]);
         }
       } catch (error) {
         setError("Não foi possível carregar os dados do funil.");
@@ -125,7 +120,7 @@ const CrmBoard = () => {
       }
     };
     fetchEtapasENegocios();
-  }, [funilSelecionadoId]); // <-- Roda sempre que o funil selecionado muda
+  }, [funilSelecionadoId]);
 
   const handleNegocioAdicionado = (novoNegocio) => {
     setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
@@ -133,11 +128,6 @@ const CrmBoard = () => {
 
   const handleOnDragEnd = async (result) => {
     // ... (lógica do drag and drop permanece a mesma)
-  };
-  
-  const handleConfigSave = (novosFunis) => {
-    // Lógica para atualizar a lista de funis na UI
-    setFunis(novosFunis);
   };
 
   if (loading && !funis.length) {
@@ -154,7 +144,6 @@ const CrmBoard = () => {
         <div className="bg-gray-50 min-h-screen p-8">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-4">
-              {/* <-- 5. DROPDOWN PARA SELECIONAR O FUNIL --> */}
               <select
                 value={funilSelecionadoId}
                 onChange={(e) => setFunilSelecionadoId(e.target.value)}
@@ -164,9 +153,6 @@ const CrmBoard = () => {
                   <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>
                 ))}
               </select>
-              <button onClick={() => setSettingsModalOpen(true)} className="text-gray-500 hover:text-blue-600">
-                <Settings className="w-6 h-6" />
-              </button>
             </div>
             <button
               onClick={() => setAddModalOpen(true)}
@@ -183,7 +169,7 @@ const CrmBoard = () => {
                 return <EtapaColuna key={etapa.id} etapa={etapa} negocios={negociosDaEtapa} />;
               })
             ) : (
-              <p>Nenhuma etapa encontrada para este funil. Configure-o nas definições.</p>
+              <p>Nenhuma etapa encontrada para este funil. Configure-o na área de Admin.</p>
             )}
           </div>
         </div>
@@ -194,14 +180,6 @@ const CrmBoard = () => {
         onClose={() => setAddModalOpen(false)}
         etapas={etapas}
         onNegocioAdicionado={handleNegocioAdicionado}
-      />
-      
-      {/* <-- 6. RENDERIZAR O MODAL DE CONFIGURAÇÕES --> */}
-      <FunilSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
-        funis={funis}
-        onConfigSave={handleConfigSave}
       />
     </>
   );

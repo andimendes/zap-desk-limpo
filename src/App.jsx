@@ -11,10 +11,11 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthPage from '@/pages/AuthPage';
 import ClientesPage from '@/pages/ClientesPage';
 import ChamadosPage from '@/pages/ChamadosPage';
-import CrmPage from '@/pages/CrmPage'; // <-- 1. IMPORTAR A NOVA PÁGINA DO CRM
+import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
 import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
+import CrmSettingsPage from '@/pages/admin/CrmSettingsPage'; // <-- 1. IMPORTAR A NOVA PÁGINA
 import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
 import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
@@ -45,7 +46,8 @@ const AppContent = () => {
       case 'chamados': return <ChamadosPage />;
       case 'cargos-e-permissoes': return <CargosEPermissoesPage />;
       case 'gestao-de-equipa': return <GestaoDeEquipaPage />;
-      case 'crm': return <CrmPage />; // <-- 2. SUBSTITUIR O PLACEHOLDER PELA PÁGINA REAL
+      case 'crm-settings': return <CrmSettingsPage />; // <-- 2. ADICIONAR A NOVA ROTA AQUI
+      case 'crm': return <CrmPage />;
       case 'atendimento': return <PlaceholderPage title="Atendimento" />;
       case 'base-conhecimento': return <PlaceholderPage title="Base de Conhecimento" />;
       case 'financeiro': return <PlaceholderPage title="Financeiro" />;
