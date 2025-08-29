@@ -1,6 +1,7 @@
 // src/components/crm/CrmBoard.jsx
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/supabaseClient'; // <-- CORREÇÃO AQUI
+import { supabase } from '@/supabaseClient';
+import AddNegocioModal from './AddNegocioModal'; // <-- 1. IMPORTAR O NOVO MODAL
 
 // Componente para um único card de negócio
 const NegocioCard = ({ negocio }) => {
@@ -36,58 +37,58 @@ const EtapaColuna = ({ etapa, negocios }) => {
 
 // Componente principal do Quadro CRM
 const CrmBoard = () => {
-  const [funis, setFunis] = useState([]);
   const [etapas, setEtapas] = useState([]);
   const [negocios, setNegocios] = useState([]);
-  const [funilSelecionadoId, setFunilSelecionadoId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false); // <-- 2. ESTADO PARA CONTROLAR O MODAL
 
-  // Efeito para buscar todos os dados necessários do Supabase
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // 1. Buscar os funis do utilizador
-        const { data: funisData, error: funisError } = await supabase
-          .from('crm_funis')
-          .select('*');
-        if (funisError) throw funisError;
-        setFunis(funisData);
+  // Função para buscar os dados do Supabase
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Assume que temos apenas um funil por enquanto para simplificar
+      const { data: funisData, error: funisError } = await supabase
+        .from('crm_funis')
+        .select('id')
+        .limit(1);
+      if (funisError) throw funisError;
 
-        if (funisData.length > 0) {
-          // Seleciona o primeiro funil por padrão
-          const primeiroFunilId = funisData[0].id;
-          setFunilSelecionadoId(primeiroFunilId);
+      if (funisData.length > 0) {
+        const funilId = funisData[0].id;
 
-          // 2. Buscar as etapas do funil selecionado
-          const { data: etapasData, error: etapasError } = await supabase
-            .from('crm_etapas')
-            .select('*')
-            .eq('funil_id', primeiroFunilId)
-            .order('ordem', { ascending: true });
-          if (etapasError) throw etapasError;
-          setEtapas(etapasData);
+        const { data: etapasData, error: etapasError } = await supabase
+          .from('crm_etapas')
+          .select('*')
+          .eq('funil_id', funilId)
+          .order('ordem', { ascending: true });
+        if (etapasError) throw etapasError;
+        setEtapas(etapasData);
 
-          // 3. Buscar os negócios de todas as etapas desse funil
-          const etapaIds = etapasData.map(e => e.id);
-          const { data: negociosData, error: negociosError } = await supabase
-            .from('crm_negocios')
-            .select('*')
-            .in('etapa_id', etapaIds);
-          if (negociosError) throw negociosError;
-          setNegocios(negociosData);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar dados do CRM:", error);
-        setError("Não foi possível carregar os dados do CRM. Verifique a consola para mais detalhes.");
-      } finally {
-        setLoading(false);
+        const etapaIds = etapasData.map(e => e.id);
+        const { data: negociosData, error: negociosError } = await supabase
+          .from('crm_negocios')
+          .select('*')
+          .in('etapa_id', etapaIds);
+        if (negociosError) throw negociosError;
+        setNegocios(negociosData);
       }
-    };
+    } catch (error) {
+      console.error("Erro ao buscar dados do CRM:", error);
+      setError("Não foi possível carregar os dados do CRM.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
-  }, []); // O array vazio faz com que este efeito rode apenas uma vez, quando o componente é montado
+  }, []);
+
+  // <-- 3. FUNÇÃO PARA ATUALIZAR A LISTA DE NEGÓCIOS
+  const handleNegocioAdicionado = (novoNegocio) => {
+    setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
+  };
 
   if (loading) {
     return <div className="p-8 text-center text-xl">A carregar o seu pipeline...</div>;
@@ -98,20 +99,39 @@ const CrmBoard = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Central de Oportunidades</h1>
-        {/* Futuramente, aqui teremos um seletor de funis e o botão de "Adicionar Negócio" */}
+    <> {/* Usar Fragment para encapsular o board e o modal */}
+      <div className="bg-gray-50 min-h-screen p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Central de Oportunidades</h1>
+          {/* <-- 4. BOTÃO PARA ABRIR O MODAL --> */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"
+          >
+            + Adicionar Negócio
+          </button>
+        </div>
+
+        <div className="flex space-x-6 overflow-x-auto pb-4">
+          {etapas.length > 0 ? (
+            etapas.map(etapa => {
+              const negociosDaEtapa = negocios.filter(n => n.etapa_id === etapa.id);
+              return <EtapaColuna key={etapa.id} etapa={etapa} negocios={negociosDaEtapa} />;
+            })
+          ) : (
+            <p>Nenhuma etapa encontrada. Crie um funil e etapas primeiro.</p>
+          )}
+        </div>
       </div>
 
-      <div className="flex space-x-6 overflow-x-auto pb-4">
-        {etapas.map(etapa => {
-          // Filtra os negócios que pertencem a esta etapa
-          const negociosDaEtapa = negocios.filter(n => n.etapa_id === etapa.id);
-          return <EtapaColuna key={etapa.id} etapa={etapa} negocios={negociosDaEtapa} />;
-        })}
-      </div>
-    </div>
+      {/* <-- 5. RENDERIZAR O MODAL --> */}
+      <AddNegocioModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        etapas={etapas}
+        onNegocioAdicionado={handleNegocioAdicionado}
+      />
+    </>
   );
 };
 
