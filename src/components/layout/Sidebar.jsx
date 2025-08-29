@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { supabase } from '../../supabaseClient';
 import { 
   Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
@@ -8,49 +8,17 @@ import {
 
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   
-  const isUserAdminOrManager = () => {
-    if (!profile || typeof profile.role !== 'string') {
-      return false;
-    }
-    const userRole = profile.role.trim().toUpperCase();
-    return userRole === 'ADM' || userRole === 'GERENTE';
-  };
-
-  // --- DIAGNÓSTICO COMPLETO ---
-  useEffect(() => {
-    console.log("--- INÍCIO DO DIAGNÓSTICO DA SIDEBAR ---");
-    console.log("1. Objeto 'profile' recebido:", profile);
-    if (profile) {
-      console.log("2. Valor de 'profile.role':", profile.role);
-      console.log("3. Resultado da verificação (isUserAdminOrManager):", isUserAdminOrManager());
-    } else {
-      console.log("2. Perfil ainda não foi carregado.");
-    }
-    console.log("--- FIM DO DIAGNÓSTICO ---");
-  }, [profile]);
-
-
-  const navItems = {
-    MENU: [
-      { id: 'chamados', text: 'Chamados', icon: <Ticket size={20} /> },
-      { id: 'clientes', text: 'Clientes', icon: <Users size={20} /> },
-    ],
-    'FUTUROS MÓDULOS': [
-      { id: 'crm', text: 'CRM', icon: <Briefcase size={20} /> },
-      { id: 'atendimento', text: 'Atendimento', icon: <MessageSquare size={20} /> },
-      { id: 'base-conhecimento', text: 'Base de Conhecimento', icon: <BookOpen size={20} /> },
-      { id: 'financeiro', text: 'Financeiro', icon: <DollarSign size={20} /> },
-      { id: 'relatorios', text: 'Relatórios', icon: <BarChart2 size={20} /> },
-    ],
-    ADMIN: [
-      { id: 'configuracoes', text: 'Configurações', icon: <Settings size={20} /> },
-    ]
-  };
-
   const getVisibleSections = () => {
-    if (isUserAdminOrManager()) {
+    // --- DIAGNÓSTICO FINAL ---
+    console.log(`--- Verificando permissão: profile.role é '${profile?.role}' ---`);
+    
+    // Verificação direta e robusta
+    if (profile && typeof profile.role === 'string' && profile.role.trim().toUpperCase() === 'ADM') {
+      console.log("--- Permissão de ADM CONCEDIDA. Mostrando todos os menus. ---");
       return ['MENU', 'FUTUROS MÓDULOS', 'ADMIN'];
     }
+    
+    console.log("--- Permissão de ADM NEGADA. Mostrando menu padrão. ---");
     return ['MENU'];
   };
   
@@ -107,6 +75,24 @@ const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded
       </div>
     </aside>
   );
+};
+
+// Itens de navegação definidos fora para clareza
+const navItems = {
+  MENU: [
+    { id: 'chamados', text: 'Chamados', icon: <Ticket size={20} /> },
+    { id: 'clientes', text: 'Clientes', icon: <Users size={20} /> },
+  ],
+  'FUTUROS MÓDULOS': [
+    { id: 'crm', text: 'CRM', icon: <Briefcase size={20} /> },
+    { id: 'atendimento', text: 'Atendimento', icon: <MessageSquare size={20} /> },
+    { id: 'base-conhecimento', text: 'Base de Conhecimento', icon: <BookOpen size={20} /> },
+    { id: 'financeiro', text: 'Financeiro', icon: <DollarSign size={20} /> },
+    { id: 'relatorios', text: 'Relatórios', icon: <BarChart2 size={20} /> },
+  ],
+  ADMIN: [
+    { id: 'configuracoes', text: 'Configurações', icon: <Settings size={20} /> },
+  ]
 };
 
 export default Sidebar;
