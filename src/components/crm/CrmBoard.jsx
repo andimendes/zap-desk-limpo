@@ -1,6 +1,6 @@
-// src/components/CrmBoard.jsx
+// src/components/crm/CrmBoard.jsx
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Verifique o caminho para o seu cliente supabase
+import { supabase } from '@/supabaseClient'; // <-- CORREÇÃO AQUI
 
 // Componente para um único card de negócio
 const NegocioCard = ({ negocio }) => {
