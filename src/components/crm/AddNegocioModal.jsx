@@ -4,7 +4,7 @@ import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 const AddNegocioModal = ({ isOpen, onClose, etapas, onNegocioAdicionado }) => {
-  const { user } = useAuth();
+  const { session } = useAuth(); // <-- 1. CORREÇÃO: Obter o objeto 'session'
   const [titulo, setTitulo] = useState('');
   const [valor, setValor] = useState('');
   const [nomeContato, setNomeContato] = useState('');
@@ -17,6 +17,12 @@ const AddNegocioModal = ({ isOpen, onClose, etapas, onNegocioAdicionado }) => {
     e.preventDefault();
     if (!titulo || !etapaId) {
       setError('O título e a etapa são obrigatórios.');
+      return;
+    }
+    
+    // Verificação de segurança para garantir que o utilizador está logado
+    if (!session?.user?.id) {
+      setError('Sessão de utilizador inválida. Por favor, faça login novamente.');
       return;
     }
 
@@ -32,7 +38,7 @@ const AddNegocioModal = ({ isOpen, onClose, etapas, onNegocioAdicionado }) => {
           nome_contato: nomeContato,
           empresa_contato: empresaContato,
           etapa_id: etapaId,
-          user_id: user.id,
+          user_id: session.user.id, // <-- 2. CORREÇÃO: Usar session.user.id
         })
         .select()
         .single();
@@ -43,7 +49,7 @@ const AddNegocioModal = ({ isOpen, onClose, etapas, onNegocioAdicionado }) => {
       handleClose();
     } catch (error) {
       console.error('Erro ao adicionar negócio:', error);
-      setError('Não foi possível adicionar o negócio. Tente novamente.');
+      setError('Não foi possível adicionar o negócio. Verifique as permissões da base de dados (RLS).');
     } finally {
       setLoading(false);
     }
