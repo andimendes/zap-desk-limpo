@@ -3,12 +3,30 @@ import { supabase } from '../../supabaseClient';
 import { 
   Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
   Users, Ticket, BookOpen, DollarSign, BarChart2, MessageSquare,
-  User as UserIcon // 1. Adicionar o ícone do utilizador
+  User as UserIcon
 } from 'lucide-react';
 
-// O componente agora recebe 'profile' e 'onOpenSettings'
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
-  const userRole = profile?.role || 'Atendente';
+  
+  // --- CORREÇÃO PRINCIPAL AQUI ---
+  // Função robusta para verificar se o utilizador é Admin ou Gerente
+  const isUserAdminOrManager = () => {
+    if (!profile) return false;
+
+    // Cenário 1: A propriedade é 'roles' (um array de strings)
+    if (Array.isArray(profile.roles)) {
+      const lowerCaseRoles = profile.roles.map(r => r.toLowerCase());
+      return lowerCaseRoles.includes('adm') || lowerCaseRoles.includes('gerente');
+    }
+
+    // Cenário 2: A propriedade é 'role' (uma única string)
+    if (typeof profile.role === 'string') {
+      const lowerCaseRole = profile.role.toLowerCase();
+      return lowerCaseRole === 'adm' || lowerCaseRole === 'gerente';
+    }
+
+    return false;
+  };
 
   const navItems = {
     MENU: [
@@ -28,7 +46,7 @@ const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded
   };
 
   const getVisibleSections = () => {
-    if (userRole === 'ADM' || userRole === 'Gerente') {
+    if (isUserAdminOrManager()) {
       return ['MENU', 'FUTUROS MÓDULOS', 'ADMIN'];
     }
     return ['MENU'];
@@ -73,7 +91,6 @@ const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded
         ))}
       </nav>
 
-      {/* 2. Adicionar a secção de perfil e configurações de volta */}
       <div className="p-3 border-t">
         <div onClick={onOpenSettings} className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors group hover:bg-gray-100 text-gray-600`}>
           <UserIcon size={20} />
