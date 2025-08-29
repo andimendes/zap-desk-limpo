@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // Importar useEffect
 import { supabase } from '../../supabaseClient';
 import { 
   Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
@@ -8,23 +8,23 @@ import {
 
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   
-  // --- CORREÇÃO PRINCIPAL AQUI ---
-  // Função robusta para verificar se o utilizador é Admin ou Gerente
+  // --- PASSO DE DEPURAÇÃO ---
+  // Esta linha irá mostrar-nos os dados do seu perfil na consola do navegador.
+  useEffect(() => {
+    console.log("Perfil recebido na Sidebar:", profile);
+  }, [profile]);
+
+
   const isUserAdminOrManager = () => {
     if (!profile) return false;
-
-    // Cenário 1: A propriedade é 'roles' (um array de strings)
     if (Array.isArray(profile.roles)) {
       const lowerCaseRoles = profile.roles.map(r => r.toLowerCase());
       return lowerCaseRoles.includes('adm') || lowerCaseRoles.includes('gerente');
     }
-
-    // Cenário 2: A propriedade é 'role' (uma única string)
     if (typeof profile.role === 'string') {
       const lowerCaseRole = profile.role.toLowerCase();
       return lowerCaseRole === 'adm' || lowerCaseRole === 'gerente';
     }
-
     return false;
   };
 
