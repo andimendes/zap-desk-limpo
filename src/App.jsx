@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-// --- Importações do React Router ---
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-
-// Importações de Contextos
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
@@ -13,9 +9,7 @@ import ClientesPage from '@/pages/ClientesPage';
 import ChamadosPage from '@/pages/ChamadosPage';
 import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
-import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
-import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
-import CrmSettingsPage from '@/pages/admin/CrmSettingsPage'; // <-- 1. IMPORTAR A NOVA PÁGINA
+import AdminPage from '@/pages/admin/AdminPage'; // <-- 1. IMPORTAR A PÁGINA UNIFICADA
 import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
 import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
@@ -23,9 +17,6 @@ import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 import MainLayout from '@/components/layout/MainLayout';
 import SettingsModal from '@/components/layout/SettingsModal';
 
-/**
- * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
- */
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
   const [activePage, setActivePage] = useState('chamados');
@@ -39,14 +30,11 @@ const AppContent = () => {
     return <AuthPage />;
   }
 
-  // Função que decide qual página renderizar com base no estado 'activePage'
   const renderActivePage = () => {
     switch (activePage) {
       case 'clientes': return <ClientesPage />;
       case 'chamados': return <ChamadosPage />;
-      case 'cargos-e-permissoes': return <CargosEPermissoesPage />;
-      case 'gestao-de-equipa': return <GestaoDeEquipaPage />;
-      case 'crm-settings': return <CrmSettingsPage />; // <-- 2. ADICIONAR A NOVA ROTA AQUI
+      case 'configuracoes': return <AdminPage />; // <-- 2. ROTA UNIFICADA
       case 'crm': return <CrmPage />;
       case 'atendimento': return <PlaceholderPage title="Atendimento" />;
       case 'base-conhecimento': return <PlaceholderPage title="Base de Conhecimento" />;
@@ -76,11 +64,7 @@ const AppContent = () => {
   );
 };
 
-/**
- * Componente raiz da aplicação.
- */
 function App() {
-  // Efeito para alterar o título e o favicon da página
   useEffect(() => {
     document.title = 'Zap Desk';
     let favicon = document.querySelector("link[rel*='icon']");
@@ -97,12 +81,8 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rotas Públicas (acessíveis sem login) */}
           <Route path="/confirmacao" element={<ConfirmacaoPage />} />
           <Route path="/update-password" element={<UpdatePasswordPage />} />
-          
-          {/* Rota "Curinga" que renderiza o AppContent. 
-              O AppContent decide se mostra a página de login ou o layout principal. */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
