@@ -9,61 +9,56 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    const fetchUserAndProfile = async () => {
       try {
-        // 1. Obter a sessão
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        // 1. Obter a sessão atual do utilizador
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         setSession(currentSession);
 
-        if (currentSession?.user) {
-          // 2. Obter o perfil básico (sabemos que isto funciona!)
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-          if (!profileData) {
-              setProfile(null);
-              return;
-          }
-
-          // 3. Obter os cargos (a nova forma, mais robusta)
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('roles (name)') // Pedimos o nome do cargo através da tabela 'roles'
-            .eq('user_id', currentSession.user.id);
-
-          if (rolesError) throw rolesError;
-          
-          // 4. Combinar tudo
-          const finalProfile = {
-            ...profileData,
-            roles: rolesData ? rolesData.map(item => item.roles.name) : []
-          };
-          
-          setProfile(finalProfile);
-
-        } else {
-            setProfile(null);
+        // Se não houver sessão, não há perfil para buscar
+        if (!currentSession?.user) {
+          setProfile(null);
+          return;
         }
+
+        // 2. Buscar o perfil e a função (role) numa única consulta
+        // Esta é a correção principal. Pedimos todos os dados de 'profiles'
+        // e especificamente a coluna 'role'.
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*') // Seleciona todas as colunas da tabela profiles
+          .eq('id', currentSession.user.id)
+          .single();
+
+        if (profileError) {
+          // Se o perfil não for encontrado, não é um erro crítico, apenas define como nulo
+          console.warn('Perfil não encontrado para o utilizador:', profileError.message);
+          setProfile(null);
+        } else {
+          setProfile(profileData);
+        }
+
       } catch (error) {
-        console.error("AuthContext Error:", error);
+        console.error("Erro no AuthContext:", error.message);
         setProfile(null);
+        setSession(null);
       } finally {
         setLoading(false);
       }
     };
     
-    initializeAuth();
+    // Executa a função quando o componente é montado
+    fetchUserAndProfile();
 
-    // Reativamos o listener para que o login/logout funcione em tempo real
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-        // Apenas recarregamos tudo para garantir consistência
-        initializeAuth();
+    // Fica a "ouvir" por mudanças no estado de autenticação (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Quando há uma mudança, busca novamente os dados do perfil
+      setSession(session);
+      fetchUserAndProfile();
     });
 
+    // Limpa a subscrição quando o componente é desmontado
     return () => subscription.unsubscribe();
   }, []);
 
