@@ -22,12 +22,14 @@ const NavLink = ({ icon, children, active, onClick }) => (
 export default function MainLayout({ children, activePage, setActivePage, onOpenSettings }) {
     const { profile } = useAuth();
 
+    // --- PASSO DE DEPURAÇÃO ---
+    // Esta linha irá mostrar-nos os dados do seu perfil na consola do navegador.
+    console.log("Perfil recebido no MainLayout:", profile);
+
     const handleLogout = async () => {
         await supabase.auth.signOut();
     };
 
-    // --- CORREÇÃO FINAL AQUI ---
-    // Função robusta para verificar se o utilizador é Admin
     const isUserAdmin = () => {
         if (profile && typeof profile.role === 'string') {
             return profile.role.trim().toUpperCase() === 'ADM';
@@ -50,7 +52,6 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
                     <NavLink icon={<MessageSquare size={20} />} active={activePage === 'chamados'} onClick={() => setActivePage('chamados')}>Chamados</NavLink>
                     <NavLink icon={<Users size={20} />} active={activePage === 'clientes'} onClick={() => setActivePage('clientes')}>Clientes</NavLink>
                     
-                    {/* Mostra os futuros módulos apenas para o Admin */}
                     {isUserAdmin() && (
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold">Futuros Módulos</p>
@@ -64,7 +65,6 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
                 </nav>
 
                 <div className="mt-auto">
-                    {/* Mostra a secção Admin apenas para o Admin */}
                     {isUserAdmin() && (
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold">Admin</p>
