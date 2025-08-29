@@ -8,19 +8,27 @@ import {
 
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   
-  // --- CORREÇÃO DEFINITIVA ---
-  // Função robusta que verifica a função do utilizador, ignorando espaços e maiúsculas/minúsculas.
   const isUserAdminOrManager = () => {
-    // 1. Garante que o perfil e a propriedade 'role' existem.
     if (!profile || typeof profile.role !== 'string') {
       return false;
     }
-    // 2. Remove espaços em branco do início e do fim, e converte para maiúsculas.
     const userRole = profile.role.trim().toUpperCase();
-    
-    // 3. Compara com os valores esperados.
     return userRole === 'ADM' || userRole === 'GERENTE';
   };
+
+  // --- DIAGNÓSTICO COMPLETO ---
+  useEffect(() => {
+    console.log("--- INÍCIO DO DIAGNÓSTICO DA SIDEBAR ---");
+    console.log("1. Objeto 'profile' recebido:", profile);
+    if (profile) {
+      console.log("2. Valor de 'profile.role':", profile.role);
+      console.log("3. Resultado da verificação (isUserAdminOrManager):", isUserAdminOrManager());
+    } else {
+      console.log("2. Perfil ainda não foi carregado.");
+    }
+    console.log("--- FIM DO DIAGNÓSTICO ---");
+  }, [profile]);
+
 
   const navItems = {
     MENU: [
