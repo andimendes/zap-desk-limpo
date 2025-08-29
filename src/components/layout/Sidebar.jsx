@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // Importar useEffect
+import React, { useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { 
   Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
@@ -8,24 +8,18 @@ import {
 
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   
-  // --- PASSO DE DEPURAÇÃO ---
-  // Esta linha irá mostrar-nos os dados do seu perfil na consola do navegador.
-  useEffect(() => {
-    console.log("Perfil recebido na Sidebar:", profile);
-  }, [profile]);
-
-
+  // --- CORREÇÃO DEFINITIVA ---
+  // Função robusta que verifica a função do utilizador, ignorando espaços e maiúsculas/minúsculas.
   const isUserAdminOrManager = () => {
-    if (!profile) return false;
-    if (Array.isArray(profile.roles)) {
-      const lowerCaseRoles = profile.roles.map(r => r.toLowerCase());
-      return lowerCaseRoles.includes('adm') || lowerCaseRoles.includes('gerente');
+    // 1. Garante que o perfil e a propriedade 'role' existem.
+    if (!profile || typeof profile.role !== 'string') {
+      return false;
     }
-    if (typeof profile.role === 'string') {
-      const lowerCaseRole = profile.role.toLowerCase();
-      return lowerCaseRole === 'adm' || lowerCaseRole === 'gerente';
-    }
-    return false;
+    // 2. Remove espaços em branco do início e do fim, e converte para maiúsculas.
+    const userRole = profile.role.trim().toUpperCase();
+    
+    // 3. Compara com os valores esperados.
+    return userRole === 'ADM' || userRole === 'GERENTE';
   };
 
   const navItems = {
@@ -54,7 +48,7 @@ const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded
   
   const SidebarItem = ({ icon, text, active, onClick }) => (
     <li onClick={onClick} className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors group ${active ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"}`}>
-      {icon}
+      <span className="flex-shrink-0">{icon}</span>
       <span className={`overflow-hidden transition-all ${isExpanded ? "w-52 ml-3" : "w-0"}`}>{text}</span>
       {!isExpanded && <div className={`absolute left-full rounded-md px-2 py-1 ml-6 bg-gray-800 text-white text-sm invisible opacity-20 -translate-x-3 transition-all group-hover:visible group-hover:opacity-100 group-hover:translate-x-0`}>{text}</div>}
     </li>
