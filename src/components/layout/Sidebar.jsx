@@ -1,28 +1,16 @@
 import React from 'react';
 import { supabase } from '../../supabaseClient';
-import { useAuth } from '../../contexts/AuthContext';
+// Removido o 'useAuth' pois o perfil virá por props
 import { 
-  LayoutDashboard, 
-  Ticket, 
-  Building, 
-  Settings, 
-  LogOut, 
-  ChevronLeft, 
-  ChevronRight,
-  Briefcase, // Ícone para CRM
-  Users, // Ícone para Clientes
-  BookOpen, // Ícone para Base de Conhecimento
-  DollarSign, // Ícone para Financeiro
-  BarChart2, // Ícone para Relatórios
-  MessageSquare // Ícone para Atendimento
+  Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, 
+  Users, Ticket, BookOpen, DollarSign, BarChart2, MessageSquare 
 } from 'lucide-react';
 
-const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded }) => {
-  const { profile } = useAuth();
+// O componente agora recebe 'profile' como uma propriedade
+const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded }) => {
+  // A role é lida diretamente do profile recebido
   const userRole = profile?.role || 'Atendente';
 
-  // --- 1. CORREÇÃO PRINCIPAL AQUI ---
-  // Unificámos os itens de admin num único link de "Configurações"
   const navItems = {
     MENU: [
       { id: 'chamados', text: 'Chamados', icon: <Ticket size={20} /> },
@@ -36,17 +24,14 @@ const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded }) => {
       { id: 'relatorios', text: 'Relatórios', icon: <BarChart2 size={20} /> },
     ],
     ADMIN: [
-      // A rota 'configuracoes' agora abre a página unificada com abas
       { id: 'configuracoes', text: 'Configurações', icon: <Settings size={20} /> },
     ]
   };
 
-  // Lógica para decidir quais secções mostrar com base na role do utilizador
   const getVisibleSections = () => {
     if (userRole === 'ADM' || userRole === 'Gerente') {
       return ['MENU', 'FUTUROS MÓDULOS', 'ADMIN'];
     }
-    // Adicionar mais lógicas para outras roles se necessário
     return ['MENU'];
   };
   
@@ -90,7 +75,6 @@ const Sidebar = ({ activePage, setActivePage, isExpanded, setIsExpanded }) => {
       </nav>
 
       <div className="p-3 border-t">
-        {/* Aqui pode adicionar informações do utilizador se desejar */}
         <ul><SidebarItem icon={<LogOut />} text="Sair" onClick={() => supabase.auth.signOut()} /></ul>
       </div>
     </aside>
