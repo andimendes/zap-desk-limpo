@@ -1,25 +1,33 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom'; // 1. IMPORTAR hooks do router
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import Can from '../../contexts/Can'; // 1. IMPORTAR o nosso novo componente porteiro
+import Can from '../../contexts/Can';
 import { 
     MessageSquare, Users, Target, PhoneForwarded, BookOpen, 
     DollarSign, BarChart2, User as UserIcon, LogOut,
     Shield
 } from 'lucide-react';
 
-const NavLink = ({ icon, children, active, onClick }) => (
-    <button onClick={onClick} className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-        active 
-        ? 'bg-blue-600 text-white shadow-inner' 
-        : 'text-gray-300 hover:bg-blue-800 hover:text-white dark:text-gray-400 dark:hover:bg-gray-700'
-    }`}>
-        {icon}
-        <span className="ml-3">{children}</span>
-    </button>
-);
+// 2. O NavLink agora usa <Link> em vez de <button>
+const NavLink = ({ icon, children, to }) => {
+    const location = useLocation();
+    const isActive = location.pathname === to;
 
-export default function MainLayout({ children, activePage, setActivePage, onOpenSettings }) {
+    return (
+        <Link to={to} className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+            isActive 
+            ? 'bg-blue-600 text-white shadow-inner' 
+            : 'text-gray-300 hover:bg-blue-800 hover:text-white dark:text-gray-400 dark:hover:bg-gray-700'
+        }`}>
+            {icon}
+            <span className="ml-3">{children}</span>
+        </Link>
+    );
+};
+
+// 3. O MainLayout não precisa mais de 'activePage' ou 'setActivePage'
+export default function MainLayout({ children, onOpenSettings }) {
     const { profile } = useAuth();
 
     const handleLogout = async () => {
@@ -38,38 +46,24 @@ export default function MainLayout({ children, activePage, setActivePage, onOpen
                 </div>
                 <nav className="flex-1 space-y-2">
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Menu</p>
-                    <NavLink icon={<MessageSquare size={20} />} active={activePage === 'chamados'} onClick={() => setActivePage('chamados')}>Chamados</NavLink>
-                    <NavLink icon={<Users size={20} />} active={activePage === 'clientes'} onClick={() => setActivePage('clientes')}>Clientes</NavLink>
+                    {/* 4. Usamos a prop 'to' para definir o URL de destino */}
+                    <NavLink icon={<MessageSquare size={20} />} to="/chamados">Chamados</NavLink>
+                    <NavLink icon={<Users size={20} />} to="/clientes">Clientes</NavLink>
                     
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Futuros Módulos</p>
-                    <NavLink icon={<Target size={20} />} active={activePage === 'crm'} onClick={() => setActivePage('crm')}>CRM</NavLink>
-                    <NavLink icon={<PhoneForwarded size={20} />} active={activePage === 'atendimento'} onClick={() => setActivePage('atendimento')}>Atendimento</NavLink>
-                    <NavLink icon={<BookOpen size={20} />} active={activePage === 'base-conhecimento'} onClick={() => setActivePage('base-conhecimento')}>Base de Conhecimento</NavLink>
-                    <NavLink icon={<DollarSign size={20} />} active={activePage === 'financeiro'} onClick={() => setActivePage('financeiro')}>Financeiro</NavLink>
-                    <NavLink icon={<BarChart2 size={20} />} active={activePage === 'relatorios'} onClick={() => setActivePage('relatorios')}>Relatórios</NavLink>
+                    <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink>
+                    <NavLink icon={<PhoneForwarded size={20} />} to="/atendimento">Atendimento</NavLink>
+                    <NavLink icon={<BookOpen size={20} />} to="/base-conhecimento">Base de Conhecimento</NavLink>
+                    <NavLink icon={<DollarSign size={20} />} to="/financeiro">Financeiro</NavLink>
+                    <NavLink icon={<BarChart2 size={20} />} to="/relatorios">Relatórios</NavLink>
                 </nav>
 
                 <div className="mt-auto">
-                    {/* 2. A MÁGICA ACONTECE AQUI! */}
-                    {/* Envolvemos toda a secção de admin com o componente <Can>.
-                        Ele vai tratar de mostrar ou esconder este bloco inteiro. */}
                     <Can>
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Admin</p>
-                            <NavLink 
-                                icon={<Shield size={20} />} 
-                                active={activePage === 'cargos-e-permissoes'} 
-                                onClick={() => setActivePage('cargos-e-permissoes')}
-                            >
-                                Cargos e Permissões
-                            </NavLink>
-                            <NavLink 
-                                icon={<Users size={20} />} 
-                                active={activePage === 'gestao-de-equipa'} 
-                                onClick={() => setActivePage('gestao-de-equipa')}
-                            >
-                                Equipe
-                            </NavLink>
+                            <NavLink icon={<Shield size={20} />} to="/cargos-e-permissoes">Cargos e Permissões</NavLink>
+                            <NavLink icon={<Users size={20} />} to="/gestao-de-equipa">Equipe</NavLink>
                         </>
                     </Can>
                     

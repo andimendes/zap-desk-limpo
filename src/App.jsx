@@ -1,4 +1,4 @@
-import React, 'react';
+import React from 'react';
 
 // --- Importações do React Router ---
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -24,11 +24,11 @@ import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
  * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
- * CORREÇÃO: Removemos o estado 'activePage' daqui e vamos usar as rotas do React Router.
  */
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
-  const [isSettingsOpen, React.useState(false)];
+  // CORREÇÃO: A declaração do useState estava incorreta.
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
@@ -73,7 +73,6 @@ const AppContent = () => {
 
 /**
  * Componente raiz da aplicação.
- * CORREÇÃO: Ajustado para usar o sistema de rotas de forma mais eficiente.
  */
 function App() {
   React.useEffect(() => {
