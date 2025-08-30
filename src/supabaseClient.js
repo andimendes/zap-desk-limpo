@@ -7,8 +7,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 // Cria e exporta o cliente do Supabase para ser usado em outros lugares do app
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// --- NOVO CÓDIGO ADICIONADO ABAIXO ---
-
 /**
  * Atualiza o status de um negócio para 'Ganho'.
  * @param {number} negocioId O ID do negócio a ser atualizado.
@@ -17,8 +15,7 @@ export async function marcarNegocioComoGanho(negocioId) {
   const { data, error } = await supabase
     .from('crm_negocios')
     .update({ status: 'Ganho' })
-    .eq('id', negocioId)
-    .select() // Adicionar .select() é uma boa prática para retornar o registo atualizado
+    .eq('id', negocioId);
 
   return { data, error };
 }
@@ -32,8 +29,8 @@ export async function marcarNegocioComoPerdido(negocioId, motivo) {
   const { data, error } = await supabase
     .from('crm_negocios')
     .update({ status: 'Perdido', motivo_perda: motivo })
-    .eq('id', negocioId)
-    .select() // Retorna o registo atualizado
+    .eq('id', negocioId);
 
   return { data, error };
 }
+
