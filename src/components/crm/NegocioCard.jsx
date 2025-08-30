@@ -1,7 +1,6 @@
 import React from 'react';
-import { Draggable } from '@hello-pangea/dnd'; // ATUALIZADO: Usando a nova biblioteca
+import { Draggable } from '@hello-pangea/dnd'; // -> Biblioteca atualizada
 
-// onCardClick vem do CrmBoard.jsx
 const NegocioCard = ({ negocio, index, onCardClick }) => {
   return (
     <Draggable draggableId={String(negocio.id)} index={index}>
@@ -10,7 +9,7 @@ const NegocioCard = ({ negocio, index, onCardClick }) => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onClick={() => onCardClick(negocio)} // -> Ação de clique aqui
+          onClick={() => onCardClick(negocio)}
           className={`bg-white dark:bg-gray-800 p-4 mb-4 rounded-lg shadow-md border-l-4 border-blue-500 cursor-pointer ${
             snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-400' : ''
           }`}
