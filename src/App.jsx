@@ -1,25 +1,26 @@
 import React from 'react';
-
-// --- Importações do React Router ---
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Importações de Contextos
+// Contextos
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-// Importações de Páginas
+// Páginas Públicas
 import AuthPage from '@/pages/AuthPage';
-import ClientesPage from '@/pages/ClientesPage';
-import ChamadosPage from '@/pages/ChamadosPage';
-import CrmPage from '@/pages/CrmPage';
-import PlaceholderPage from '@/pages/PlaceholderPage';
-import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
-import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
 import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
 import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
-// Importações de Componentes de Layout
-import MainLayout from '@/components/layout/MainLayout';
+// Páginas Principais
+import ChamadosPage from '@/pages/ChamadosPage';
+import ClientesPage from '@/pages/ClientesPage';
+import CrmPage from '@/pages/CrmPage';
+import PlaceholderPage from '@/pages/PlaceholderPage';
+
+// --- 1. IMPORTAR A PÁGINA ADMIN ---
+import AdminPage from '@/pages/admin/AdminPage'; 
+
+// Layouts
+import MainLayout from '@/components/layout/MainLayoutCorrigido';
 import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
@@ -27,15 +28,20 @@ import SettingsModal from '@/components/layout/SettingsModal';
  */
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
-  // CORREÇÃO: A declaração do useState estava incorreta.
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
   }
 
+  // Se não houver sessão, o utilizador é redirecionado para a página de autenticação
   if (!session) {
-    return <AuthPage />;
+    // Usamos um componente Navigate dentro de uma rota para lidar com o redirecionamento
+    return (
+        <Routes>
+            <Route path="*" element={<AuthPage />} />
+        </Routes>
+    );
   }
   
   return (
@@ -46,9 +52,10 @@ const AppContent = () => {
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
           
-          {/* Rotas de Administração */}
-          <Route path="/cargos-e-permissoes" element={<CargosEPermissoesPage />} />
-          <Route path="/gestao-de-equipa" element={<GestaoDeEquipaPage />} />
+          {/* --- 2. ESTA É A ROTA QUE FALTAVA --- */}
+          {/* Qualquer URL que comece com /admin/ será renderizado pela AdminPage.
+              O '*' (wildcard) permite que as rotas internas do AdminPanel funcionem. */}
+          <Route path="/admin/*" element={<AdminPage />} />
 
           {/* Rotas Futuras */}
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
@@ -70,7 +77,6 @@ const AppContent = () => {
   );
 };
 
-
 /**
  * Componente raiz da aplicação.
  */
@@ -91,11 +97,12 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rotas Públicas (acessíveis sem login) */}
+          {/* Rotas Públicas */}
+          <Route path="/login" element={<AuthPage />} />
           <Route path="/confirmacao" element={<ConfirmacaoPage />} />
           <Route path="/update-password" element={<UpdatePasswordPage />} />
           
-          {/* Rota "Curinga" que renderiza o AppContent. */}
+          {/* Rota "Curinga" que renderiza o AppContent */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
