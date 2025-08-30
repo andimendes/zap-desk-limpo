@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/supabaseClient';
-import AddNegocioModal from './AddNegocioModal';
-import NegocioDetalhesModal from './NegocioDetalhesModal';
+// Corrigido: Caminho relativo mais explícito para o Supabase Client
+import { supabase } from '../../supabaseClient.js'; 
+// Corrigido: Adicionados sufixos .jsx para maior clareza
+import AddNegocioModal from './AddNegocioModal.jsx';
+import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
+import NegocioCard from './NegocioCard.jsx';
+// Importa a biblioteca que foi instalada
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import NegocioCard from './NegocioCard';
 
 // Componente Interno para a Coluna da Etapa
 const EtapaColuna = ({ etapa, negocios, onCardClick }) => {
@@ -49,13 +52,11 @@ const CrmBoard = () => {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   
-  // Correção para o erro "Invariant failed" da biblioteca DND
   const [winReady, setWinReady] = useState(false);
   useEffect(() => {
     setWinReady(true);
   }, []);
 
-  // Efeito para carregar os funis
   useEffect(() => {
     const fetchFunis = async () => {
       setError(null);
@@ -66,20 +67,18 @@ const CrmBoard = () => {
         if (data && data.length > 0) {
           setFunilSelecionadoId(data[0].id);
         } else {
-          setLoading(false); // Nenhum funil encontrado
+          setLoading(false);
         }
       } catch (err) {
-        setError("Não foi possível carregar os funis. Verifique se existem funis criados.");
+        setError("Não foi possível carregar os funis.");
         setLoading(false);
       }
     };
     fetchFunis();
   }, []);
 
-  // Efeito para carregar etapas e negócios do funil selecionado
   useEffect(() => {
     if (!funilSelecionadoId) return;
-
     const fetchEtapasENegocios = async () => {
       setLoading(true);
       setError(null);
@@ -98,7 +97,7 @@ const CrmBoard = () => {
             .from('crm_negocios')
             .select('*')
             .in('etapa_id', etapaIds)
-            .eq('status', 'Ativo'); // Carrega apenas negócios ativos
+            .eq('status', 'Ativo');
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
         } else {
@@ -113,37 +112,37 @@ const CrmBoard = () => {
     fetchEtapasENegocios();
   }, [funilSelecionadoId]);
   
-  // Lógica para arrastar e soltar
   const handleOnDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+    const { source, destination, draggableId } = result;
+
+    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) {
       return;
     }
-
-    const negocioOriginal = negocios.find(n => String(n.id) === draggableId);
-    if (!negocioOriginal) return;
     
-    // Atualização otimista da UI
-    const novosNegocios = Array.from(negocios);
-    const [negocioMovido] = novosNegocios.splice(source.index, 1);
-    negocioMovido.etapa_id = parseInt(destination.droppableId);
-    novosNegocios.splice(destination.index, 0, negocioMovido);
-    setNegocios(novosNegocios);
+    const estadoOriginal = [...negocios];
+    const negocioMovido = estadoOriginal.find(n => n.id.toString() === draggableId);
+    if (!negocioMovido) return;
 
-    // Atualização no banco de dados
+    const itemsRestantes = estadoOriginal.filter(n => n.id.toString() !== draggableId);
+    itemsRestantes.splice(destination.index, 0, { ...negocioMovido, etapa_id: parseInt(destination.droppableId) });
+    setNegocios(itemsRestantes);
+
     const { error } = await supabase
       .from('crm_negocios')
-      .update({ etapa_id: destination.droppableId })
-      .eq('id', draggableId);
+      .update({ etapa_id: parseInt(destination.droppableId) })
+      .eq('id', parseInt(draggableId));
 
     if (error) {
-      setError("Erro ao atualizar o negócio. A alteração foi revertida.");
-      setNegocios(negocios.map(n => n.id === negocioOriginal.id ? negocioOriginal : n)); // Reverte
+      setError("Erro ao mover o card. A alteração foi desfeita.");
+      setNegocios(estadoOriginal);
     }
   };
 
   const handleNegocioAdicionado = (novo) => setNegocios(current => [...current, novo]);
-  const handleNegocioUpdate = (id) => setNegocios(current => current.filter(n => n.id !== id));
+  const handleNegocioUpdate = (id) => {
+      setNegocios(current => current.filter(n => n.id !== id));
+      setNegocioSelecionado(null);
+  };
 
   if (loading && funis.length === 0) {
     return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
@@ -171,7 +170,12 @@ const CrmBoard = () => {
             <div className="flex space-x-6 overflow-x-auto pb-4">
               {!loading && etapas.length > 0 ? (
                 etapas.map(etapa => (
-                  <EtapaColuna key={etapa.id} etapa={etapa} negocios={negocios.filter(n => String(n.etapa_id) === String(etapa.id))} onCardClick={setNegocioSelecionado} />
+                  <EtapaColuna 
+                    key={etapa.id} 
+                    etapa={etapa} 
+                    negocios={negocios.filter(n => String(n.etapa_id) === String(etapa.id))} 
+                    onCardClick={setNegocioSelecionado} 
+                  />
                 ))
               ) : (!loading && <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada. Configure na área de Admin.</p>)}
               {loading && <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
