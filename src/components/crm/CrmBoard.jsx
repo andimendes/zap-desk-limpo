@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Revertido para o alias @/, que é o padrão no seu projeto.
-import { supabase } from '@/supabaseClient'; 
+import { supabase } from '@/supabaseClient';
 import AddNegocioModal from './AddNegocioModal';
+import NegocioDetalhesModal from './NegocioDetalhesModal';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import NegocioCard from './NegocioCard';
 
-const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
+// Componente da Coluna (Etapa)
+const EtapaColuna = ({ etapa, negocios, onCardClick }) => {
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0">
       <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
@@ -26,7 +27,7 @@ const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
                 key={negocio.id} 
                 negocio={negocio} 
                 index={index}
-                onNegocioUpdate={onNegocioUpdate}
+                onCardClick={onCardClick}
               />
             ))}
             {provided.placeholder}
@@ -37,6 +38,7 @@ const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
   );
 };
 
+// Componente Principal do Quadro CRM
 const CrmBoard = () => {
   const [funis, setFunis] = useState([]);
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
@@ -44,7 +46,9 @@ const CrmBoard = () => {
   const [negocios, setNegocios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
   const [isAddModalOpen, setAddModalOpen] = useState(false);
+  const [negocioSelecionado, setNegocioSelecionado] = useState(null);
 
   useEffect(() => {
     const fetchFunis = async () => {
@@ -59,8 +63,7 @@ const CrmBoard = () => {
           setLoading(false);
         }
       } catch (error) {
-        console.error("Erro ao carregar funis:", error);
-        setError(`Não foi possível carregar os funis: ${error.message}`);
+        setError("Não foi possível carregar os funis. Verifique se existem funis criados.");
         setLoading(false);
       }
     };
@@ -69,21 +72,19 @@ const CrmBoard = () => {
 
   useEffect(() => {
     if (!funilSelecionadoId) return;
-
     const fetchEtapasENegocios = async () => {
       setLoading(true);
       setError(null);
       try {
         const { data: etapasData, error: etapasError } = await supabase
           .from('crm_etapas')
-          .select('*') // Mudei para buscar a etapa completa
+          .select('*')
           .eq('funil_id', funilSelecionadoId)
           .order('ordem', { ascending: true });
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
 
-        const etapaIds = etapasData.map(e => e.id).filter(id => id);
-
+        const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
           const { data: negociosData, error: negociosError } = await supabase
             .from('crm_negocios')
@@ -96,8 +97,7 @@ const CrmBoard = () => {
           setNegocios([]);
         }
       } catch (error) {
-        console.error("Erro ao carregar dados do funil:", error);
-        setError(`Não foi possível carregar os dados do funil: ${error.message}`);
+        setError("Não foi possível carregar os dados do funil: " + error.message);
       } finally {
         setLoading(false);
       }
@@ -105,43 +105,45 @@ const CrmBoard = () => {
     fetchEtapasENegocios();
   }, [funilSelecionadoId]);
 
-  const handleNegocioAdicionado = (novoNegocio) => {
-    setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
+  const handleCardClick = (negocio) => {
+    setNegocioSelecionado(negocio);
+  };
+  
+  const handleNegocioUpdate = (negocioIdParaRemover) => {
+    setNegocios(current => current.filter(n => n.id !== negocioIdParaRemover));
+    setNegocioSelecionado(null);
   };
 
-  const handleNegocioUpdate = (negocioIdParaRemover) => {
-    setNegocios(currentNegocios => 
-      currentNegocios.filter(negocio => negocio.id !== negocioIdParaRemover)
-    );
+  const handleNegocioAdicionado = (novoNegocio) => {
+    setNegocios(current => [...current, novoNegocio]);
   };
 
   const handleOnDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+    const { source, destination, draggableId } = result;
+
     if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
-    // Atualização otimista
-    const novosNegocios = Array.from(negocios);
-    const [reorderedItem] = novosNegocios.splice(source.index, 1);
-    reorderedItem.etapa_id = parseInt(destination.droppableId);
-    novosNegocios.splice(destination.index, 0, reorderedItem);
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
     
-    setNegocios(novosNegocios);
-
+    const originalNegocios = [...negocios];
+    
+    const updatedNegocios = negocios.map(n => {
+        if(n.id.toString() === draggableId) {
+            return { ...n, etapa_id: parseInt(destination.droppableId) };
+        }
+        return n;
+    });
+    setNegocios(updatedNegocios);
+    
     const { error } = await supabase
-      .from('crm_negocios')
-      .update({ etapa_id: destination.droppableId })
-      .eq('id', draggableId);
+        .from('crm_negocios')
+        .update({ etapa_id: parseInt(destination.droppableId) })
+        .eq('id', parseInt(draggableId));
 
     if (error) {
-      setError("Erro ao atualizar o negócio. A alteração foi revertida.");
-      setNegocios(negocios); // Reverte se der erro
+        setError("Erro ao mover o negócio. A alteração foi revertida.");
+        setNegocios(originalNegocios);
     }
   };
-
-  if (loading && !funis.length) {
-    return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
-  }
 
   return (
     <>
@@ -174,13 +176,15 @@ const CrmBoard = () => {
           <div className="flex space-x-6 overflow-x-auto pb-4">
             {!loading && etapas.length > 0 ? (
               etapas.map(etapa => {
-                const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
-                return <EtapaColuna 
-                          key={etapa.id} 
-                          etapa={etapa} 
-                          negocios={negociosDaEtapa} 
-                          onNegocioUpdate={handleNegocioUpdate}
-                       />;
+                const negociosDaEtapa = negocios.filter(n => n.etapa_id.toString() === etapa.id.toString());
+                return (
+                  <EtapaColuna 
+                    key={etapa.id} 
+                    etapa={etapa} 
+                    negocios={negociosDaEtapa}
+                    onCardClick={handleCardClick}
+                  />
+                );
               })
             ) : (
               !loading && <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil. Configure-o na área de Admin.</p>
@@ -190,12 +194,21 @@ const CrmBoard = () => {
         </div>
       </DragDropContext>
 
-      {etapas.length > 0 && <AddNegocioModal
+      {isAddModalOpen && <AddNegocioModal
         isOpen={isAddModalOpen}
         onClose={() => setAddModalOpen(false)}
         etapas={etapas}
         onNegocioAdicionado={handleNegocioAdicionado}
-      />}
+       />}
+
+      {negocioSelecionado && (
+        <NegocioDetalhesModal 
+          negocio={negocioSelecionado}
+          isOpen={!!negocioSelecionado}
+          onClose={() => setNegocioSelecionado(null)}
+          onNegocioUpdate={handleNegocioUpdate}
+        />
+      )}
     </>
   );
 };
