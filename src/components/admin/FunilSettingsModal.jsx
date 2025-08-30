@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext'; // 1. IMPORTAR o useAuth
 import { Trash2, PlusCircle, Loader2 } from 'lucide-react';
 
 const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) => {
+  const { profile } = useAuth(); // 2. OBTER o perfil do utilizador logado
   const [funis, setFunis] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -25,7 +26,12 @@ const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) =>
   };
 
   const addFunil = () => {
-    setFunis([...funis, { nome_funil: '', crm_etapas: [] }]);
+    // 3. CORREÇÃO: Adicionar o user_id ao criar um novo funil
+    if (profile?.id) {
+      setFunis([...funis, { nome_funil: '', user_id: profile.id, crm_etapas: [] }]);
+    } else {
+      alert("Não foi possível identificar o utilizador. Por favor, recarregue a página.");
+    }
   };
 
   const addEtapa = (funilIndex) => {
@@ -121,4 +127,3 @@ const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) =>
 };
 
 export default FunilSettingsModal;
-
