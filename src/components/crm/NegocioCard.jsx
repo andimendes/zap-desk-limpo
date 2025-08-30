@@ -1,78 +1,9 @@
 import React, { useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
-// CORREÇÃO: O caminho foi ajustado para usar o alias do projeto ('@/'), conforme o padrão de outros ficheiros.
-import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '@/supabaseClient.js';
-
-// --- Estilos para o componente (pode mover para um ficheiro CSS) ---
-
-const cardStyles = {
-  userSelect: 'none',
-  padding: '16px',
-  margin: '0 0 8px 0',
-  minHeight: '50px',
-  backgroundColor: '#fff',
-  color: '#4d4d4d',
-  borderRadius: '8px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const cardFooterStyles = {
-  display: 'flex',
-  justifyContent: 'flex-end',
-  gap: '8px',
-  marginTop: '16px',
-  borderTop: '1px solid #eee',
-  paddingTop: '8px',
-};
-
-const buttonStyles = {
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  fontWeight: 'bold',
-  color: 'white',
-};
-
-const winButtonStyles = { ...buttonStyles, backgroundColor: '#28a745' };
-const loseButtonStyles = { ...buttonStyles, backgroundColor: '#dc3545' };
-
-// --- Estilos para o Modal (pode criar um componente de Modal reutilizável) ---
-
-const modalOverlayStyles = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  zIndex: 1000,
-};
-
-const modalContentStyles = {
-  backgroundColor: 'white',
-  padding: '24px',
-  borderRadius: '8px',
-  width: '90%',
-  maxWidth: '500px',
-  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-};
-
-const modalButtonContainerStyles = {
-  display: 'flex',
-  justifyContent: 'flex-end',
-  gap: '10px',
-  marginTop: '20px',
-};
+// CORREÇÃO: O caminho foi ajustado para ser relativo, o que é mais seguro.
+import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '../../supabaseClient';
 
 // --- Componente Principal ---
-
-// onNegocioUpdate é a função que virá do CrmBoard.jsx para atualizar a UI
 function NegocioCard({ negocio, index, onNegocioUpdate }) {
   const [isLostModalOpen, setIsLostModalOpen] = useState(false);
   const [motivoPerda, setMotivoPerda] = useState('');
@@ -80,16 +11,14 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
 
   // Função para lidar com o clique em "Ganhou"
   const handleGanhouClick = async () => {
-    // Usamos um confirm simples por agora, mas pode ser substituído por um modal mais elegante
     if (window.confirm(`Tem a certeza que quer marcar o negócio "${negocio.titulo}" como GANHO?`)) {
       const { error } = await marcarNegocioComoGanho(negocio.id);
       if (error) {
-        // Usamos console.error para logs de erro, que é uma prática melhor
         console.error('Erro ao marcar negócio como ganho:', error);
         alert('Erro ao marcar negócio como ganho: ' + error.message);
       } else {
         alert('Negócio marcado como ganho com sucesso!');
-        onNegocioUpdate(negocio.id); // Avisa o CrmBoard para remover o card da vista
+        onNegocioUpdate(negocio.id);
       }
     }
   };
@@ -109,10 +38,9 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
       alert('Erro ao marcar negócio como perdido: ' + error.message);
     } else {
       alert('Negócio marcado como perdido.');
-      onNegocioUpdate(negocio.id); // Avisa o CrmBoard para remover o card
+      onNegocioUpdate(negocio.id);
     }
 
-    // Limpeza após submissão
     setIsSubmitting(false);
     setIsLostModalOpen(false);
     setMotivoPerda('');
@@ -126,19 +54,23 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            style={{
-              ...cardStyles,
-              backgroundColor: snapshot.isDragging ? '#e6f7ff' : '#fff',
-              ...provided.draggableProps.style,
-            }}
+            className={`bg-white dark:bg-gray-800 p-4 mb-4 rounded-lg shadow-md border-l-4 border-blue-500 ${
+              snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-400' : ''
+            }`}
           >
-            <h4 style={{ margin: '0 0 8px 0' }}>{negocio.titulo}</h4>
-            <p style={{ margin: 0, fontSize: '14px' }}>{negocio.empresa_contato || 'Empresa não informada'}</p>
-            {/* Pode adicionar mais detalhes do negócio aqui */}
+            <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa_contato}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300 mt-2">{negocio.nome_contato}</p>
+            <div className="mt-3 text-right">
+              <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}
+              </span>
+            </div>
             
-            <div style={cardFooterStyles}>
-              <button onClick={handleGanhouClick} style={winButtonStyles}>Ganhou</button>
-              <button onClick={() => setIsLostModalOpen(true)} style={loseButtonStyles}>Perdeu</button>
+            {/* --- Botões de Ação --- */}
+            <div className="flex justify-end gap-2 mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <button onClick={handleGanhouClick} className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-3 rounded-lg transition-colors">Ganhou</button>
+              <button onClick={() => setIsLostModalOpen(true)} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-3 rounded-lg transition-colors">Perdeu</button>
             </div>
           </div>
         )}
@@ -146,22 +78,22 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
 
       {/* --- Modal para Motivo da Perda --- */}
       {isLostModalOpen && (
-        <div style={modalOverlayStyles}>
-          <div style={modalContentStyles}>
-            <h3>Perdeu o Negócio "{negocio.titulo}"?</h3>
-            <p>Descreva o motivo da perda. Esta informação é importante para futuras estratégias.</p>
-            <form onSubmit={handleSubmitPerda}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Perdeu o Negócio "{negocio.titulo}"?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Descreva o motivo da perda. Esta informação é importante para futuras estratégias.</p>
+            <form onSubmit={handleSubmitPerda} className="mt-4">
               <textarea
                 value={motivoPerda}
                 onChange={(e) => setMotivoPerda(e.target.value)}
                 placeholder="Ex: Preço muito alto, concorrência ofereceu mais vantagens, etc."
                 rows="4"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
                 required
               />
-              <div style={modalButtonContainerStyles}>
-                <button type="button" onClick={() => setIsLostModalOpen(false)} style={{...buttonStyles, backgroundColor: '#6c757d'}}>Cancelar</button>
-                <button type="submit" disabled={isSubmitting} style={{...buttonStyles, backgroundColor: '#007bff'}}>
+              <div className="flex justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setIsLostModalOpen(false)} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
+                <button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-blue-400">
                   {isSubmitting ? 'A Guardar...' : 'Confirmar Perda'}
                 </button>
               </div>

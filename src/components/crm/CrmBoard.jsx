@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Adicionada a extensão .js para resolver o caminho do ficheiro.
-import { supabase } from '@/supabaseClient.js';
-// CORREÇÃO: Adicionada a extensão .jsx para resolver o caminho do ficheiro.
-import AddNegocioModal from './AddNegocioModal.jsx';
-// CORREÇÃO: Adicionada a extensão .jsx para resolver o caminho do ficheiro.
-import NegocioCard from './NegocioCard.jsx';
-// CORREÇÃO: Importado de um CDN para resolver o problema de dependência.
-import { DragDropContext, Droppable } from 'https://esm.sh/react-beautiful-dnd@13.1.1';
+// CORREÇÃO: Alterado o caminho do Supabase para um caminho relativo, que é mais robusto.
+import { supabase } from '../../supabaseClient'; 
+import AddNegocioModal from './AddNegocioModal';
+import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import NegocioCard from './NegocioCard'; // Importa o componente externo
+
+// A definição antiga do NegocioCard que existia aqui foi REMOVIDA para evitar conflitos.
 
 const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
   return (
@@ -25,12 +24,11 @@ const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
             }`}
           >
             {negocios.map((negocio, index) => (
-              // Usando o novo componente NegocioCard e passando a prop necessária
               <NegocioCard 
                 key={negocio.id} 
                 negocio={negocio} 
-                index={index} 
-                onNegocioUpdate={onNegocioUpdate}
+                index={index}
+                onNegocioUpdate={onNegocioUpdate} // Passa a função para o card
               />
             ))}
             {provided.placeholder}
@@ -87,13 +85,11 @@ const CrmBoard = () => {
 
         const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
-          // MELHORIA: A query agora só busca negócios com status 'Ativo'
           const { data: negociosData, error: negociosError } = await supabase
             .from('crm_negocios')
             .select('*')
             .in('etapa_id', etapaIds)
-            .eq('status', 'Ativo'); // <-- Só busca negócios que não foram ganhos ou perdidos
-
+            .eq('status', 'Ativo'); // Filtra para mostrar apenas negócios ativos
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
         } else {
@@ -112,9 +108,9 @@ const CrmBoard = () => {
     setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
   };
 
-  // NOVA FUNÇÃO: Remove o card da UI após ser ganho/perdido
+  // Função para remover o card da UI após ganhar/perder
   const handleNegocioUpdate = (negocioIdParaRemover) => {
-    setNegocios(currentNegocios =>
+    setNegocios(currentNegocios => 
       currentNegocios.filter(negocio => negocio.id !== negocioIdParaRemover)
     );
   };
@@ -124,26 +120,23 @@ const CrmBoard = () => {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    const newNegocios = Array.from(negocios);
-    const negocioArrastado = newNegocios.find(n => String(n.id) === draggableId);
+    const negocioMovido = negocios.find(n => String(n.id) === draggableId);
     
-    if (negocioArrastado) {
-      // Optimistic update
-      const originalEtapaId = negocioArrastado.etapa_id;
-      negocioArrastado.etapa_id = destination.droppableId;
-      setNegocios(newNegocios);
+    // Atualização otimista da UI
+    const novosNegocios = negocios.map(n => 
+      String(n.id) === draggableId ? { ...n, etapa_id: parseInt(destination.droppableId) } : n
+    );
+    setNegocios(novosNegocios);
 
-      const { error } = await supabase
-        .from('crm_negocios')
-        .update({ etapa_id: destination.droppableId })
-        .eq('id', draggableId);
+    const { error } = await supabase
+      .from('crm_negocios')
+      .update({ etapa_id: destination.droppableId })
+      .eq('id', draggableId);
 
-      if (error) {
-        setError("Erro ao atualizar o negócio. A alteração foi revertida.");
-        // Reverte a alteração no estado em caso de erro
-        negocioArrastado.etapa_id = originalEtapaId;
-        setNegocios(Array.from(negocios));
-      }
+    if (error) {
+      setError("Erro ao atualizar o negócio. A alteração foi revertida.");
+      // Reverte a alteração no estado em caso de erro
+      setNegocios(negocios);
     }
   };
 
@@ -184,11 +177,11 @@ const CrmBoard = () => {
               etapas.map(etapa => {
                 const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
                 return <EtapaColuna 
-                  key={etapa.id} 
-                  etapa={etapa} 
-                  negocios={negociosDaEtapa} 
-                  onNegocioUpdate={handleNegocioUpdate}
-                />;
+                          key={etapa.id} 
+                          etapa={etapa} 
+                          negocios={negociosDaEtapa} 
+                          onNegocioUpdate={handleNegocioUpdate}
+                       />;
               })
             ) : (
               !loading && <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil. Configure-o na área de Admin.</p>
