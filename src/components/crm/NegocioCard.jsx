@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-// CORREÇÃO: Importado de um CDN para resolver o problema de dependência.
-import { Draggable } from 'https://esm.sh/react-beautiful-dnd@13.1.1';
-// CORREÇÃO: O caminho foi ajustado para um caminho relativo para garantir que o ficheiro é encontrado.
-import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '../../supabaseClient.js';
+import { Draggable } from 'react-beautiful-dnd';
+// CORREÇÃO: O caminho foi ajustado para usar o alias do projeto ('@/'), conforme o padrão de outros ficheiros.
+import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '@/supabaseClient.js';
 
 // --- Estilos para o componente (pode mover para um ficheiro CSS) ---
 
