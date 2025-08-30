@@ -1,57 +1,69 @@
-// src/components/admin/AdminPanel.jsx
-import React, { useState } from 'react';
-import CrmSettings from './CrmSettings.jsx';
-// Futuramente, importaremos os outros componentes de admin aqui
-// import GestaoDeEquipa from './GestaoDeEquipa';
-// import CargosEPermissoes from './CargosEPermissoes';
+import React from 'react';
+import { NavLink as RouterNavLink, Routes, Route, Navigate } from 'react-router-dom';
+import { Settings, Users, Shield, Target } from 'lucide-react';
 
+// Importa as páginas de configurações que você já criou
+import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
+import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
+import CrmSettingsPage from '@/pages/admin/CrmSettingsPage';
+
+// --- ESTA É A CORREÇÃO ---
+// O NavLink interno do painel de administração.
+// A lógica `className` foi ajustada para ser mais simples e eficaz.
+const AdminNavLink = ({ to, icon, children }) => (
+    <RouterNavLink
+        to={to}
+        end // A propriedade 'end' garante que o link só fica ativo se o URL for exato
+        className={({ isActive }) =>
+            `flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 transition-all hover:bg-gray-100/80 dark:text-gray-400 dark:hover:bg-gray-800/80 ${
+                isActive ? 'bg-gray-100 font-bold text-gray-900 dark:bg-gray-800 dark:text-gray-50' : ''
+            }`
+        }
+    >
+        {icon}
+        {children}
+    </RouterNavLink>
+);
+
+/**
+ * O componente principal do Painel de Administração.
+ */
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState('crm');
-
-  const tabs = [
-    { id: 'crm', label: 'CRM' },
-    { id: 'equipa', label: 'Gestão de Equipa' },
-    { id: 'permissoes', label: 'Cargos e Permissões' },
-  ];
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'crm':
-        return <CrmSettings />;
-      case 'equipa':
-        // return <GestaoDeEquipa />;
-        return <p className="mt-6">Componente de Gestão de Equipa virá aqui.</p>;
-      case 'permissoes':
-        // return <CargosEPermissoes />;
-        return <p className="mt-6">Componente de Cargos e Permissões virá aqui.</p>;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Configurações Gerais</h1>
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-      <div>{renderContent()}</div>
-    </div>
-  );
+    return (
+        <div className="grid h-full w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <aside className="hidden border-r bg-gray-50/70 dark:bg-gray-900/50 md:block">
+                <div className="flex h-full max-h-screen flex-col gap-2">
+                    <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                        <span className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
+                            <Settings className="h-6 w-6" />
+                            <span>Configurações</span>
+                        </span>
+                    </div>
+                    <nav className="flex-1 overflow-auto py-4 px-2 text-sm font-medium lg:px-4">
+                        {/* As rotas aqui estão corretas, não precisam de alteração */}
+                        <AdminNavLink to="/admin/equipa" icon={<Users className="h-4 w-4" />}>
+                            Equipe
+                        </AdminNavLink>
+                        <AdminNavLink to="/admin/cargos" icon={<Shield className="h-4 w-4" />}>
+                            Cargos e Permissões
+                        </AdminNavLink>
+                        <AdminNavLink to="/admin/crm" icon={<Target className="h-4 w-4" />}>
+                            CRM
+                        </AdminNavLink>
+                    </nav>
+                </div>
+            </aside>
+            <main className="flex flex-col p-4 sm:py-4 sm:pl-14 lg:p-6">
+                <Routes>
+                    <Route path="equipa" element={<GestaoDeEquipaPage />} />
+                    <Route path="cargos" element={<CargosEPermissoesPage />} />
+                    <Route path="crm" element={<CrmSettingsPage />} />
+                    {/* A rota de redirecionamento está correta */}
+                    <Route path="*" element={<Navigate to="equipa" replace />} />
+                </Routes>
+            </main>
+        </div>
+    );
 };
 
 export default AdminPanel;
