@@ -124,13 +124,15 @@ const CrmBoard = () => {
     if (!negocioMovido) return;
 
     const itemsRestantes = estadoOriginal.filter(n => n.id.toString() !== draggableId);
-    itemsRestantes.splice(destination.index, 0, { ...negocioMovido, etapa_id: parseInt(destination.droppableId) });
+    // Corrigido: Não converter IDs para inteiros. Tratar como texto (UUIDs).
+    itemsRestantes.splice(destination.index, 0, { ...negocioMovido, etapa_id: destination.droppableId });
     setNegocios(itemsRestantes);
 
     const { error } = await supabase
       .from('crm_negocios')
-      .update({ etapa_id: parseInt(destination.droppableId) })
-      .eq('id', parseInt(draggableId));
+       // Corrigido: Não converter IDs para inteiros.
+      .update({ etapa_id: destination.droppableId })
+      .eq('id', draggableId);
 
     if (error) {
       setError("Erro ao mover o card. A alteração foi desfeita.");
