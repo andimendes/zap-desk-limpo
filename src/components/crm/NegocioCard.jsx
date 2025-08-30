@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 // CORREÇÃO: Importado de um CDN para resolver o problema de dependência.
 import { Draggable } from 'https://esm.sh/react-beautiful-dnd@13.1.1';
-// CORREÇÃO: Adicionada a extensão .js para resolver o caminho do ficheiro.
-import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from './supabaseClient.js';
+// CORREÇÃO: O caminho foi ajustado para um caminho relativo para garantir que o ficheiro é encontrado.
+import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '../../supabaseClient.js';
 
 // --- Estilos para o componente (pode mover para um ficheiro CSS) ---
 
@@ -82,7 +82,7 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
   // Função para lidar com o clique em "Ganhou"
   const handleGanhouClick = async () => {
     // Usamos um confirm simples por agora, mas pode ser substituído por um modal mais elegante
-    if (window.confirm(`Tem a certeza que quer marcar o negócio "${negocio.nome}" como GANHO?`)) {
+    if (window.confirm(`Tem a certeza que quer marcar o negócio "${negocio.titulo}" como GANHO?`)) {
       const { error } = await marcarNegocioComoGanho(negocio.id);
       if (error) {
         // Usamos console.error para logs de erro, que é uma prática melhor
@@ -133,8 +133,8 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
               ...provided.draggableProps.style,
             }}
           >
-            <h4 style={{ margin: '0 0 8px 0' }}>{negocio.nome}</h4>
-            <p style={{ margin: 0, fontSize: '14px' }}>{negocio.empresa_nome || 'Empresa não informada'}</p>
+            <h4 style={{ margin: '0 0 8px 0' }}>{negocio.titulo}</h4>
+            <p style={{ margin: 0, fontSize: '14px' }}>{negocio.empresa_contato || 'Empresa não informada'}</p>
             {/* Pode adicionar mais detalhes do negócio aqui */}
             
             <div style={cardFooterStyles}>
@@ -149,7 +149,7 @@ function NegocioCard({ negocio, index, onNegocioUpdate }) {
       {isLostModalOpen && (
         <div style={modalOverlayStyles}>
           <div style={modalContentStyles}>
-            <h3>Perdeu o Negócio "{negocio.nome}"?</h3>
+            <h3>Perdeu o Negócio "{negocio.titulo}"?</h3>
             <p>Descreva o motivo da perda. Esta informação é importante para futuras estratégias.</p>
             <form onSubmit={handleSubmitPerda}>
               <textarea
