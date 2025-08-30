@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext'; // 1. IMPORTAR o useAuth
 import { Loader2, AlertTriangle, Edit } from 'lucide-react';
 import FunilSettingsModal from '@/components/admin/FunilSettingsModal';
 
 const CrmSettingsPage = () => {
+  const { profile } = useAuth(); // 2. OBTER o perfil do utilizador logado
   const [funis, setFunis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,7 +17,7 @@ const CrmSettingsPage = () => {
     try {
       const { data, error } = await supabase
         .from('crm_funis')
-        .select(`id, nome_funil, crm_etapas (id, nome_etapa, ordem)`)
+        .select(`id, nome_funil, user_id, crm_etapas (id, nome_etapa, ordem)`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -37,7 +39,13 @@ const CrmSettingsPage = () => {
 
   const handleSave = async (funisEditados) => {
     setError('');
+    if (!profile?.id) {
+        setError("Sessão inválida. Por favor, recarregue a página.");
+        return;
+    }
+
     try {
+      // Lógica para apagar funis removidos
       const originalFunisIds = funis.map(f => f.id);
       const editadosFunisIds = funisEditados.filter(f => f.id).map(f => f.id);
       const funisParaApagar = originalFunisIds.filter(id => !editadosFunisIds.includes(id));
@@ -48,12 +56,19 @@ const CrmSettingsPage = () => {
       }
       
       for (const funil of funisEditados) {
-        const { crm_etapas, ...funilData } = funil;
-        const { data: savedFunil, error: funilError } = await supabase.from('crm_funis').upsert(funilData).select().single();
+        // 3. CORREÇÃO: Garante que o user_id está presente antes de salvar
+        const funilDataParaSalvar = {
+            id: funil.id,
+            nome_funil: funil.nome_funil,
+            user_id: funil.user_id || profile.id // Usa o user_id existente ou o do perfil atual
+        };
+        
+        const { data: savedFunil, error: funilError } = await supabase.from('crm_funis').upsert(funilDataParaSalvar).select().single();
         if (funilError) throw new Error(`Erro ao salvar funil "${funil.nome_funil}": ${funilError.message}`);
 
+        // Lógica para apagar etapas removidas
         const originalEtapasIds = funis.find(f => f.id === savedFunil.id)?.crm_etapas.map(e => e.id) || [];
-        const editadasEtapasIds = crm_etapas.filter(e => e.id).map(e => e.id);
+        const editadasEtapasIds = funil.crm_etapas.filter(e => e.id).map(e => e.id);
         const etapasParaApagar = originalEtapasIds.filter(id => !editadasEtapasIds.includes(id));
 
         if (etapasParaApagar.length > 0) {
@@ -61,8 +76,9 @@ const CrmSettingsPage = () => {
             if(deleteEtapaError) throw new Error(`Erro ao apagar etapas: ${deleteEtapaError.message}`);
         }
 
-        if (crm_etapas.length > 0) {
-            const etapasParaSalvar = crm_etapas.map((etapa, index) => ({
+        // Lógica para salvar etapas
+        if (funil.crm_etapas.length > 0) {
+            const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => ({
                 ...etapa,
                 funil_id: savedFunil.id,
                 ordem: index + 1,
@@ -72,7 +88,7 @@ const CrmSettingsPage = () => {
         }
       }
 
-      await fetchFunisComEtapas(); // Recarrega os dados
+      await fetchFunisComEtapas();
     } catch (err) {
       setError(err.message);
     }
