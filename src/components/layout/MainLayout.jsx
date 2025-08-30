@@ -1,18 +1,19 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom'; // 1. IMPORTAR hooks do router
+import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Can from '../../contexts/Can';
 import { 
     MessageSquare, Users, Target, PhoneForwarded, BookOpen, 
     DollarSign, BarChart2, User as UserIcon, LogOut,
-    Shield
+    Settings // Ícone de configurações
 } from 'lucide-react';
 
-// 2. O NavLink agora usa <Link> em vez de <button>
 const NavLink = ({ icon, children, to }) => {
     const location = useLocation();
-    const isActive = location.pathname === to;
+    // A rota está ativa se o URL começar com o 'to' do link.
+    // Ex: /admin/equipa começa com /admin, então o link "Painel Admin" fica ativo.
+    const isActive = location.pathname.startsWith(to);
 
     return (
         <Link to={to} className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
@@ -26,7 +27,6 @@ const NavLink = ({ icon, children, to }) => {
     );
 };
 
-// 3. O MainLayout não precisa mais de 'activePage' ou 'setActivePage'
 export default function MainLayout({ children, onOpenSettings }) {
     const { profile } = useAuth();
 
@@ -46,7 +46,6 @@ export default function MainLayout({ children, onOpenSettings }) {
                 </div>
                 <nav className="flex-1 space-y-2">
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Menu</p>
-                    {/* 4. Usamos a prop 'to' para definir o URL de destino */}
                     <NavLink icon={<MessageSquare size={20} />} to="/chamados">Chamados</NavLink>
                     <NavLink icon={<Users size={20} />} to="/clientes">Clientes</NavLink>
                     
@@ -62,8 +61,12 @@ export default function MainLayout({ children, onOpenSettings }) {
                     <Can>
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Admin</p>
-                            <NavLink icon={<Shield size={20} />} to="/cargos-e-permissoes">Cargos e Permissões</NavLink>
-                            <NavLink icon={<Users size={20} />} to="/gestao-de-equipa">Equipe</NavLink>
+                            {/* --- ESTA É A CORREÇÃO --- */}
+                            {/* Substituímos os dois links antigos por um único link 
+                                para o nosso novo painel de administração. */}
+                            <NavLink icon={<Settings size={20} />} to="/admin/equipa">
+                                Painel Admin
+                            </NavLink>
                         </>
                     </Can>
                     
