@@ -12,7 +12,6 @@ import {
 const NavLink = ({ icon, children, to }) => {
     const location = useLocation();
     // A rota está ativa se o URL começar com o 'to' do link.
-    // Ex: /admin/equipa começa com /admin, então o link "Painel Admin" fica ativo.
     const isActive = location.pathname.startsWith(to);
 
     return (
@@ -61,9 +60,6 @@ export default function MainLayout({ children, onOpenSettings }) {
                     <Can>
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Admin</p>
-                            {/* --- ESTA É A CORREÇÃO --- */}
-                            {/* Substituímos os dois links antigos por um único link 
-                                para o nosso novo painel de administração. */}
                             <NavLink icon={<Settings size={20} />} to="/admin/equipa">
                                 Painel Admin
                             </NavLink>

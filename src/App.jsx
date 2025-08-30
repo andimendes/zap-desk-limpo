@@ -15,12 +15,12 @@ import ChamadosPage from '@/pages/ChamadosPage';
 import ClientesPage from '@/pages/ClientesPage';
 import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
-
-// --- 1. IMPORTAR A PÁGINA ADMIN ---
 import AdminPage from '@/pages/admin/AdminPage'; 
 
 // Layouts
-import MainLayout from '@/components/layout/MainLayoutCorrigido';
+// --- ESTA É A CORREÇÃO ---
+// Apontamos para o ficheiro correto: MainLayout.jsx
+import MainLayout from '@/components/layout/MainLayout.jsx';
 import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
@@ -34,9 +34,7 @@ const AppContent = () => {
     return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
   }
 
-  // Se não houver sessão, o utilizador é redirecionado para a página de autenticação
   if (!session) {
-    // Usamos um componente Navigate dentro de uma rota para lidar com o redirecionamento
     return (
         <Routes>
             <Route path="*" element={<AuthPage />} />
@@ -51,19 +49,11 @@ const AppContent = () => {
           <Route path="/chamados" element={<ChamadosPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
-          
-          {/* --- 2. ESTA É A ROTA QUE FALTAVA --- */}
-          {/* Qualquer URL que comece com /admin/ será renderizado pela AdminPage.
-              O '*' (wildcard) permite que as rotas internas do AdminPanel funcionem. */}
           <Route path="/admin/*" element={<AdminPage />} />
-
-          {/* Rotas Futuras */}
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/relatorios" element={<PlaceholderPage title="Relatórios e Análises" />} />
-          
-          {/* Rota Padrão: Redireciona para /chamados se nenhuma outra corresponder */}
           <Route path="*" element={<Navigate to="/chamados" replace />} />
         </Routes>
       </MainLayout>
@@ -97,12 +87,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rotas Públicas */}
           <Route path="/login" element={<AuthPage />} />
           <Route path="/confirmacao" element={<ConfirmacaoPage />} />
           <Route path="/update-password" element={<UpdatePasswordPage />} />
-          
-          {/* Rota "Curinga" que renderiza o AppContent */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
