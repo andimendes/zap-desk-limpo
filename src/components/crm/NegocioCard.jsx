@@ -1,5 +1,5 @@
 import React from 'react';
-import { Draggable } from '@hello-pangea/dnd'; // -> Biblioteca atualizada
+import { Draggable } from '@hello-pangea/dnd';
 
 const NegocioCard = ({ negocio, index, onCardClick }) => {
   return (
