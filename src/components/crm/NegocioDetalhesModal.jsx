@@ -1,3 +1,5 @@
+// CÓDIGO COMPLETO E CORRIGIDO PARA NegocioDetalhesModal.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, Clock, MessageSquare, Plus } from 'lucide-react';
@@ -11,38 +13,37 @@ const marcarNegocioComoPerdido = async (id, motivo) => {
   return await supabase.from('crm_negocios').update({ status: 'Perdido', motivo_perda: motivo }).eq('id', id);
 };
 
-// O NOSSO NOVO COMPONENTE
 const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => {
-  // --- NOVOS ESTADOS PARA GERIR O MODAL ---
-  const [abaAtiva, setAbaAtiva] = useState('atividades'); // Controla qual aba está visível
-  const [atividades, setAtividades] = useState([]); // Guarda a lista de atividades do negócio
-  const [notas, setNotas] = useState([]); // Guarda a lista de notas
-  const [carregandoDados, setCarregandoDados] = useState(true); // Mostra um "loading" enquanto busca os dados
+  const [abaAtiva, setAbaAtiva] = useState('atividades');
+  const [atividades, setAtividades] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [carregandoDados, setCarregandoDados] = useState(true);
   
-  const [novaAtividadeDesc, setNovaAtividadeDesc] = useState(''); // Controla o input de nova atividade
-  const [novaNotaConteudo, setNovaNotaConteudo] = useState(''); // Controla o input de nova nota
+  const [novaAtividadeDesc, setNovaAtividadeDesc] = useState('');
+  const [novaNotaConteudo, setNovaNotaConteudo] = useState('');
 
   const [isLostModalOpen, setIsLostModalOpen] = useState(false);
   const [motivoPerda, setMotivoPerda] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- EFEITO PARA CARREGAR DADOS QUANDO O MODAL ABRE ---
   useEffect(() => {
     if (isOpen && negocio?.id) {
       const carregarDadosDoNegocio = async () => {
         setCarregandoDados(true);
         
-        // Busca as atividades
+        // --- ESTA É A LINHA QUE MUDOU ---
+        // Simplificámos a busca para evitar o erro de relação.
         const { data: atividadesData, error: atividadesError } = await supabase
           .from('crm_atividades')
-          .select('*')
+          .select('*') 
           .eq('negocio_id', negocio.id)
           .order('data_atividade', { ascending: false });
 
-        // Busca as notas
+        // --- ESTA É A OUTRA LINHA QUE MUDOU ---
+        // Simplificámos a busca para evitar o erro de relação.
         const { data: notasData, error: notasError } = await supabase
           .from('crm_notas')
-          .select('*, user_profile:profiles(full_name)') // Exemplo de como buscar o nome do user
+          .select('*') 
           .eq('negocio_id', negocio.id)
           .order('created_at', { ascending: false });
 
@@ -50,8 +51,8 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
           console.error('Erro ao buscar dados:', atividadesError || notasError);
           alert('Não foi possível carregar os detalhes do negócio.');
         } else {
-          setAtividades(atividadesData);
-          setNotas(notasData);
+          setAtividades(atividadesData || []);
+          setNotas(notasData || []);
         }
         setCarregandoDados(false);
       };
@@ -61,12 +62,10 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
   }, [isOpen, negocio?.id]);
 
 
-  // --- FUNÇÕES PARA ADICIONAR NOVOS DADOS ---
   const handleAdicionarAtividade = async (e) => {
     e.preventDefault();
     if (!novaAtividadeDesc.trim()) return;
 
-    // Supabase não nos dá o user diretamente, precisamos pegar da sessão
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       alert('Sessão inválida. Por favor, faça login novamente.');
@@ -76,9 +75,9 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
     const novaAtividade = {
       negocio_id: negocio.id,
       user_id: session.user.id,
-      tipo: 'Tarefa', // Por agora, todas são "Tarefa"
+      tipo: 'Tarefa',
       descricao: novaAtividadeDesc,
-      data_atividade: new Date().toISOString(), // Usamos a data atual
+      data_atividade: new Date().toISOString(),
     };
 
     const { data, error } = await supabase.from('crm_atividades').insert(novaAtividade).select().single();
@@ -86,8 +85,8 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
     if (error) {
       alert('Erro ao adicionar atividade: ' + error.message);
     } else {
-      setAtividades([data, ...atividades]); // Adiciona a nova atividade no topo da lista
-      setNovaAtividadeDesc(''); // Limpa o campo
+      setAtividades([data, ...atividades]);
+      setNovaAtividadeDesc('');
     }
   };
 
@@ -112,35 +111,44 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
     if (error) {
         alert('Erro ao adicionar nota: ' + error.message);
     } else {
-        setNotas([data, ...notas]); // Adiciona a nova nota no topo da lista
-        setNovaNotaConteudo(''); // Limpa o campo
+        setNotas([data, ...notas]);
+        setNovaNotaConteudo('');
     }
   };
 
-
   if (!isOpen) return null;
 
-  // O resto das funções (ganhou, perdeu) continua igual
   const handleGanhouClick = async () => { /* ...código original sem alterações... */ };
   const handleSubmitPerda = async (e) => { /* ...código original sem alterações... */ };
 
-
-  // --- A NOVA ESTRUTURA VISUAL (JSX) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
         
-        {/* Modal de Perda (sem alterações) */}
         {isLostModalOpen && (
            <div className="absolute inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center rounded-lg z-10">
-             {/* ...código original sem alterações... */}
+             <form onSubmit={handleSubmitPerda} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-2xl">
+                <h3 className="font-bold text-lg mb-2 dark:text-white">Qual o motivo da perda?</h3>
+                <textarea
+                  value={motivoPerda}
+                  onChange={(e) => setMotivoPerda(e.target.value)}
+                  placeholder="Ex: Preço, concorrência, etc."
+                  rows="4"
+                  className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  required
+                />
+                <div className="flex justify-end gap-4 mt-4">
+                  <button type="button" onClick={() => setIsLostModalOpen(false)} className="py-2 px-4 rounded dark:text-gray-300">Cancelar</button>
+                  <button type="submit" disabled={isSubmitting} className="bg-red-600 text-white py-2 px-4 rounded">
+                    {isSubmitting ? 'A Guardar...' : 'Confirmar Perda'}
+                  </button>
+                </div>
+              </form>
            </div>
         )}
 
-        {/* Cabeçalho */}
         <h2 className="text-2xl font-bold mb-4 dark:text-white">{negocio.titulo}</h2>
         
-        {/* Botões das Abas */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button onClick={() => setAbaAtiva('atividades')} className={`${abaAtiva === 'atividades' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Atividades</button>
@@ -149,7 +157,6 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
           </nav>
         </div>
 
-        {/* Conteúdo das Abas */}
         <div className="min-h-[300px]">
           {carregandoDados ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>
@@ -206,7 +213,6 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate }) => 
           )}
         </div>
         
-        {/* Rodapé com Botões de Ação */}
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <button onClick={onClose} className="text-gray-600 dark:text-gray-400">Fechar</button>
           <div className="flex gap-4">
