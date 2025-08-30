@@ -1,211 +1,177 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/supabaseClient';
-import AddNegocioModal from './AddNegocioModal';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+// CORREÇÃO: Importado de um CDN para resolver o problema de dependência.
+import { Draggable } from 'https://esm.sh/react-beautiful-dnd@13.1.1';
+// CORREÇÃO: O caminho para o ficheiro supabaseClient foi ajustado para usar o alias do projeto.
+import { marcarNegocioComoGanho, marcarNegocioComoPerdido } from '@/supabaseClient.js';
 
-const NegocioCard = ({ negocio, index }) => {
-  return (
-    <Draggable draggableId={String(negocio.id)} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`bg-white dark:bg-gray-800 p-4 mb-4 rounded-lg shadow-md border-l-4 border-blue-500 ${
-            snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-400' : ''
-          }`}
-        >
-          <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa_contato}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-300 mt-2">{negocio.nome_contato}</p>
-          <div className="mt-3 text-right">
-            <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}
-            </span>
-          </div>
-        </div>
-      )}
-    </Draggable>
-  );
+// --- Estilos para o componente (pode mover para um ficheiro CSS) ---
+
+const cardStyles = {
+  userSelect: 'none',
+  padding: '16px',
+  margin: '0 0 8px 0',
+  minHeight: '50px',
+  backgroundColor: '#fff',
+  color: '#4d4d4d',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+  display: 'flex',
+  flexDirection: 'column',
 };
 
-const EtapaColuna = ({ etapa, negocios }) => {
-  return (
-    <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0">
-      <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
-        {etapa.nome_etapa}
-      </h3>
-      <Droppable droppableId={String(etapa.id)}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`h-full min-h-[200px] transition-colors duration-200 rounded-md ${
-              snapshot.isDraggingOver ? 'bg-blue-100 dark:bg-blue-900/30' : ''
-            }`}
-          >
-            {negocios.map((negocio, index) => (
-              <NegocioCard key={negocio.id} negocio={negocio} index={index} />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </div>
-  );
+const cardFooterStyles = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  marginTop: '16px',
+  borderTop: '1px solid #eee',
+  paddingTop: '8px',
 };
 
-const CrmBoard = () => {
-  const [funis, setFunis] = useState([]);
-  const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
-  const [etapas, setEtapas] = useState([]);
-  const [negocios, setNegocios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
+const buttonStyles = {
+  border: 'none',
+  padding: '6px 12px',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontWeight: 'bold',
+  color: 'white',
+};
 
-  useEffect(() => {
-    const fetchFunis = async () => {
-      setError(null);
-      try {
-        const { data, error } = await supabase.from('crm_funis').select('*').order('created_at');
-        if (error) throw error;
-        setFunis(data);
-        if (data.length > 0) {
-          setFunilSelecionadoId(data[0].id);
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        setError("Não foi possível carregar os funis. Verifique se existem funis criados.");
-        setLoading(false);
-      }
-    };
-    fetchFunis();
-  }, []);
+const winButtonStyles = { ...buttonStyles, backgroundColor: '#28a745' };
+const loseButtonStyles = { ...buttonStyles, backgroundColor: '#dc3545' };
 
-  useEffect(() => {
-    if (!funilSelecionadoId) return;
+// --- Estilos para o Modal (pode criar um componente de Modal reutilizável) ---
 
-    const fetchEtapasENegocios = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: etapasData, error: etapasError } = await supabase
-          .from('crm_etapas')
-          .select('*')
-          .eq('funil_id', funilSelecionadoId)
-          .order('ordem', { ascending: true });
-        if (etapasError) throw etapasError;
-        setEtapas(etapasData);
+const modalOverlayStyles = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1000,
+};
 
-        const etapaIds = etapasData.map(e => e.id);
-        if (etapaIds.length > 0) {
-          const { data: negociosData, error: negociosError } = await supabase
-            .from('crm_negocios')
-            .select('*')
-            .in('etapa_id', etapaIds);
-          if (negociosError) throw negociosError;
-          setNegocios(negociosData);
-        } else {
-          setNegocios([]);
-        }
-      } catch (error) {
-        setError("Não foi possível carregar os dados do funil.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEtapasENegocios();
-  }, [funilSelecionadoId]);
+const modalContentStyles = {
+  backgroundColor: 'white',
+  padding: '24px',
+  borderRadius: '8px',
+  width: '90%',
+  maxWidth: '500px',
+  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+};
 
-  const handleNegocioAdicionado = (novoNegocio) => {
-    setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
-  };
+const modalButtonContainerStyles = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '10px',
+  marginTop: '20px',
+};
 
-  const handleOnDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+// --- Componente Principal ---
 
-    const newNegocios = Array.from(negocios);
-    const negocioArrastado = newNegocios.find(n => String(n.id) === draggableId);
-    
-    if (negocioArrastado) {
-      negocioArrastado.etapa_id = destination.droppableId;
-      setNegocios(newNegocios);
+// onNegocioUpdate é a função que virá do CrmBoard.jsx para atualizar a UI
+function NegocioCard({ negocio, index, onNegocioUpdate }) {
+  const [isLostModalOpen, setIsLostModalOpen] = useState(false);
+  const [motivoPerda, setMotivoPerda] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-      const { error } = await supabase
-        .from('crm_negocios')
-        .update({ etapa_id: destination.droppableId })
-        .eq('id', draggableId);
-
+  // Função para lidar com o clique em "Ganhou"
+  const handleGanhouClick = async () => {
+    // Usamos um confirm simples por agora, mas pode ser substituído por um modal mais elegante
+    if (window.confirm(`Tem a certeza que quer marcar o negócio "${negocio.titulo}" como GANHO?`)) {
+      const { error } = await marcarNegocioComoGanho(negocio.id);
       if (error) {
-        setError("Erro ao atualizar o negócio. A alteração foi revertida.");
-        // Reverte a alteração no estado em caso de erro
-        const revertedNegocios = Array.from(negocios);
-        const originalNegocio = revertedNegocios.find(n => String(n.id) === draggableId);
-        if(originalNegocio) originalNegocio.etapa_id = source.droppableId;
-        setNegocios(revertedNegocios);
+        // Usamos console.error para logs de erro, que é uma prática melhor
+        console.error('Erro ao marcar negócio como ganho:', error);
+        alert('Erro ao marcar negócio como ganho: ' + error.message);
+      } else {
+        alert('Negócio marcado como ganho com sucesso!');
+        onNegocioUpdate(negocio.id); // Avisa o CrmBoard para remover o card da vista
       }
     }
   };
 
-  if (loading && !funis.length) {
-    return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
-  }
+  // Função para submeter o motivo da perda
+  const handleSubmitPerda = async (e) => {
+    e.preventDefault();
+    if (!motivoPerda.trim()) {
+      alert('Por favor, preencha o motivo da perda.');
+      return;
+    }
+    setIsSubmitting(true);
+    const { error } = await marcarNegocioComoPerdido(negocio.id, motivoPerda);
+
+    if (error) {
+      console.error('Erro ao marcar negócio como perdido:', error);
+      alert('Erro ao marcar negócio como perdido: ' + error.message);
+    } else {
+      alert('Negócio marcado como perdido.');
+      onNegocioUpdate(negocio.id); // Avisa o CrmBoard para remover o card
+    }
+
+    // Limpeza após submissão
+    setIsSubmitting(false);
+    setIsLostModalOpen(false);
+    setMotivoPerda('');
+  };
 
   return (
     <>
-      <DragDropContext onDragEnd={handleOnDragEnd}>
-        <div className="bg-gray-50 dark:bg-gray-900/80 min-h-full p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-             {funis.length > 0 ? (
-                <select
-                    value={funilSelecionadoId}
-                    onChange={(e) => setFunilSelecionadoId(e.target.value)}
-                    className="text-2xl font-bold text-gray-800 bg-transparent border-none focus:ring-0 dark:text-gray-100"
-                >
-                    {funis.map(funil => (
-                    <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>
-                    ))}
-                </select>
-             ) : <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">CRM</h1>}
+      <Draggable draggableId={String(negocio.id)} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            style={{
+              ...cardStyles,
+              backgroundColor: snapshot.isDragging ? '#e6f7ff' : '#fff',
+              ...provided.draggableProps.style,
+            }}
+          >
+            <h4 style={{ margin: '0 0 8px 0' }}>{negocio.titulo}</h4>
+            <p style={{ margin: 0, fontSize: '14px' }}>{negocio.empresa_contato || 'Empresa não informada'}</p>
+            {/* Pode adicionar mais detalhes do negócio aqui */}
             
-            <button
-              onClick={() => setAddModalOpen(true)}
-              disabled={etapas.length === 0}
-              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-blue-300 disabled:cursor-not-allowed"
-            >
-              + Adicionar Negócio
-            </button>
+            <div style={cardFooterStyles}>
+              <button onClick={handleGanhouClick} style={winButtonStyles}>Ganhou</button>
+              <button onClick={() => setIsLostModalOpen(true)} style={loseButtonStyles}>Perdeu</button>
+            </div>
           </div>
+        )}
+      </Draggable>
 
-          {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-4 flex items-center gap-3"><AlertTriangle className="h-6 w-6" /><p>{error}</p></div>}
-
-          <div className="flex space-x-6 overflow-x-auto pb-4">
-            {!loading && etapas.length > 0 ? (
-              etapas.map(etapa => {
-                const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
-                return <EtapaColuna key={etapa.id} etapa={etapa} negocios={negociosDaEtapa} />;
-              })
-            ) : (
-              !loading && <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil. Configure-o na área de Admin.</p>
-            )}
-            {loading && etapas.length === 0 && <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
+      {/* --- Modal para Motivo da Perda --- */}
+      {isLostModalOpen && (
+        <div style={modalOverlayStyles}>
+          <div style={modalContentStyles}>
+            <h3>Perdeu o Negócio "{negocio.titulo}"?</h3>
+            <p>Descreva o motivo da perda. Esta informação é importante para futuras estratégias.</p>
+            <form onSubmit={handleSubmitPerda}>
+              <textarea
+                value={motivoPerda}
+                onChange={(e) => setMotivoPerda(e.target.value)}
+                placeholder="Ex: Preço muito alto, concorrência ofereceu mais vantagens, etc."
+                rows="4"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                required
+              />
+              <div style={modalButtonContainerStyles}>
+                <button type="button" onClick={() => setIsLostModalOpen(false)} style={{...buttonStyles, backgroundColor: '#6c757d'}}>Cancelar</button>
+                <button type="submit" disabled={isSubmitting} style={{...buttonStyles, backgroundColor: '#007bff'}}>
+                  {isSubmitting ? 'A Guardar...' : 'Confirmar Perda'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </DragDropContext>
-
-      {etapas.length > 0 && <AddNegocioModal
-        isOpen={isAddModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        etapas={etapas}
-        onNegocioAdicionado={handleNegocioAdicionado}
-      />}
+      )}
     </>
   );
-};
+}
 
-export default CrmBoard;
+export default NegocioCard;
