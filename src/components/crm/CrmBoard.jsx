@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Alterado o caminho do Supabase para um caminho relativo, que é mais robusto.
-import { supabase } from '../../supabaseClient'; 
+// CORREÇÃO: Revertido para o alias @/, que é o padrão no seu projeto.
+import { supabase } from '@/supabaseClient'; 
 import AddNegocioModal from './AddNegocioModal';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import NegocioCard from './NegocioCard'; // Importa o componente externo
-
-// A definição antiga do NegocioCard que existia aqui foi REMOVIDA para evitar conflitos.
+import NegocioCard from './NegocioCard';
 
 const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
   return (
@@ -28,7 +26,7 @@ const EtapaColuna = ({ etapa, negocios, onNegocioUpdate }) => {
                 key={negocio.id} 
                 negocio={negocio} 
                 index={index}
-                onNegocioUpdate={onNegocioUpdate} // Passa a função para o card
+                onNegocioUpdate={onNegocioUpdate}
               />
             ))}
             {provided.placeholder}
@@ -61,7 +59,8 @@ const CrmBoard = () => {
           setLoading(false);
         }
       } catch (error) {
-        setError("Não foi possível carregar os funis. Verifique se existem funis criados.");
+        console.error("Erro ao carregar funis:", error);
+        setError(`Não foi possível carregar os funis: ${error.message}`);
         setLoading(false);
       }
     };
@@ -77,26 +76,28 @@ const CrmBoard = () => {
       try {
         const { data: etapasData, error: etapasError } = await supabase
           .from('crm_etapas')
-          .select('*')
+          .select('*') // Mudei para buscar a etapa completa
           .eq('funil_id', funilSelecionadoId)
           .order('ordem', { ascending: true });
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
 
-        const etapaIds = etapasData.map(e => e.id);
+        const etapaIds = etapasData.map(e => e.id).filter(id => id);
+
         if (etapaIds.length > 0) {
           const { data: negociosData, error: negociosError } = await supabase
             .from('crm_negocios')
             .select('*')
             .in('etapa_id', etapaIds)
-            .eq('status', 'Ativo'); // Filtra para mostrar apenas negócios ativos
+            .eq('status', 'Ativo');
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
         } else {
           setNegocios([]);
         }
       } catch (error) {
-        setError("Não foi possível carregar os dados do funil.");
+        console.error("Erro ao carregar dados do funil:", error);
+        setError(`Não foi possível carregar os dados do funil: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -108,7 +109,6 @@ const CrmBoard = () => {
     setNegocios(currentNegocios => [...currentNegocios, novoNegocio]);
   };
 
-  // Função para remover o card da UI após ganhar/perder
   const handleNegocioUpdate = (negocioIdParaRemover) => {
     setNegocios(currentNegocios => 
       currentNegocios.filter(negocio => negocio.id !== negocioIdParaRemover)
@@ -120,12 +120,12 @@ const CrmBoard = () => {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    const negocioMovido = negocios.find(n => String(n.id) === draggableId);
+    // Atualização otimista
+    const novosNegocios = Array.from(negocios);
+    const [reorderedItem] = novosNegocios.splice(source.index, 1);
+    reorderedItem.etapa_id = parseInt(destination.droppableId);
+    novosNegocios.splice(destination.index, 0, reorderedItem);
     
-    // Atualização otimista da UI
-    const novosNegocios = negocios.map(n => 
-      String(n.id) === draggableId ? { ...n, etapa_id: parseInt(destination.droppableId) } : n
-    );
     setNegocios(novosNegocios);
 
     const { error } = await supabase
@@ -135,8 +135,7 @@ const CrmBoard = () => {
 
     if (error) {
       setError("Erro ao atualizar o negócio. A alteração foi revertida.");
-      // Reverte a alteração no estado em caso de erro
-      setNegocios(negocios);
+      setNegocios(negocios); // Reverte se der erro
     }
   };
 
