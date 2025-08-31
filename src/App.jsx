@@ -16,10 +16,9 @@ import ClientesPage from '@/pages/ClientesPage';
 import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
+import DashboardPage from '@/pages/DashboardPage'; // --- 1. ADICIONADO: Importação da nova página
 
 // Layouts
-// --- ESTA É A CORREÇÃO ---
-// Apontamos para o ficheiro correto: MainLayout.jsx
 import MainLayout from '@/components/layout/MainLayout.jsx';
 import SettingsModal from '@/components/layout/SettingsModal';
 
@@ -46,6 +45,9 @@ const AppContent = () => {
     <ThemeProvider>
       <MainLayout onOpenSettings={() => setSettingsOpen(true)}>
         <Routes>
+          {/* --- 2. ADICIONADO: Nova rota para o Dashboard --- */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+          
           <Route path="/chamados" element={<ChamadosPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
@@ -54,7 +56,9 @@ const AppContent = () => {
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/relatorios" element={<PlaceholderPage title="Relatórios e Análises" />} />
-          <Route path="*" element={<Navigate to="/chamados" replace />} />
+          
+          {/* --- 3. ALTERADO: Redirecionamento padrão para o dashboard --- */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </MainLayout>
       <SettingsModal

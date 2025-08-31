@@ -6,12 +6,12 @@ import Can from '../../contexts/Can';
 import { 
     MessageSquare, Users, Target, PhoneForwarded, BookOpen, 
     DollarSign, BarChart2, User as UserIcon, LogOut,
-    Settings // Ícone de configurações
+    Settings,
+    LayoutDashboard // --- 1. ADICIONADO: Ícone para o Dashboard ---
 } from 'lucide-react';
 
 const NavLink = ({ icon, children, to }) => {
     const location = useLocation();
-    // A rota está ativa se o URL começar com o 'to' do link.
     const isActive = location.pathname.startsWith(to);
 
     return (
@@ -45,11 +45,13 @@ export default function MainLayout({ children, onOpenSettings }) {
                 </div>
                 <nav className="flex-1 space-y-2">
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Menu</p>
+                    {/* --- 2. ADICIONADO: Link para a nova página de Dashboard --- */}
+                    <NavLink icon={<LayoutDashboard size={20} />} to="/dashboard">Dashboard</NavLink>
                     <NavLink icon={<MessageSquare size={20} />} to="/chamados">Chamados</NavLink>
                     <NavLink icon={<Users size={20} />} to="/clientes">Clientes</NavLink>
+                    <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink>
                     
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Futuros Módulos</p>
-                    <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink>
                     <NavLink icon={<PhoneForwarded size={20} />} to="/atendimento">Atendimento</NavLink>
                     <NavLink icon={<BookOpen size={20} />} to="/base-conhecimento">Base de Conhecimento</NavLink>
                     <NavLink icon={<DollarSign size={20} />} to="/financeiro">Financeiro</NavLink>
