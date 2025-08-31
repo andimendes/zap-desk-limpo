@@ -1,9 +1,10 @@
-// src/pages/DashboardPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, DollarSign, Target, CheckCircle, XCircle } from 'lucide-react';
-import StatCard from '@/components/dashboard/StatCard'; // 1. Importamos o nosso novo componente
+import StatCard from '@/components/dashboard/StatCard';
+
+// --- 1. IMPORTADO DA RECHARTS ---
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
@@ -12,7 +13,6 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      // ... (a lógica de busca e cálculo de KPIs não muda)
       setLoading(true);
       setError('');
       try {
@@ -30,10 +30,14 @@ const DashboardPage = () => {
         const pipelineValue = negociosAtivos.reduce((sum, n) => sum + (n.valor || 0), 0);
         const totalFechados = negociosGanhos.length + negociosPerdidos.length;
         const winRate = totalFechados > 0 ? (negociosGanhos.length / totalFechados) * 100 : 0;
-        const funnelData = etapas.map(etapa => ({
-          name: etapa.nome_etapa,
-          value: negocios.filter(n => n.etapa_id === etapa.id).length,
-        }));
+        
+        const funnelData = etapas
+          .map(etapa => ({
+            name: etapa.nome_etapa,
+            Negócios: negocios.filter(n => n.etapa_id === etapa.id && n.status === 'Ativo').length,
+          }))
+          .filter(etapa => etapa.Negócios > 0); // Mostra apenas etapas com negócios ativos
+
         setStats({
           totalNegociosAtivos: negociosAtivos.length,
           pipelineValue: pipelineValue,
@@ -55,12 +59,10 @@ const DashboardPage = () => {
   if (loading) {
     return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
   }
-
   if (error) {
     return <div className="p-8 text-red-500">{error}</div>;
   }
   
-  // 2. Usamos o novo layout com os StatCards
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
@@ -68,31 +70,58 @@ const DashboardPage = () => {
       </h1>
       
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard 
-            title="Pipeline Ativo"
-            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pipelineValue)}
-            icon={<DollarSign className="text-blue-500" />}
-            description={`${stats.totalNegociosAtivos} negócios em aberto`}
-          />
-          <StatCard 
-            title="Taxa de Conversão"
-            value={`${stats.winRate.toFixed(1)}%`}
-            icon={<CheckCircle className="text-green-500" />}
-            description={`${stats.negociosGanhos} negócios ganhos`}
-          />
-          <StatCard 
-            title="Negócios Perdidos"
-            value={stats.negociosPerdidos}
-            icon={<XCircle className="text-red-500" />}
-            description={`de ${stats.negociosGanhos + stats.negociosPerdidos} negócios fechados`}
-          />
-          <StatCard 
-            title="Negócios Ativos"
-            value={stats.totalNegociosAtivos}
-            icon={<Target className="text-yellow-500" />}
-            description="Oportunidades no funil"
-          />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard 
+              title="Pipeline Ativo"
+              value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pipelineValue)}
+              icon={<DollarSign className="text-blue-500" />}
+              description={`${stats.totalNegociosAtivos} negócios em aberto`}
+            />
+            <StatCard 
+              title="Taxa de Conversão"
+              value={`${stats.winRate.toFixed(1)}%`}
+              icon={<CheckCircle className="text-green-500" />}
+              description={`${stats.negociosGanhos} negócios ganhos`}
+            />
+            <StatCard 
+              title="Negócios Perdidos"
+              value={stats.negociosPerdidos}
+              icon={<XCircle className="text-red-500" />}
+              description={`de ${stats.negociosGanhos + stats.negociosPerdidos} negócios fechados`}
+            />
+            <StatCard 
+              title="Negócios Ativos"
+              value={stats.totalNegociosAtivos}
+              icon={<Target className="text-yellow-500" />}
+              description="Oportunidades no funil"
+            />
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+              Funil de Vendas Ativo
+            </h2>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={stats.funnelData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip
+                    cursor={{fill: 'rgba(128, 128, 128, 0.1)'}}
+                    contentStyle={{
+                      backgroundColor: '#374151', // bg-gray-700
+                      borderColor: '#4b5563', // border-gray-600
+                      color: '#f3f4f6', // text-gray-100
+                      borderRadius: '0.5rem'
+                    }}
+                  />
+                  <Bar dataKey="Negócios" fill="#3b82f6" name="Nº de Negócios"/>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       )}
     </div>
