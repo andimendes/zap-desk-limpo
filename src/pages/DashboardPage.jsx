@@ -2,47 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2 } from 'lucide-react';
+import { Loader2, DollarSign, Target, CheckCircle, XCircle } from 'lucide-react';
+import StatCard from '@/components/dashboard/StatCard'; // 1. Importamos o nosso novo componente
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null); // Vai guardar as nossas estatísticas calculadas
+  const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // ... (a lógica de busca e cálculo de KPIs não muda)
       setLoading(true);
       setError('');
       try {
-        // 1. Buscar todos os negócios e todas as etapas em paralelo
         const [negociosRes, etapasRes] = await Promise.all([
           supabase.from('crm_negocios').select('*'),
           supabase.from('crm_etapas').select('*').order('ordem')
         ]);
-
         if (negociosRes.error) throw negociosRes.error;
         if (etapasRes.error) throw etapasRes.error;
-
         const negocios = negociosRes.data || [];
         const etapas = etapasRes.data || [];
-
-        // 2. Calcular os KPIs a partir dos dados brutos
         const negociosAtivos = negocios.filter(n => n.status === 'Ativo');
         const negociosGanhos = negocios.filter(n => n.status === 'Ganho');
         const negociosPerdidos = negocios.filter(n => n.status === 'Perdido');
-
         const pipelineValue = negociosAtivos.reduce((sum, n) => sum + (n.valor || 0), 0);
-        
         const totalFechados = negociosGanhos.length + negociosPerdidos.length;
         const winRate = totalFechados > 0 ? (negociosGanhos.length / totalFechados) * 100 : 0;
-        
-        // Dados para o gráfico de funil
         const funnelData = etapas.map(etapa => ({
           name: etapa.nome_etapa,
           value: negocios.filter(n => n.etapa_id === etapa.id).length,
         }));
-
-        // 3. Guardar os resultados no estado
         setStats({
           totalNegociosAtivos: negociosAtivos.length,
           pipelineValue: pipelineValue,
@@ -51,7 +42,6 @@ const DashboardPage = () => {
           winRate: winRate,
           funnelData: funnelData
         });
-
       } catch (err) {
         console.error("Erro ao carregar dados do dashboard:", err);
         setError("Não foi possível carregar os dados do dashboard.");
@@ -59,23 +49,18 @@ const DashboardPage = () => {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
-  }, []); // O array vazio [] significa que este efeito executa apenas uma vez, quando a página carrega
+  }, []);
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-full p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
+    return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
   }
 
   if (error) {
     return <div className="p-8 text-red-500">{error}</div>;
   }
   
-  // 4. Mostrar os dados calculados de forma simples para verificação
+  // 2. Usamos o novo layout com os StatCards
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
@@ -83,11 +68,31 @@ const DashboardPage = () => {
       </h1>
       
       {stats && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="font-bold mb-4">Estatísticas (Dados Brutos para Teste):</h2>
-          <pre className="whitespace-pre-wrap">
-            {JSON.stringify(stats, null, 2)}
-          </pre>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard 
+            title="Pipeline Ativo"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pipelineValue)}
+            icon={<DollarSign className="text-blue-500" />}
+            description={`${stats.totalNegociosAtivos} negócios em aberto`}
+          />
+          <StatCard 
+            title="Taxa de Conversão"
+            value={`${stats.winRate.toFixed(1)}%`}
+            icon={<CheckCircle className="text-green-500" />}
+            description={`${stats.negociosGanhos} negócios ganhos`}
+          />
+          <StatCard 
+            title="Negócios Perdidos"
+            value={stats.negociosPerdidos}
+            icon={<XCircle className="text-red-500" />}
+            description={`de ${stats.negociosGanhos + stats.negociosPerdidos} negócios fechados`}
+          />
+          <StatCard 
+            title="Negócios Ativos"
+            value={stats.totalNegociosAtivos}
+            icon={<Target className="text-yellow-500" />}
+            description="Oportunidades no funil"
+          />
         </div>
       )}
     </div>
