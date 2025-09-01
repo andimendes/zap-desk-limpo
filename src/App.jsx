@@ -16,11 +16,12 @@ import ClientesPage from '@/pages/ClientesPage';
 import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
-import DashboardPage from '@/pages/DashboardPage'; // --- 1. ADICIONADO: Importação da nova página
+import DashboardPage from '@/pages/DashboardPage';
 
 // Layouts
 import MainLayout from '@/components/layout/MainLayout.jsx';
-import SettingsModal from '@/components/layout/SettingsModal';
+// --- 1. A IMPORTAÇÃO FOI "DESLIGADA" ---
+// import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
  * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
@@ -45,9 +46,7 @@ const AppContent = () => {
     <ThemeProvider>
       <MainLayout onOpenSettings={() => setSettingsOpen(true)}>
         <Routes>
-          {/* --- 2. ADICIONADO: Nova rota para o Dashboard --- */}
           <Route path="/dashboard" element={<DashboardPage />} />
-          
           <Route path="/chamados" element={<ChamadosPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
@@ -56,17 +55,19 @@ const AppContent = () => {
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/relatorios" element={<PlaceholderPage title="Relatórios e Análises" />} />
-          
-          {/* --- 3. ALTERADO: Redirecionamento padrão para o dashboard --- */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </MainLayout>
+      
+      {/* --- 2. O COMPONENTE FOI "DESLIGADO" --- */}
+      {/*
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
         userProfile={profile}
         userAuth={session.user}
       />
+      */}
     </ThemeProvider>
   );
 };
