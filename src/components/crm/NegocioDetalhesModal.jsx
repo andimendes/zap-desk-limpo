@@ -24,7 +24,37 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
 
   useEffect(() => {
     if (!isOpen || !negocio?.id) return;
-    const carregarDadosDoNegocio = async () => { /* ...código de busca de dados sem alterações... */ };
+    const carregarDadosDoNegocio = async () => {
+        setCarregandoDados(true);
+        try {
+            const [atividadesRes, notasRes, orcamentoRes, produtosRes] = await Promise.all([
+            supabase.from('crm_atividades').select('*').eq('negocio_id', negocio.id).order('data_atividade', { ascending: false }),
+            supabase.from('crm_notas').select('*').eq('negocio_id', negocio.id).order('created_at', { ascending: false }),
+            supabase.from('crm_orcamentos').select('*').eq('negocio_id', negocio.id).maybeSingle(),
+            supabase.from('produtos_servicos').select('*').eq('ativo', true).order('nome')
+            ]);
+            if (atividadesRes.error) throw atividadesRes.error;
+            if (notasRes.error) throw notasRes.error;
+            if (orcamentoRes.error) throw orcamentoRes.error;
+            if (produtosRes.error) throw produtosRes.error;
+            setAtividades(atividadesRes.data || []);
+            setNotas(notasRes.data || []);
+            setOrcamento(orcamentoRes.data);
+            setListaDeProdutos(produtosRes.data || []);
+            if (orcamentoRes.data) {
+            const { data: itensData, error: itensError } = await supabase.from('crm_orcamento_itens').select('*').eq('orcamento_id', orcamentoRes.data.id);
+            if (itensError) throw itensError;
+            setOrcamentoItens(itensData || []);
+            } else {
+            setOrcamentoItens([]);
+            }
+        } catch (error) {
+            console.error('Ocorreu um erro ao buscar os dados do negócio:', error);
+            alert('Não foi possível carregar os detalhes do negócio.');
+        } finally {
+            setCarregandoDados(false);
+        }
+    };
     carregarDadosDoNegocio();
 
     const fetchUsers = async () => {
@@ -51,25 +81,17 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
     }
   };
 
-  // ... (todas as outras funções handle... não mudam)
+  // ... (outras funções handle...)
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-3xl relative" onClick={e => e.stopPropagation()}>
-        {/* ... */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-             {/* ... abas ... */}
-          </nav>
-        </div>
-        <div className="min-h-[350px] max-h-[60vh] overflow-y-auto pr-2">
-          {carregandoDados ? <Loader2 className="animate-spin" /> : (
+        {/* ... (todo o JSX que já tínhamos) ... */}
+         <div className="min-h-[350px] max-h-[60vh] overflow-y-auto pr-2">
+          {carregandoDados ? <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div> : (
             <>
-              {abaAtiva === 'atividades' && (<div>{/* ... JSX da aba ... */}</div>)}
-              {abaAtiva === 'notas' && (<div>{/* ... JSX da aba ... */}</div>)}
-              {abaAtiva === 'orcamento' && (<div>{/* ... JSX da aba ... */}</div>)}
               {abaAtiva === 'detalhes' && (
                 <div className="space-y-4 dark:text-gray-300">
                   <p><strong>Empresa:</strong> {negocio.empresa_contato}</p>
@@ -90,13 +112,14 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
                   </div>
                 </div>
               )}
+              {/* ... (as outras abas) ... */}
             </>
           )}
         </div>
-        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          {/* ... botões do rodapé ... */}
-        </div>
+        {/* ... */}
       </div>
     </div>
   );
 };
+
+export default NegocioDetalhesModal;
