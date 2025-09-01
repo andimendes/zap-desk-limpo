@@ -8,7 +8,7 @@ import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { Loader2, AlertTriangle, Users } from 'lucide-react';
 
-const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }) => {
+const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col">
       <div className="mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
@@ -28,7 +28,7 @@ const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }
               snapshot.isDraggingOver ? 'bg-blue-100 dark:bg-blue-900/30' : ''
             }`}
           >
-            {negocios} {/* Agora recebe os cards já renderizados */}
+            {negocios}
             {provided.placeholder}
           </div>
         )}
@@ -48,8 +48,13 @@ const CrmBoard = () => {
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   const [listaDeUsers, setListaDeUsers] = useState([]);
   const [filtroResponsavelId, setFiltroResponsavelId] = useState('todos');
+  
+  // --- INÍCIO DA CORREÇÃO ---
   const [winReady, setWinReady] = useState(false);
-  useEffect(() => { setWinReady(true); }, []);
+  useEffect(() => {
+    setWinReady(true);
+  }, []);
+  // --- FIM DA CORREÇÃO ---
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,10 +81,8 @@ const CrmBoard = () => {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (!funilSelecionadoId) return;
-
-    const fetchEtapasENegocios = async () => {
+  const fetchEtapasENegocios = useCallback(async () => {
+      if (!funilSelecionadoId) return;
       setLoading(true);
       setError(null);
       try {
@@ -106,9 +109,11 @@ const CrmBoard = () => {
       } finally {
         setLoading(false);
       }
-    };
-    fetchEtapasENegocios();
   }, [funilSelecionadoId, filtroResponsavelId]);
+
+  useEffect(() => {
+    fetchEtapasENegocios();
+  }, [fetchEtapasENegocios]);
   
   const handleOnDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -126,7 +131,7 @@ const CrmBoard = () => {
     const { error } = await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
     if (error) {
       alert("Erro ao mover o negócio. A página será atualizada.");
-      fetchEtapasENegocios(); // Recarrega os dados em caso de erro
+      fetchEtapasENegocios();
     }
   };
   
@@ -146,6 +151,7 @@ const CrmBoard = () => {
 
   return (
     <>
+      {/* --- INÍCIO DA CORREÇÃO (Wrapper Condicional) --- */}
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-gray-50 dark:bg-gray-900/80 min-h-full p-4 sm:p-6 lg:p-8">
@@ -193,7 +199,6 @@ const CrmBoard = () => {
                           negocio={negocio} 
                           index={index}
                           onCardClick={setNegocioSelecionado}
-                          // Passando a lista completa de etapas para o card poder renderizar a barra de progresso
                           etapasDoFunil={etapas} 
                         />
                       ))}
@@ -212,6 +217,7 @@ const CrmBoard = () => {
           </div>
         </DragDropContext>
       )}
+      {/* --- FIM DA CORREÇÃO (Wrapper Condicional) --- */}
 
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapas} onNegocioAdicionado={handleNegocioAdicionado} />}
       
