@@ -6,7 +6,7 @@ import Can from '../../contexts/Can';
 import { 
     MessageSquare, Users, Target, PhoneForwarded, BookOpen, 
     DollarSign, BarChart2, User as UserIcon, LogOut,
-    Settings, LayoutDashboard, Binoculars // <-- Ícone novo adicionado aqui
+    Settings, LayoutDashboard, FileSearch // <-- Ícone alterado de Binoculars para FileSearch
 } from 'lucide-react';
 
 const NavLink = ({ icon, children, to }) => {
@@ -48,11 +48,9 @@ export default function MainLayout({ children, onOpenSettings }) {
                     <NavLink icon={<MessageSquare size={20} />} to="/chamados">Chamados</NavLink>
                     <NavLink icon={<Users size={20} />} to="/clientes">Clientes</NavLink>
                     
-                    {/* --- ALTERAÇÕES AQUI --- */}
-                    {/* O CRM foi movido para o menu principal */}
                     <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink>
-                    {/* Adicionámos o novo link para a página de Prospecção */}
-                    <NavLink icon={<Binoculars size={20} />} to="/prospeccao">Prospecção</NavLink>
+                    {/* --- Ícone alterado aqui --- */}
+                    <NavLink icon={<FileSearch size={20} />} to="/prospeccao">Prospecção</NavLink>
                     
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Futuros Módulos</p>
                     <NavLink icon={<PhoneForwarded size={20} />} to="/atendimento">Atendimento</NavLink>
