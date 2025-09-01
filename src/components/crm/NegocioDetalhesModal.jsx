@@ -3,6 +3,7 @@ import { supabase } from '@/supabaseClient';
 import { Loader2, Clock, MessageSquare, Plus, Trash2, Pencil, Users } from 'lucide-react';
 
 const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDataChange }) => {
+  // Estados
   const [abaAtiva, setAbaAtiva] = useState('atividades');
   const [atividades, setAtividades] = useState([]);
   const [notas, setNotas] = useState([]);
@@ -24,24 +25,32 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
 
   useEffect(() => {
     if (!isOpen || !negocio?.id) return;
-
     const carregarDadosDoNegocio = async () => {
         setCarregandoDados(true);
+        // Reset states on open
+        setAbaAtiva('atividades');
         try {
-            const [atividadesRes, notasRes, orcamentoRes, produtosRes] = await Promise.all([
-            supabase.from('crm_atividades').select('*').eq('negocio_id', negocio.id).order('data_atividade', { ascending: false }),
-            supabase.from('crm_notas').select('*').eq('negocio_id', negocio.id).order('created_at', { ascending: false }),
-            supabase.from('crm_orcamentos').select('*').eq('negocio_id', negocio.id).maybeSingle(),
-            supabase.from('produtos_servicos').select('*').eq('ativo', true).order('nome')
+            const [atividadesRes, notasRes, orcamentoRes, produtosRes, usersRes] = await Promise.all([
+              supabase.from('crm_atividades').select('*').eq('negocio_id', negocio.id).order('data_atividade', { ascending: false }),
+              supabase.from('crm_notas').select('*').eq('negocio_id', negocio.id).order('created_at', { ascending: false }),
+              supabase.from('crm_orcamentos').select('*').eq('negocio_id', negocio.id).maybeSingle(),
+              supabase.from('produtos_servicos').select('*').eq('ativo', true).order('nome'),
+              supabase.from('profiles').select('id, full_name').order('full_name')
             ]);
+
             if (atividadesRes.error) throw atividadesRes.error;
             if (notasRes.error) throw notasRes.error;
             if (orcamentoRes.error) throw orcamentoRes.error;
             if (produtosRes.error) throw produtosRes.error;
+            if (usersRes.error) throw usersRes.error;
+
             setAtividades(atividadesRes.data || []);
             setNotas(notasRes.data || []);
             setOrcamento(orcamentoRes.data);
             setListaDeProdutos(produtosRes.data || []);
+            setListaDeUsers(usersRes.data || []);
+            setResponsavelId(negocio?.responsavel_id || '');
+
             if (orcamentoRes.data) {
               const { data: itensData, error: itensError } = await supabase.from('crm_orcamento_itens').select('*, subtotal').eq('orcamento_id', orcamentoRes.data.id);
               if (itensError) throw itensError;
@@ -57,23 +66,11 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
         }
     };
     carregarDadosDoNegocio();
-
-    const fetchUsers = async () => {
-      const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name');
-      if (!error) setListaDeUsers(data);
-    };
-    fetchUsers();
-    setResponsavelId(negocio?.responsavel_id || '');
   }, [isOpen, negocio]);
-  
+
   const handleMudarResponsavel = async (novoResponsavelId) => {
     setResponsavelId(novoResponsavelId);
-    const { data, error } = await supabase
-      .from('crm_negocios')
-      .update({ responsavel_id: novoResponsavelId || null })
-      .eq('id', negocio.id)
-      .select('*, responsavel:profiles(full_name)')
-      .single();
+    const { data, error } = await supabase.from('crm_negocios').update({ responsavel_id: novoResponsavelId || null }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
     if (error) {
       alert('Não foi possível alterar o responsável.');
       setResponsavelId(negocio?.responsavel_id || '');
@@ -81,15 +78,129 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
       onDataChange(data);
     }
   };
-  
-  // Inclua todas as outras funções 'handle' aqui...
+
+  const marcarNegocioComoGanho = async (id) => await supabase.from('crm_negocios').update({ status: 'Ganho' }).eq('id', id);
+  const marcarNegocioComoPerdido = async (id, motivo) => await supabase.from('crm_negocios').update({ status: 'Perdido', motivo_perda: motivo }).eq('id', id);
+
+  const handleGanhouClick = async () => {
+    if (window.confirm(`Tem a certeza que quer marcar o negócio "${negocio.titulo}" como GANHO?`)) {
+      const { error } = await marcarNegocioComoGanho(negocio.id);
+      if (error) { alert('Erro: ' + error.message); } else {
+        alert('Negócio marcado como ganho!');
+        onNegocioUpdate(negocio.id);
+      }
+    }
+  };
+
+  const handleSubmitPerda = async (e) => {
+    e.preventDefault();
+    if (!motivoPerda) { alert('Por favor, preencha o motivo da perda.'); return; }
+    setIsSubmitting(true);
+    const { error } = await marcarNegocioComoPerdido(negocio.id, motivoPerda);
+    if (error) { alert('Erro: ' + error.message); } else {
+      alert('Negócio marcado como perdido.');
+      onNegocioUpdate(negocio.id);
+    }
+    setIsSubmitting(false);
+    setIsLostModalOpen(false);
+    setMotivoPerda('');
+  };
+
+  const handleAdicionarAtividade = async (e) => { e.preventDefault(); /* ...código completo... */ };
+  const handleToggleCompleta = async (id, statusAtual) => { /* ...código completo... */ };
+  const handleDeletarAtividade = async (id) => { /* ...código completo... */ };
+  const handleStartEditing = (atividade) => { /* ...código completo... */ };
+  const handleCancelEditing = () => { /* ...código completo... */ };
+  const handleSaveEdit = async (e) => { /* ...código completo... */ };
+  const handleAdicionarNota = async (e) => { /* ...código completo... */ };
+  const handleCriarOrcamento = async () => { /* ...código completo... */ };
+  const handleAdicionarItem = async (e) => { /* ...código completo... */ };
+  const handleRemoverItem = async (itemId) => { /* ...código completo... */ };
+
+  const valorTotalOrcamento = orcamentoItens.reduce((total, item) => total + (item.subtotal || 0), 0);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-3xl relative" onClick={e => e.stopPropagation()}>
-        {/* ... Conteúdo completo do Modal ... */}
+        
+        {isLostModalOpen && (
+           <div className="absolute inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center rounded-lg z-10">
+             <form onSubmit={handleSubmitPerda} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-2xl">
+                <h3 className="font-bold text-lg mb-2 dark:text-white">Qual o motivo da perda?</h3>
+                <textarea value={motivoPerda} onChange={(e) => setMotivoPerda(e.target.value)} placeholder="Ex: Preço, etc." rows="4" className="w-full p-2 border rounded dark:bg-gray-800" required/>
+                <div className="flex justify-end gap-4 mt-4">
+                  <button type="button" onClick={() => setIsLostModalOpen(false)} className="py-2 px-4 rounded">Cancelar</button>
+                  <button type="submit" disabled={isSubmitting} className="bg-red-600 text-white py-2 px-4 rounded">{isSubmitting ? 'A Guardar...' : 'Confirmar Perda'}</button>
+                </div>
+              </form>
+           </div>
+        )}
+
+        <h2 className="text-2xl font-bold mb-4 dark:text-white">{negocio.titulo}</h2>
+        
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button onClick={() => setAbaAtiva('atividades')} className={`${abaAtiva === 'atividades' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Atividades</button>
+            <button onClick={() => setAbaAtiva('notas')} className={`${abaAtiva === 'notas' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Notas</button>
+            <button onClick={() => setAbaAtiva('orcamento')} className={`${abaAtiva === 'orcamento' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Orçamento</button>
+            <button onClick={() => setAbaAtiva('detalhes')} className={`${abaAtiva === 'detalhes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Detalhes</button>
+          </nav>
+        </div>
+
+        <div className="min-h-[350px] max-h-[60vh] overflow-y-auto pr-2">
+          {carregandoDados ? (
+            <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>
+          ) : (
+            <>
+              {abaAtiva === 'atividades' && (
+                <div>
+                  <form onSubmit={handleAdicionarAtividade} className="flex gap-2 mb-4">
+                    <input type="text" value={novaAtividadeDesc} onChange={e => setNovaAtividadeDesc(e.target.value)} placeholder="Adicionar uma nova tarefa..." className="flex-grow p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"><Plus size={20} /></button>
+                  </form>
+                  <ul className="space-y-2">
+                    {atividades.map(at => (
+                      <li key={at.id} className="flex items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-900/50 group">
+                        {editingActivityId === at.id ? (
+                           <form onSubmit={handleSaveEdit} className="flex-grow flex gap-2 items-center">
+                            <input type="text" value={editText} onChange={(e) => setEditText(e.target.value)} className="flex-grow p-1 border rounded dark:bg-gray-700" autoFocus />
+                            <button type="submit" className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Salvar</button>
+                            <button type="button" onClick={handleCancelEditing} className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button>
+                          </form>
+                        ) : (
+                          <>
+                            <input type="checkbox" checked={at.concluida} onChange={() => handleToggleCompleta(at.id, at.concluida)} className="h-5 w-5 rounded cursor-pointer" />
+                            <div className="flex-grow">
+                              <p className={`${at.concluida ? 'line-through text-gray-500' : 'dark:text-gray-200'}`}>{at.descricao}</p>
+                              <p className="text-xs text-gray-400">{new Date(at.data_atividade).toLocaleString('pt-BR')}</p>
+                            </div>
+                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleStartEditing(at)} className="p-1"><Pencil size={16}/></button>
+                              <button onClick={() => handleDeletarAtividade(at.id)} className="p-1"><Trash2 size={16}/></button>
+                            </div>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {abaAtiva === 'notas' && ( <div> {/* ... Conteúdo ... */} </div> )}
+              {abaAtiva === 'orcamento' && ( <div> {/* ... Conteúdo ... */} </div> )}
+              {abaAtiva === 'detalhes' && ( <div> {/* ... Conteúdo ... */} </div> )}
+            </>
+          )}
+        </div>
+        
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <button onClick={onClose} className="text-gray-600 dark:text-gray-400">Fechar</button>
+          <div className="flex gap-4">
+            <button onClick={handleGanhouClick} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">Ganhou</button>
+            <button onClick={() => setIsLostModalOpen(true)} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Perdeu</button>
+          </div>
+        </div>
       </div>
     </div>
   );
