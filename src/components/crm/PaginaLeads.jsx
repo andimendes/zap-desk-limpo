@@ -3,22 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight } from 'lucide-react';
+import AddLeadModal from './AddLeadModal'; // 1. Importamos o nosso novo modal
 
 const PaginaLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // 2. Estado para controlar o modal
 
   useEffect(() => {
     const fetchLeads = async () => {
       setLoading(true);
-      
-      // Busca os dados da nossa nova tabela crm_leads
-      const { data, error } = await supabase
-        .from('crm_leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from('crm_leads').select('*').order('created_at', { ascending: false });
       if (error) {
         console.error('Erro ao buscar leads:', error);
         setError('Não foi possível carregar os leads.');
@@ -27,34 +23,39 @@ const PaginaLeads = () => {
       }
       setLoading(false);
     };
-
     fetchLeads();
   }, []);
+
+  // 3. Função para adicionar o novo lead à lista sem recarregar a página
+  const handleLeadAdicionado = (novoLead) => {
+    setLeads([novoLead, ...leads]);
+  };
 
   if (loading) {
     return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin text-blue-500 inline-block" /></div>;
   }
-
   if (error) {
     return <div className="p-8 text-center text-red-500">{error}</div>;
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900/80 min-h-full">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Prospecção de Leads</h1>
-        <button 
-          // onClick={() => setIsAddModalOpen(true)} // Funcionalidade a ser adicionada
-          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <PlusCircle size={20} />
-          Adicionar Lead
-        </button>
-      </div>
+    <>
+      <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900/80 min-h-full">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Prospecção de Leads</h1>
+          <button 
+            onClick={() => setIsAddModalOpen(true)} // 4. Ligamos o botão ao estado
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <PlusCircle size={20} />
+            Adicionar Lead
+          </button>
+        </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
+        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            {/* ... o conteúdo da tabela continua igual ... */}
+            <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Empresa</th>
@@ -103,9 +104,16 @@ const PaginaLeads = () => {
                 </tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
-    </div>
+      {/* 5. Renderizamos o modal */}
+      <AddLeadModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onLeadAdicionado={handleLeadAdicionado}
+      />
+    </>
   );
 };
 
