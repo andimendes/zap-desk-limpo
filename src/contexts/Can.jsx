@@ -1,33 +1,31 @@
 import { useAuth } from './AuthContext';
 
 /**
- * Documentação do Componente Can (Versão 4 - com Debug)
- * * Adicionamos uma linha de `console.log` para "espiar" os dados do perfil
- * que este componente recebe. Isto vai nos dizer exatamente quais 'roles'
- * o sistema está a ver para o seu utilizador.
+ * Componente de verificação de permissões.
+ * Esta versão foi tornada mais robusta para aguardar o fim do carregamento
+ * dos dados de autenticação antes de verificar as permissões do utilizador.
  */
 const Can = ({ children }) => {
-	const { profile } = useAuth();
+	// 1. Agora também pedimos o estado de 'loading' ao AuthContext.
+	const { profile, loading } = useAuth();
 
-	// --- PASSO DE DEBUG ---
-	// Esta linha vai imprimir o conteúdo do 'profile' na consola do navegador.
-	// Ajuda-nos a ver exatamente quais 'roles' o sistema está a receber.
-	console.log("DEBUG [Can.jsx]: Perfil recebido:", profile);
+	// 2. A nossa "guarda" de segurança: Se os dados ainda estiverem a carregar,
+	// não mostramos nada. É como se o componente estivesse invisível
+	// até ter a certeza de que tem a informação do perfil.
+	if (loading) {
+		return null;
+	}
 
-
-	// Verificação segura para ver se o perfil existe e se 'roles' é uma lista
+	// 3. A partir daqui, podemos ter a certeza de que 'loading' é 'false' e
+	// que já temos uma resposta sobre o perfil do utilizador.
 	const hasRoles = profile && Array.isArray(profile.roles);
-
-	// Verificação robusta e insensível a maiúsculas/minúsculas.
 	const isUserAdmin = hasRoles && profile.roles.some(role => role.toLowerCase() === 'admin');
-
 
 	if (isUserAdmin) {
 		return <>{children}</>;
 	}
 
-	return null; // Não mostra nada se não tiver permissão
+	return null; // Não mostra nada se o utilizador não for admin
 };
 
 export default Can;
-

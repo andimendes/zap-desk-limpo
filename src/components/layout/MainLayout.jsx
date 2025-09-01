@@ -11,7 +11,6 @@ import {
 
 const NavLink = ({ icon, children, to }) => {
     const location = useLocation();
-    // A rota está ativa se o URL começar com o 'to' do link.
     const isActive = location.pathname.startsWith(to);
 
     return (
@@ -58,9 +57,7 @@ export default function MainLayout({ children, onOpenSettings }) {
                 </nav>
 
                 <div className="mt-auto">
-
-                    {/* --- O BLOCO <Can> ESTÁ TEMPORARIAMENTE DESLIGADO --- */}
-                    {/*
+                    {/* --- O BLOCO <Can> FOI REATIVADO --- */}
                     <Can>
                         <>
                             <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Admin</p>
@@ -69,7 +66,6 @@ export default function MainLayout({ children, onOpenSettings }) {
                             </NavLink>
                         </>
                     </Can>
-                    */}
                     
                     <button 
                         onClick={onOpenSettings} 
