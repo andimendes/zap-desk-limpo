@@ -1,6 +1,6 @@
 // src/components/crm/CrmBoard.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // <--- A CORREÇÃO ESTÁ AQUI
 import { supabase } from '../../supabaseClient.js'; 
 import AddNegocioModal from './AddNegocioModal.jsx';
 import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
@@ -49,12 +49,10 @@ const CrmBoard = () => {
   const [listaDeUsers, setListaDeUsers] = useState([]);
   const [filtroResponsavelId, setFiltroResponsavelId] = useState('todos');
   
-  // --- INÍCIO DA CORREÇÃO ---
   const [winReady, setWinReady] = useState(false);
   useEffect(() => {
     setWinReady(true);
   }, []);
-  // --- FIM DA CORREÇÃO ---
 
   useEffect(() => {
     const fetchData = async () => {
@@ -151,7 +149,6 @@ const CrmBoard = () => {
 
   return (
     <>
-      {/* --- INÍCIO DA CORREÇÃO (Wrapper Condicional) --- */}
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-gray-50 dark:bg-gray-900/80 min-h-full p-4 sm:p-6 lg:p-8">
@@ -217,7 +214,6 @@ const CrmBoard = () => {
           </div>
         </DragDropContext>
       )}
-      {/* --- FIM DA CORREÇÃO (Wrapper Condicional) --- */}
 
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapas} onNegocioAdicionado={handleNegocioAdicionado} />}
       
