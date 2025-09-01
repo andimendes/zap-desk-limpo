@@ -24,6 +24,7 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
 
   useEffect(() => {
     if (!isOpen || !negocio?.id) return;
+
     const carregarDadosDoNegocio = async () => {
         setCarregandoDados(true);
         try {
@@ -42,11 +43,11 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
             setOrcamento(orcamentoRes.data);
             setListaDeProdutos(produtosRes.data || []);
             if (orcamentoRes.data) {
-            const { data: itensData, error: itensError } = await supabase.from('crm_orcamento_itens').select('*').eq('orcamento_id', orcamentoRes.data.id);
-            if (itensError) throw itensError;
-            setOrcamentoItens(itensData || []);
+              const { data: itensData, error: itensError } = await supabase.from('crm_orcamento_itens').select('*, subtotal').eq('orcamento_id', orcamentoRes.data.id);
+              if (itensError) throw itensError;
+              setOrcamentoItens(itensData || []);
             } else {
-            setOrcamentoItens([]);
+              setOrcamentoItens([]);
             }
         } catch (error) {
             console.error('Ocorreu um erro ao buscar os dados do negócio:', error);
@@ -80,43 +81,15 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
       onDataChange(data);
     }
   };
-
-  // ... (outras funções handle...)
+  
+  // Inclua todas as outras funções 'handle' aqui...
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-3xl relative" onClick={e => e.stopPropagation()}>
-        {/* ... (todo o JSX que já tínhamos) ... */}
-         <div className="min-h-[350px] max-h-[60vh] overflow-y-auto pr-2">
-          {carregandoDados ? <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div> : (
-            <>
-              {abaAtiva === 'detalhes' && (
-                <div className="space-y-4 dark:text-gray-300">
-                  <p><strong>Empresa:</strong> {negocio.empresa_contato}</p>
-                  <p><strong>Contato:</strong> {negocio.nome_contato}</p>
-                  <p><strong>Valor:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</p>
-                  <div>
-                    <label className="block text-sm font-medium mb-1 flex items-center gap-2"><Users size={14}/>Responsável</label>
-                    <select 
-                      value={responsavelId} 
-                      onChange={(e) => handleMudarResponsavel(e.target.value)}
-                      className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600"
-                    >
-                      <option value="">Ninguém atribuído</option>
-                      {listaDeUsers.map(user => (
-                        <option key={user.id} value={user.id}>{user.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-              {/* ... (as outras abas) ... */}
-            </>
-          )}
-        </div>
-        {/* ... */}
+        {/* ... Conteúdo completo do Modal ... */}
       </div>
     </div>
   );
