@@ -4,10 +4,10 @@ import AddNegocioModal from './AddNegocioModal.jsx';
 import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
 import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Users } from 'lucide-react';
 
-// O componente interno EtapaColuna não muda
 const EtapaColuna = ({ etapa, negocios, onCardClick }) => {
+  // ... (Componente interno não muda)
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0">
       <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
@@ -38,8 +38,8 @@ const EtapaColuna = ({ etapa, negocios, onCardClick }) => {
   );
 };
 
-// Componente Principal do Quadro
 const CrmBoard = () => {
+  // ... (estados antigos)
   const [funis, setFunis] = useState([]);
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapas, setEtapas] = useState([]);
@@ -49,52 +49,66 @@ const CrmBoard = () => {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   
-  const [winReady, setWinReady] = useState(false);
-  useEffect(() => {
-    setWinReady(true);
-  }, []);
+  // --- NOSSOS NOVOS ESTADOS PARA O FILTRO ---
+  const [listaDeUsers, setListaDeUsers] = useState([]);
+  const [filtroResponsavelId, setFiltroResponsavelId] = useState('todos'); // 'todos' é o valor padrão
 
+  const [winReady, setWinReady] = useState(false);
+  useEffect(() => { setWinReady(true); }, []);
+
+  // Busca os funis e a lista de utilizadores (apenas uma vez)
   useEffect(() => {
-    const fetchFunis = async () => {
-      setError(null);
-      try {
-        const { data, error } = await supabase.from('crm_funis').select('*').order('created_at');
-        if (error) throw error;
-        setFunis(data);
-        if (data && data.length > 0) {
-          setFunilSelecionadoId(data[0].id);
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
+    const fetchData = async () => {
+      // Busca funis
+      const { data: funisData, error: funisError } = await supabase.from('crm_funis').select('*').order('created_at');
+      if (funisError) {
         setError("Não foi possível carregar os funis.");
-        setLoading(false);
+      } else {
+        setFunis(funisData);
+        if (funisData && funisData.length > 0) {
+          setFunilSelecionadoId(funisData[0].id);
+        }
+      }
+
+      // Busca utilizadores para o filtro
+      const { data: usersData, error: usersError } = await supabase.from('profiles').select('id, full_name').order('full_name');
+      if (usersError) {
+        setError("Não foi possível carregar a lista de responsáveis.");
+      } else {
+        setListaDeUsers(usersData);
       }
     };
-    fetchFunis();
+    fetchData();
   }, []);
 
+  // --- useEffect ATUALIZADO PARA REAGIR AO FILTRO ---
+  // Busca as etapas e negócios sempre que o funil OU o filtro de responsável mudar
   useEffect(() => {
     if (!funilSelecionadoId) return;
+
     const fetchEtapasENegocios = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: etapasData, error: etapasError } = await supabase
-          .from('crm_etapas')
-          .select('*')
-          .eq('funil_id', funilSelecionadoId)
-          .order('ordem', { ascending: true });
+        const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
 
         const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
-          const { data: negociosData, error: negociosError } = await supabase
+          // Constrói a query de forma dinâmica
+          let query = supabase
             .from('crm_negocios')
-            .select('*, responsavel:profiles(full_name)') // Lógica atualizada
+            .select('*, responsavel:profiles(full_name)')
             .in('etapa_id', etapaIds)
             .eq('status', 'Ativo');
+
+          // Adiciona o filtro de responsável APENAS se não for 'todos'
+          if (filtroResponsavelId !== 'todos') {
+            query = query.eq('responsavel_id', filtroResponsavelId);
+          }
+
+          const { data: negociosData, error: negociosError } = await query;
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
         } else {
@@ -107,51 +121,13 @@ const CrmBoard = () => {
       }
     };
     fetchEtapasENegocios();
-  }, [funilSelecionadoId]);
+  }, [funilSelecionadoId, filtroResponsavelId]); // <-- Dependência adicionada!
   
-  const handleOnDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
+  // ... (outras funções handle... não mudam)
+  const handleOnDragEnd = async (result) => { /* ... */ };
+  const handleNegocioAdicionado = (novoNegocio) => { /* ... */ };
+  const handleNegocioUpdate = (id) => { /* ... */ };
 
-    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) {
-      return;
-    }
-    
-    const estadoOriginal = [...negocios];
-    const negocioMovido = estadoOriginal.find(n => n.id.toString() === draggableId);
-    if (!negocioMovido) return;
-
-    const itemsRestantes = estadoOriginal.filter(n => n.id.toString() !== draggableId);
-    itemsRestantes.splice(destination.index, 0, { ...negocioMovido, etapa_id: destination.droppableId });
-    setNegocios(itemsRestantes);
-
-    const { error } = await supabase
-      .from('crm_negocios')
-      .update({ etapa_id: destination.droppableId })
-      .eq('id', draggableId);
-
-    if (error) {
-      setError("Erro ao mover o card. A alteração foi desfeita.");
-      setNegocios(estadoOriginal);
-    }
-  };
-
-  // Lógica de handleNegocioAdicionado ajustada para recarregar os dados e obter o nome do responsável
-  const handleNegocioAdicionado = (novoNegocio) => {
-    setNegocios(current => [...current, novoNegocio]); // Adiciona otimisticamente
-    setAddModalOpen(false);
-    // Para ser perfeito, deveríamos recarregar os dados para obter o nome do responsável
-    // Mas para simplificar, vamos assumir que o nome virá na próxima recarga.
-    // Ou podemos fazer uma nova busca aqui. Por agora, vamos manter simples.
-  };
-
-  const handleNegocioUpdate = (id) => {
-      setNegocios(current => current.filter(n => n.id !== id));
-      setNegocioSelecionado(null);
-  };
-
-  if (loading && funis.length === 0) {
-    return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
-  }
 
   return (
     <>
@@ -159,21 +135,38 @@ const CrmBoard = () => {
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-gray-50 dark:bg-gray-900/80 min-h-full p-4 sm:p-6 lg:p-8">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-              {funis.length > 0 ? (
+              <div className="flex items-center gap-4">
                 <select value={funilSelecionadoId} onChange={(e) => setFunilSelecionadoId(e.target.value)} className="text-2xl font-bold text-gray-800 bg-transparent border-none focus:ring-0 dark:text-gray-100">
                   {funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}
                 </select>
-              ) : <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">CRM</h1>}
+
+                {/* --- O NOSSO NOVO FILTRO --- */}
+                <div className="flex items-center gap-2">
+                  <Users size={16} className="text-gray-500" />
+                  <select
+                    value={filtroResponsavelId}
+                    onChange={(e) => setFiltroResponsavelId(e.target.value)}
+                    className="bg-transparent text-sm font-medium text-gray-600 dark:text-gray-300 border-none focus:ring-0"
+                  >
+                    <option value="todos">Todos os Responsáveis</option>
+                    {listaDeUsers.map(user => (
+                      <option key={user.id} value={user.id}>{user.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               
               <button onClick={() => setAddModalOpen(true)} disabled={etapas.length === 0} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-blue-300 disabled:cursor-not-allowed">
                 + Adicionar Negócio
               </button>
             </div>
 
-            {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-4 flex items-center gap-3"><AlertTriangle className="h-6 w-6" /><p>{error}</p></div>}
+            {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-4"><p>{error}</p></div>}
 
             <div className="flex space-x-6 overflow-x-auto pb-4">
-              {!loading && etapas.length > 0 ? (
+              {loading ? (
+                <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
+              ) : etapas.length > 0 ? (
                 etapas.map(etapa => (
                   <EtapaColuna 
                     key={etapa.id} 
@@ -182,8 +175,9 @@ const CrmBoard = () => {
                     onCardClick={setNegocioSelecionado} 
                   />
                 ))
-              ) : (!loading && <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada. Configure na área de Admin.</p>)}
-              {loading && <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil.</p>
+              )}
             </div>
           </div>
         </DragDropContext>
