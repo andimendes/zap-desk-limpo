@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, Clock, MessageSquare, Plus, Trash2, Pencil, Users } from 'lucide-react';
+import { Loader2, Clock, MessageSquare, Plus, Trash2, Pencil, Users, CalendarPlus } from 'lucide-react'; // Ícone adicionado aqui
 
 const StatusBadge = ({ status }) => {
   const statusStyles = {
@@ -19,7 +19,7 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
   const [orcamento, setOrcamento] = useState(null);
   const [orcamentoItens, setOrcamentoItens] = useState([]);
   const [listaDeProdutos, setListaDeProdutos] = useState([]);
-  const [carregandoDados, setCarregandoDados] = useState(true); // A linha que tinha sido apagada
+  const [carregandoDados, setCarregandoDados] = useState(true);
   const [isLostModalOpen, setIsLostModalOpen] = useState(false);
   const [motivoPerda, setMotivoPerda] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +75,61 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
     };
     carregarDadosDoNegocio();
   }, [isOpen, negocio]);
+  
+  // --- NOVA FUNÇÃO PARA O GOOGLE CALENDAR ---
+  const handleCreateGoogleEvent = async (atividade) => {
+    // Passo 1: Obter a sessão e o token de acesso.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.provider_token) {
+      alert("Não foi possível encontrar a autenticação do Google. Por favor, conecte a sua conta nas configurações.");
+      return;
+    }
+    const providerToken = session.provider_token;
+  
+    // Passo 2: Preparar os dados do evento.
+    const startTime = new Date(atividade.data_atividade);
+    startTime.setHours(12, 0, 0, 0); // Define a hora de início para 12:00 (meio-dia)
+  
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Adiciona 1 hora de duração
+  
+    const eventData = {
+      'summary': atividade.descricao, // O título do evento será a descrição da tarefa
+      'description': `Atividade do CRM Zap Desk referente ao negócio: ${negocio.titulo}.`,
+      'start': {
+        'dateTime': startTime.toISOString(),
+        'timeZone': 'America/Sao_Paulo', // Ajuste para o seu fuso horário ou torne-o dinâmico
+      },
+      'end': {
+        'dateTime': endTime.toISOString(),
+        'timeZone': 'America/Sao_Paulo',
+      },
+    };
+  
+    // Passo 3: Fazer a chamada à API do Google Calendar.
+    try {
+      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${providerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      });
+  
+      // Passo 4: Tratar a resposta e dar feedback.
+      if (response.ok) {
+        const event = await response.json();
+        alert(`Evento criado com sucesso! Pode vê-lo aqui: ${event.htmlLink}`);
+      } else {
+        const error = await response.json();
+        console.error('Erro ao criar evento:', error);
+        alert(`Falha ao criar o evento: ${error.error.message}`);
+      }
+    } catch (error) {
+      console.error('Ocorreu um erro de rede:', error);
+      alert('Ocorreu um erro de rede ao tentar criar o evento.');
+    }
+  };
 
   const valorTotalOrcamento = orcamentoItens.reduce((total, item) => total + (item.subtotal || 0), 0);
   const handleMudarStatusOrcamento = async (novoStatus) => { if (!orcamento) return; const { data: orcamentoAtualizado, error: orcamentoError } = await supabase.from('crm_orcamentos').update({ status: novoStatus }).eq('id', orcamento.id).select().single(); if (orcamentoError) { alert('Erro ao atualizar o status.'); return; } setOrcamento(orcamentoAtualizado); if (novoStatus === 'Aprovado') { const { data: negocioAtualizado, error: negocioError } = await supabase.from('crm_negocios').update({ valor: valorTotalOrcamento }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single(); if (negocioError) { alert('Status atualizado, mas houve erro ao atualizar o valor do negócio.'); } else { onDataChange(negocioAtualizado); alert('Orçamento aprovado e valor do negócio atualizado!'); } } };
@@ -112,7 +167,14 @@ const NegocioDetalhesModal = ({ negocio, isOpen, onClose, onNegocioUpdate, onDat
         <div className="min-h-[350px] max-h-[60vh] overflow-y-auto pr-2">
           {carregandoDados ? (<div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>) : (
             <>
-              {abaAtiva === 'atividades' && ( <div> <form onSubmit={handleAdicionarAtividade} className="flex gap-2 mb-4"><input type="text" value={novaAtividadeDesc} onChange={e => setNovaAtividadeDesc(e.target.value)} placeholder="Adicionar uma nova tarefa..." className="flex-grow p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" /><button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"><Plus size={20} /></button></form> <ul className="space-y-2"> {atividades.map(at => (<li key={at.id} className="flex items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-900/50 group">{editingActivityId === at.id ? (<form onSubmit={handleSaveEdit} className="flex-grow flex gap-2 items-center"><input type="text" value={editText} onChange={(e) => setEditText(e.target.value)} className="flex-grow p-1 border rounded dark:bg-gray-700" autoFocus /><button type="submit" className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Salvar</button><button type="button" onClick={handleCancelEditing} className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button></form>) : (<><input type="checkbox" checked={at.concluida} onChange={() => handleToggleCompleta(at.id, at.concluida)} className="h-5 w-5 rounded cursor-pointer" /><div className="flex-grow"><p className={`${at.concluida ? 'line-through text-gray-500' : 'dark:text-gray-200'}`}>{at.descricao}</p><p className="text-xs text-gray-400">{new Date(at.data_atividade).toLocaleString('pt-BR')}</p></div><div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleStartEditing(at)} className="p-1"><Pencil size={16}/></button><button onClick={() => handleDeletarAtividade(at.id)} className="p-1"><Trash2 size={16}/></button></div></>)}</li>))} </ul> </div> )}
+              {abaAtiva === 'atividades' && ( <div> <form onSubmit={handleAdicionarAtividade} className="flex gap-2 mb-4"><input type="text" value={novaAtividadeDesc} onChange={e => setNovaAtividadeDesc(e.target.value)} placeholder="Adicionar uma nova tarefa..." className="flex-grow p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" /><button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"><Plus size={20} /></button></form> <ul className="space-y-2"> {atividades.map(at => (<li key={at.id} className="flex items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-900/50 group">{editingActivityId === at.id ? (<form onSubmit={handleSaveEdit} className="flex-grow flex gap-2 items-center"><input type="text" value={editText} onChange={(e) => setEditText(e.target.value)} className="flex-grow p-1 border rounded dark:bg-gray-700" autoFocus /><button type="submit" className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Salvar</button><button type="button" onClick={handleCancelEditing} className="text-sm px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button></form>) : (<><input type="checkbox" checked={at.concluida} onChange={() => handleToggleCompleta(at.id, at.concluida)} className="h-5 w-5 rounded cursor-pointer" /><div className="flex-grow"><p className={`${at.concluida ? 'line-through text-gray-500' : 'dark:text-gray-200'}`}>{at.descricao}</p><p className="text-xs text-gray-400">{new Date(at.data_atividade).toLocaleString('pt-BR')}</p></div><div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* --- BOTÃO ADICIONADO AQUI --- */}
+                <button onClick={() => handleCreateGoogleEvent(at)} className="p-1 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar">
+                  <CalendarPlus size={16}/>
+                </button>
+                <button onClick={() => handleStartEditing(at)} className="p-1 text-gray-500 hover:text-green-600"><Pencil size={16}/></button>
+                <button onClick={() => handleDeletarAtividade(at.id)} className="p-1 text-gray-500 hover:text-red-600"><Trash2 size={16}/></button>
+              </div></>)}</li>))} </ul> </div> )}
               {abaAtiva === 'notas' && ( <div> <form onSubmit={handleAdicionarNota} className="flex flex-col gap-2 mb-4"><textarea value={novaNotaConteudo} onChange={e => setNovaNotaConteudo(e.target.value)} placeholder="Escreva uma nota..." rows="3" className="w-full p-2 border rounded dark:bg-gray-700"></textarea><button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 self-end">Adicionar Nota</button></form> <ul className="space-y-3"> {notas.map(nota => (<li key={nota.id} className="flex items-start gap-3 p-2 rounded bg-gray-50 dark:bg-gray-900/50"><MessageSquare className="mt-1" size={16} /><div><p className="dark:text-gray-200 whitespace-pre-wrap">{nota.conteudo}</p><p className="text-xs text-gray-400 mt-1">Adicionado em {new Date(nota.created_at).toLocaleString('pt-BR')}</p></div></li>))} </ul> </div> )}
               {abaAtiva === 'orcamento' && ( <div> {!orcamento ? (<div className="text-center py-10"><p className="mb-4">Nenhum orçamento criado.</p><button onClick={handleCriarOrcamento} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Criar Orçamento</button></div>) : ( <div> <div className="flex justify-between items-center mb-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"> <div className="flex items-center gap-3"> <span className="font-semibold">Status:</span> <StatusBadge status={orcamento.status} /> </div> <div className="flex gap-2"> {orcamento.status === 'Rascunho' && ( <button onClick={() => handleMudarStatusOrcamento('Enviado')} className="text-sm px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Marcar como Enviado</button> )} {orcamento.status === 'Enviado' && ( <> <button onClick={() => handleMudarStatusOrcamento('Aprovado')} className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Aprovado</button> <button onClick={() => handleMudarStatusOrcamento('Rejeitado')} className="text-sm px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Rejeitado</button> </> )} </div> </div> <div className="mb-6 rounded-lg border dark:border-gray-700"><table className="min-w-full"><thead className="bg-gray-50 dark:bg-gray-700"><tr><th className="px-4 py-2 text-left text-xs font-medium">Item</th><th className="px-4 py-2 text-left text-xs font-medium">Qtd</th><th className="px-4 py-2 text-left text-xs font-medium">Preço Unit.</th><th className="px-4 py-2 text-left text-xs font-medium">Subtotal</th><th></th></tr></thead><tbody className="divide-y dark:divide-gray-700">{orcamentoItens.map(item => (<tr key={item.id}><td className="px-4 py-2">{item.descricao}</td><td className="px-4 py-2">{item.quantidade}</td><td className="px-4 py-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.preco_unitario)}</td><td className="px-4 py-2">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.subtotal)}</td><td className="px-4 py-2"><button onClick={() => handleRemoverItem(item.id)}><Trash2 className="text-red-500" size={16}/></button></td></tr>))}</tbody></table></div> <div className="text-right font-bold text-xl mb-6">Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotalOrcamento)}</div> <form onSubmit={handleAdicionarItem} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg flex items-end gap-4"> <div className="flex-grow"><label className="block text-sm font-medium mb-1">Produto</label><select value={produtoSelecionadoId} onChange={e => setProdutoSelecionadoId(e.target.value)} className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700"><option value="">Selecione...</option>{listaDeProdutos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div> <div><label className="block text-sm font-medium mb-1">Quantidade</label><input type="number" value={quantidade} onChange={e => setQuantidade(Number(e.target.value))} min="1" className="w-24 p-2 border rounded-lg dark:bg-gray-700"/></div> <button type="submit" className="bg-blue-600 text-white py-2 px-4 rounded-lg">Adicionar</button> </form> </div> )} </div> )}
               {abaAtiva === 'detalhes' && ( <div className="space-y-4 dark:text-gray-300"> <p><strong>Empresa:</strong> {negocio.empresa_contato}</p> <p><strong>Contato:</strong> {negocio.nome_contato}</p> <p><strong>Valor:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</p> <div> <label className="block text-sm font-medium mb-1 flex items-center gap-2"><Users size={14}/>Responsável</label> <select value={responsavelId} onChange={(e) => handleMudarResponsavel(e.target.value)} className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600"> <option value="">Ninguém atribuído</option> {listaDeUsers.map(user => (<option key={user.id} value={user.id}>{user.full_name}</option>))} </select> </div> </div> )}
