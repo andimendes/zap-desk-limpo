@@ -1,3 +1,5 @@
+// src/components/crm/CrmBoard.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js'; 
 import AddNegocioModal from './AddNegocioModal.jsx';
@@ -6,18 +8,25 @@ import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { Loader2, AlertTriangle, Users } from 'lucide-react';
 
-const EtapaColuna = ({ etapa, negocios, onCardClick }) => {
+// --- COMPONENTE DA COLUNA ATUALIZADO ---
+const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }) => {
   return (
-    <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0">
-      <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200 mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
-        {etapa.nome_etapa}
-      </h3>
+    <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col">
+      <div className="mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
+        <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200">
+          {etapa.nome_etapa}
+        </h3>
+        {/* NOVO: Resumo da etapa com valor e contagem */}
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValor)}・{totalNegocios} negócio(s)
+        </p>
+      </div>
       <Droppable droppableId={String(etapa.id)}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`h-full min-h-[200px] transition-colors duration-200 rounded-md ${
+            className={`flex-grow min-h-[200px] transition-colors duration-200 rounded-md ${
               snapshot.isDraggingOver ? 'bg-blue-100 dark:bg-blue-900/30' : ''
             }`}
           >
@@ -53,20 +62,25 @@ const CrmBoard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: funisData, error: funisError } = await supabase.from('crm_funis').select('*').order('created_at');
-      if (funisError) {
+      // Usando Promise.all para buscar funis e usuários em paralelo
+      const [funisRes, usersRes] = await Promise.all([
+        supabase.from('crm_funis').select('*').order('created_at'),
+        supabase.from('profiles').select('id, full_name').order('full_name')
+      ]);
+
+      if (funisRes.error) {
         setError("Não foi possível carregar os funis.");
       } else {
-        setFunis(funisData);
-        if (funisData && funisData.length > 0) {
-          setFunilSelecionadoId(funisData[0].id);
+        setFunis(funisRes.data);
+        if (funisRes.data && funisRes.data.length > 0) {
+          setFunilSelecionadoId(funisRes.data[0].id);
         }
       }
-      const { data: usersData, error: usersError } = await supabase.from('profiles').select('id, full_name').order('full_name');
-      if (usersError) {
+      
+      if (usersRes.error) {
         setError("Não foi possível carregar a lista de responsáveis.");
       } else {
-        setListaDeUsers(usersData);
+        setListaDeUsers(usersRes.data);
       }
     };
     fetchData();
@@ -74,6 +88,7 @@ const CrmBoard = () => {
 
   useEffect(() => {
     if (!funilSelecionadoId) return;
+
     const fetchEtapasENegocios = async () => {
       setLoading(true);
       setError(null);
@@ -81,12 +96,15 @@ const CrmBoard = () => {
         const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
+        
         const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
           let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name)').in('etapa_id', etapaIds).eq('status', 'Ativo');
+          
           if (filtroResponsavelId !== 'todos') {
             query = query.eq('responsavel_id', filtroResponsavelId);
           }
+          
           const { data: negociosData, error: negociosError } = await query;
           if (negociosError) throw negociosError;
           setNegocios(negociosData);
@@ -102,14 +120,42 @@ const CrmBoard = () => {
     fetchEtapasENegocios();
   }, [funilSelecionadoId, filtroResponsavelId]);
   
-  const handleOnDragEnd = async (result) => { /* ...código da função... */ };
+  const handleOnDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    const negocioMovido = negocios.find(n => String(n.id) === draggableId);
+    if (negocioMovido.etapa_id === destination.droppableId) return;
+
+    // Atualização otimista da UI
+    const novosNegocios = negocios.map(n => 
+      String(n.id) === draggableId ? { ...n, etapa_id: destination.droppableId } : n
+    );
+    setNegocios(novosNegocios);
+
+    // Atualização no Supabase
+    const { error } = await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
+    if (error) {
+      alert("Erro ao mover o negócio. A página será atualizada.");
+      // Reverte a UI em caso de erro
+      setNegocios(negocios);
+    }
+  };
+  
   const handleNegocioAdicionado = (novoNegocio) => { setNegocios(current => [...current, novoNegocio]); };
+  
   const handleNegocioUpdate = (id) => {
     setNegocios(current => current.filter(n => n.id !== id));
     setNegocioSelecionado(null);
   };
+  
   const handleNegocioDataChange = (negocioAtualizado) => {
     setNegocios(currentNegocios => currentNegocios.map(n => n.id === negocioAtualizado.id ? negocioAtualizado : n));
+    // Atualiza também o negócio selecionado no modal para refletir a mudança imediatamente
+    if (negocioSelecionado && negocioSelecionado.id === negocioAtualizado.id) {
+      setNegocioSelecionado(negocioAtualizado);
+    }
   };
 
   return (
@@ -140,21 +186,34 @@ const CrmBoard = () => {
                 + Adicionar Negócio
               </button>
             </div>
+
             {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-4"><p>{error}</p></div>}
+            
             <div className="flex space-x-6 overflow-x-auto pb-4">
               {loading ? (
                 <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
               ) : etapas.length > 0 ? (
-                etapas.map(etapa => (
-                  <EtapaColuna 
-                    key={etapa.id} 
-                    etapa={etapa} 
-                    negocios={negocios.filter(n => String(n.etapa_id) === String(etapa.id))} 
-                    onCardClick={setNegocioSelecionado} 
-                  />
-                ))
+                etapas.map(etapa => {
+                  // Lógica para calcular os totais da etapa
+                  const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
+                  const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
+                  
+                  return (
+                    <EtapaColuna 
+                      key={etapa.id} 
+                      etapa={etapa} 
+                      negocios={negociosDaEtapa} 
+                      onCardClick={setNegocioSelecionado} 
+                      totalValor={valorDaEtapa}
+                      totalNegocios={negociosDaEtapa.length}
+                    />
+                  );
+                })
               ) : (
-                <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil.</p>
+                <div className="w-full text-center py-10">
+                  <p className="text-gray-500 dark:text-gray-400">Nenhuma etapa encontrada para este funil.</p>
+                  <p className="text-sm text-gray-400">Vá em Configurações para adicionar etapas ao funil "{funis.find(f=>f.id === funilSelecionadoId)?.nome_funil}".</p>
+                </div>
               )}
             </div>
           </div>
@@ -162,6 +221,7 @@ const CrmBoard = () => {
       )}
 
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapas} onNegocioAdicionado={handleNegocioAdicionado} />}
+      
       {negocioSelecionado && 
         <NegocioDetalhesModal 
           isOpen={!!negocioSelecionado} 
@@ -169,6 +229,9 @@ const CrmBoard = () => {
           onClose={() => setNegocioSelecionado(null)} 
           onNegocioUpdate={handleNegocioUpdate}
           onDataChange={handleNegocioDataChange}
+          // --- NOVO: Passando props adicionais para o modal redesenhado ---
+          etapasDoFunil={etapas} 
+          listaDeUsers={listaDeUsers}
         />}
     </>
   );
