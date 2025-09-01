@@ -1,7 +1,8 @@
 // src/components/crm/BarraLateral.jsx
 
-import React from 'react';
-import { Building, User, DollarSign, Tag, Users as UsersIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabaseClient';
+import { Building, User, DollarSign, Tag, Users as UsersIcon, Pencil, X, Check } from 'lucide-react';
 
 const DetalheItem = ({ icon, label, value }) => (
   <div>
@@ -9,18 +10,35 @@ const DetalheItem = ({ icon, label, value }) => (
       {icon}
       {label}
     </label>
-    <p className="text-gray-800 dark:text-gray-200 text-base">{value || 'Não informado'}</p>
+    <p className="text-gray-800 dark:text-gray-200 text-base break-words">{value || 'Não informado'}</p>
   </div>
 );
 
 const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    nome_contato: '',
+    empresa_contato: '',
+    contato_email: '',
+    contato_telefone: '',
+  });
+
+  // Este useEffect garante que o formulário é preenchido com os dados do negócio
+  // sempre que um novo negócio é selecionado.
+  useEffect(() => {
+    if (negocio) {
+      setFormData({
+        nome_contato: negocio.nome_contato || '',
+        empresa_contato: negocio.empresa_contato || '',
+        contato_email: negocio.contato_email || '',
+        contato_telefone: negocio.contato_telefone || '',
+      });
+    }
+  }, [negocio]);
+
   const etapaAtual = etapasDoFunil.find(e => e.id === negocio.etapa_id);
 
   const handleMudarResponsavel = async (novoResponsavelId) => {
-    // Esta função foi movida do modal principal para cá
-    // Idealmente, a lógica de update deveria ser passada como prop (onResponsavelChange)
-    // Mas para simplificar, mantemos a chamada ao supabase aqui por enquanto.
-    const { supabase } = await import('@/supabaseClient');
     const { data, error } = await supabase
       .from('crm_negocios')
       .update({ responsavel_id: novoResponsavelId || null })
@@ -31,7 +49,41 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) =>
     if (error) {
       alert('Não foi possível alterar o responsável.');
     } else {
+      onDataChange(data);
+    }
+  };
+
+  const handleEditToggle = () => setIsEditing(!isEditing);
+
+  const handleCancel = () => {
+    // Restaura os dados originais e sai do modo de edição
+    setFormData({
+      nome_contato: negocio.nome_contato || '',
+      empresa_contato: negocio.empresa_contato || '',
+      contato_email: negocio.contato_email || '',
+      contato_telefone: negocio.contato_telefone || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    const { data, error } = await supabase
+      .from('crm_negocios')
+      .update(formData)
+      .eq('id', negocio.id)
+      .select('*, responsavel:profiles(full_name)')
+      .single();
+
+    if (error) {
+      alert('Erro ao salvar as alterações: ' + error.message);
+    } else {
       onDataChange(data); // Atualiza o estado no componente pai
+      setIsEditing(false); // Sai do modo de edição
     }
   };
 
@@ -55,17 +107,48 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) =>
       <hr className="dark:border-gray-700" />
       
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-600 dark:text-gray-300">Pessoas e Organizações</h3>
-        <DetalheItem 
-          icon={<User size={14} />} 
-          label="Pessoa de Contato" 
-          value={negocio.nome_contato} 
-        />
-        <DetalheItem 
-          icon={<Building size={14} />} 
-          label="Empresa" 
-          value={negocio.empresa_contato} 
-        />
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-gray-600 dark:text-gray-300">Pessoas e Organizações</h3>
+          {!isEditing && (
+            <button onClick={handleEditToggle} className="p-1 text-gray-500 hover:text-blue-600">
+              <Pencil size={16} />
+            </button>
+          )}
+        </div>
+
+        {isEditing ? (
+          // --- FORMULÁRIO DE EDIÇÃO ---
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium">Pessoa de Contato</label>
+              <input type="text" name="nome_contato" value={formData.nome_contato} onChange={handleFormChange} className="w-full p-1 border rounded dark:bg-gray-700" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Empresa</label>
+              <input type="text" name="empresa_contato" value={formData.empresa_contato} onChange={handleFormChange} className="w-full p-1 border rounded dark:bg-gray-700" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">E-mail</label>
+              <input type="email" name="contato_email" value={formData.contato_email} onChange={handleFormChange} className="w-full p-1 border rounded dark:bg-gray-700" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Telefone</label>
+              <input type="tel" name="contato_telefone" value={formData.contato_telefone} onChange={handleFormChange} className="w-full p-1 border rounded dark:bg-gray-700" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={handleCancel} className="p-2 bg-gray-200 dark:bg-gray-600 rounded-full hover:bg-gray-300"><X size={16} /></button>
+              <button onClick={handleSave} className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700"><Check size={16} /></button>
+            </div>
+          </div>
+        ) : (
+          // --- MODO DE VISUALIZAÇÃO ---
+          <>
+            <DetalheItem icon={<User size={14} />} label="Pessoa de Contato" value={negocio.nome_contato} />
+            <DetalheItem icon={<Building size={14} />} label="Empresa" value={negocio.empresa_contato} />
+            <DetalheItem icon={null} label="E-mail" value={negocio.contato_email} />
+            <DetalheItem icon={null} label="Telefone" value={negocio.contato_telefone} />
+          </>
+        )}
       </div>
 
       <hr className="dark:border-gray-700" />
@@ -86,7 +169,6 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) =>
           ))}
         </select>
       </div>
-
     </div>
   );
 };
