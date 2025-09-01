@@ -8,7 +8,6 @@ import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { Loader2, AlertTriangle, Users } from 'lucide-react';
 
-// --- COMPONENTE DA COLUNA ATUALIZADO ---
 const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }) => {
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col">
@@ -16,7 +15,6 @@ const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }
         <h3 className="font-bold text-lg text-gray-700 dark:text-gray-200">
           {etapa.nome_etapa}
         </h3>
-        {/* NOVO: Resumo da etapa com valor e contagem */}
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValor)}・{totalNegocios} negócio(s)
         </p>
@@ -30,14 +28,7 @@ const EtapaColuna = ({ etapa, negocios, onCardClick, totalValor, totalNegocios }
               snapshot.isDraggingOver ? 'bg-blue-100 dark:bg-blue-900/30' : ''
             }`}
           >
-            {negocios.map((negocio, index) => (
-              <NegocioCard 
-                key={negocio.id} 
-                negocio={negocio} 
-                index={index}
-                onCardClick={onCardClick}
-              />
-            ))}
+            {negocios} {/* Agora recebe os cards já renderizados */}
             {provided.placeholder}
           </div>
         )}
@@ -62,7 +53,6 @@ const CrmBoard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Usando Promise.all para buscar funis e usuários em paralelo
       const [funisRes, usersRes] = await Promise.all([
         supabase.from('crm_funis').select('*').order('created_at'),
         supabase.from('profiles').select('id, full_name').order('full_name')
@@ -128,18 +118,15 @@ const CrmBoard = () => {
     const negocioMovido = negocios.find(n => String(n.id) === draggableId);
     if (negocioMovido.etapa_id === destination.droppableId) return;
 
-    // Atualização otimista da UI
     const novosNegocios = negocios.map(n => 
       String(n.id) === draggableId ? { ...n, etapa_id: destination.droppableId } : n
     );
     setNegocios(novosNegocios);
 
-    // Atualização no Supabase
     const { error } = await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
     if (error) {
       alert("Erro ao mover o negócio. A página será atualizada.");
-      // Reverte a UI em caso de erro
-      setNegocios(negocios);
+      fetchEtapasENegocios(); // Recarrega os dados em caso de erro
     }
   };
   
@@ -152,7 +139,6 @@ const CrmBoard = () => {
   
   const handleNegocioDataChange = (negocioAtualizado) => {
     setNegocios(currentNegocios => currentNegocios.map(n => n.id === negocioAtualizado.id ? negocioAtualizado : n));
-    // Atualiza também o negócio selecionado no modal para refletir a mudança imediatamente
     if (negocioSelecionado && negocioSelecionado.id === negocioAtualizado.id) {
       setNegocioSelecionado(negocioAtualizado);
     }
@@ -194,7 +180,6 @@ const CrmBoard = () => {
                 <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
               ) : etapas.length > 0 ? (
                 etapas.map(etapa => {
-                  // Lógica para calcular os totais da etapa
                   const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
                   const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
                   
@@ -202,8 +187,16 @@ const CrmBoard = () => {
                     <EtapaColuna 
                       key={etapa.id} 
                       etapa={etapa} 
-                      negocios={negociosDaEtapa} 
-                      onCardClick={setNegocioSelecionado} 
+                      negocios={negociosDaEtapa.map((negocio, index) => (
+                        <NegocioCard 
+                          key={negocio.id} 
+                          negocio={negocio} 
+                          index={index}
+                          onCardClick={setNegocioSelecionado}
+                          // Passando a lista completa de etapas para o card poder renderizar a barra de progresso
+                          etapasDoFunil={etapas} 
+                        />
+                      ))}
                       totalValor={valorDaEtapa}
                       totalNegocios={negociosDaEtapa.length}
                     />
@@ -229,7 +222,6 @@ const CrmBoard = () => {
           onClose={() => setNegocioSelecionado(null)} 
           onNegocioUpdate={handleNegocioUpdate}
           onDataChange={handleNegocioDataChange}
-          // --- NOVO: Passando props adicionais para o modal redesenhado ---
           etapasDoFunil={etapas} 
           listaDeUsers={listaDeUsers}
         />}
