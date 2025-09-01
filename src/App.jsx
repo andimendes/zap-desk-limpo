@@ -20,8 +20,8 @@ import DashboardPage from '@/pages/DashboardPage';
 
 // Layouts
 import MainLayout from '@/components/layout/MainLayout.jsx';
-// --- 1. A IMPORTAÇÃO FOI "DESLIGADA" ---
-// import SettingsModal from '@/components/layout/SettingsModal';
+// --- 1. A IMPORTAÇÃO FOI REATIVADA ---
+import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
  * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
@@ -59,15 +59,13 @@ const AppContent = () => {
         </Routes>
       </MainLayout>
       
-      {/* --- 2. O COMPONENTE FOI "DESLIGADO" --- */}
-      {/*
+      {/* --- 2. O COMPONENTE FOI REATIVADO --- */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
         userProfile={profile}
         userAuth={session.user}
       />
-      */}
     </ThemeProvider>
   );
 };
