@@ -89,8 +89,7 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) =>
 
   return (
     <div className="w-1/3 max-w-sm bg-gray-50 dark:bg-gray-800/50 p-6 border-r dark:border-gray-700 h-full overflow-y-auto flex flex-col gap-6">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 break-words">{negocio.titulo}</h2>
-
+      
       <div className="space-y-4">
         <DetalheItem 
           icon={<DollarSign size={14} />} 
