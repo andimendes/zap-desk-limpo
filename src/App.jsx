@@ -14,13 +14,13 @@ import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 import ChamadosPage from '@/pages/ChamadosPage';
 import ClientesPage from '@/pages/ClientesPage';
 import CrmPage from '@/pages/CrmPage';
+import ProspeccaoPage from '@/pages/ProspeccaoPage'; // <-- 1. IMPORTAMOS A NOVA PÁGINA
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
 import DashboardPage from '@/pages/DashboardPage';
 
 // Layouts
 import MainLayout from '@/components/layout/MainLayout.jsx';
-// --- 1. A IMPORTAÇÃO FOI REATIVADA ---
 import SettingsModal from '@/components/layout/SettingsModal';
 
 /**
@@ -50,6 +50,10 @@ const AppContent = () => {
           <Route path="/chamados" element={<ChamadosPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
+          
+          {/* --- 2. ADICIONAMOS A NOVA ROTA AQUI --- */}
+          <Route path="/prospeccao" element={<ProspeccaoPage />} />
+
           <Route path="/admin/*" element={<AdminPage />} />
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
@@ -59,7 +63,6 @@ const AppContent = () => {
         </Routes>
       </MainLayout>
       
-      {/* --- 2. O COMPONENTE FOI REATIVADO --- */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
