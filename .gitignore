@@ -1,0 +1,21 @@
+# Ficheiros de log e dependências
+node_modules
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Ficheiro de segredos e variáveis de ambiente locais
+.env.local
+.env.*.local
+
+# Pasta de build de produção
+dist
+dist-ssr
+
+# Ficheiros de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ficheiros de configuração de editores
+.vscode/
+.idea/
