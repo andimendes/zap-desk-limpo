@@ -25,8 +25,7 @@ const FunilProgressBar = ({ etapas, etapaAtualId, onEtapaClick }) => {
         {etapas.map((etapa, index) => {
           const isPassed = index < etapaAtualIndex;
           const isCurrent = index === etapaAtualIndex;
-          const isFuture = index > etapaAtualIndex;
-  
+          
           let bgColor = 'bg-gray-300 dark:bg-gray-600'; // Futura
           let textColor = 'text-gray-700 dark:text-gray-300';
           if (isPassed) {
@@ -43,13 +42,9 @@ const FunilProgressBar = ({ etapas, etapaAtualId, onEtapaClick }) => {
               onClick={() => onEtapaClick(etapa.id)}
               className={`flex-1 flex items-center justify-center h-full px-2 text-sm text-center relative transition-colors duration-200 
                 ${bgColor} ${textColor}
-                ${!isFuture ? 'z-10' : 'z-0'} 
+                ${!isPassed ? 'z-10' : 'z-0'} 
                 ${isCurrent ? 'shadow-lg' : ''}
-                ${isPassed ? '' : 'before:content-[""] before:absolute before:top-0 before:left-full before:w-0 before:h-0 before:border-t-[16px] before:border-b-[16px] before:border-l-[16px] before:border-t-transparent before:border-b-transparent before:border-l-current before:z-20'}
                 `}
-              style={{
-                borderColor: bgColor // A cor da borda do "triângulo"
-              }}
             >
               <span className="truncate">{etapa.nome_etapa}</span>
             </button>
@@ -57,7 +52,7 @@ const FunilProgressBar = ({ etapas, etapaAtualId, onEtapaClick }) => {
         })}
       </div>
     );
-  };
+};
   
 
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil, listaDeUsers }) => {
@@ -84,7 +79,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) return;
     
     try {
-      // Re-fetch do negócio para garantir que temos a versão mais recente
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
         .select('*, responsavel:profiles(full_name)')
@@ -93,8 +87,9 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 
       if (negocioError) throw negocioError;
       setNegocio(updatedNegocio);
-      setNovoTitulo(updatedNegocio.titulo); // Atualiza o título editável também
-      onDataChange(updatedNegocio); // Informa o pai sobre a atualização completa
+      setNovoTitulo(updatedNegocio.titulo);
+      
+      // onDataChange(updatedNegocio); // <-- ESTA É A LINHA QUE ESTAVA A CAUSAR O LOOP E FOI REMOVIDA
 
       const [focoRes, atividadesRes, notasRes] = await Promise.all([
         supabase.from('crm_atividades').select('*').eq('negocio_id', negocioInicial.id).eq('concluida', false).gte('data_atividade', new Date().toISOString()).order('data_atividade', { ascending: true }).limit(1).maybeSingle(),
@@ -133,9 +128,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     } finally {
       setLoading(false);
     }
-  }, [negocioInicial, onDataChange]);
+  }, [negocioInicial]);
 
-  // useEffect para a carga inicial dos dados
   useEffect(() => {
     if (isOpen) {
         setLoading(true);
@@ -167,7 +161,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   };
 
   const handleMudarEtapa = async (novaEtapaId) => {
-    if (negocio.etapa_id === novaEtapaId) return; // Não faz nada se já estiver na etapa
+    if (negocio.etapa_id === novaEtapaId) return;
 
     const { data, error } = await supabase
       .from('crm_negocios')
@@ -179,9 +173,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (error) {
       alert('Não foi possível alterar a etapa.');
     } else {
-      setNegocio(data); // Atualiza o estado local do negócio
-      onDataChange(data); // Notifica o componente pai (CrmBoard)
-      // O restante do modal será recarregado via carregarDadosDetalhados se necessário
+      setNegocio(data);
+      onDataChange(data);
     }
   };
 
@@ -202,21 +195,16 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   };
 
   const handleMarcarStatus = async (status) => {
-    if (!window.confirm(`Tem certeza que deseja marcar este negócio como "${status === 'Ganho' ? 'GANHO' : 'PERDIDO'}"?`)) {
+    if (!window.confirm(`Tem certeza que deseja marcar este negócio como "${status}"?`)) {
       return;
     }
-    const { data, error } = await supabase
-      .from('crm_negocios')
-      .update({ status: status })
-      .eq('id', negocio.id)
-      .select('id')
-      .single();
+    const { error } = await supabase.from('crm_negocios').update({ status: status }).eq('id', negocio.id);
 
     if (error) {
       alert('Erro ao atualizar o status: ' + error.message);
     } else {
-      onClose(); // Fecha o modal
-      // onNegocioUpdate(data.id); // Remover negócio do board (se o status não for mais 'Ativo')
+      onClose();
+      onDataChange({ ...negocio, status: status }); // Informa o pai que o status mudou
     }
   };
   
@@ -273,21 +261,14 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
           <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div>
         ) : (
           <>
-            {/* --- CABEÇALHO DO MODAL (Topo do Pipedrive) --- */}
             <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                   {isTituloEditing ? (
                     <div className="flex items-center gap-2">
-                      <input 
-                        type="text" 
-                        value={novoTitulo} 
-                        onChange={(e) => setNovoTitulo(e.target.value)} 
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitulo(); }}
-                        className="text-2xl font-bold dark:bg-gray-700 dark:text-gray-100 p-1 border rounded"
-                      />
+                      <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitulo(); }} className="text-2xl font-bold dark:bg-gray-700 dark:text-gray-100 p-1 border rounded"/>
                       <button onClick={handleSaveTitulo} className="text-green-600 hover:text-green-800"><Check size={18}/></button>
-                      <button onClick={() => { setNovoTitulo(negocio.titulo); setIsTituloEditing(false); }} className="text-red-600 hover:text-red-800"><X size={18}/></button>
+                      <button onClick={() => { setIsTituloEditing(false); }} className="text-red-600 hover:text-red-800"><X size={18}/></button>
                     </div>
                   ) : (
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 break-words flex items-center gap-2">
@@ -300,70 +281,31 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
                     <UsersIcon size={14} />
-                    <select 
-                      value={negocio.responsavel_id || ''} 
-                      onChange={(e) => handleMudarResponsavelTopo(e.target.value)}
-                      className="bg-transparent border-none focus:ring-0 text-sm font-medium dark:text-gray-200"
-                    >
+                    <select value={negocio.responsavel_id || ''} onChange={(e) => handleMudarResponsavelTopo(e.target.value)} className="bg-transparent border-none focus:ring-0 text-sm font-medium dark:text-gray-200">
                       <option value="">Ninguém</option>
-                      {listaDeUsers.map(user => (
-                        <option key={user.id} value={user.id}>{user.full_name}</option>
-                      ))}
+                      {listaDeUsers.map(user => (<option key={user.id} value={user.id}>{user.full_name}</option>))}
                     </select>
                   </div>
-                  <button 
-                    onClick={() => handleMarcarStatus('Ganho')} 
-                    className="bg-green-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-green-600"
-                  >
-                    Ganho
-                  </button>
-                  <button 
-                    onClick={() => handleMarcarStatus('Perdido')} 
-                    className="bg-red-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-red-600"
-                  >
-                    Perdido
-                  </button>
-                  <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                    <X size={24} />
-                  </button>
+                  <button onClick={() => handleMarcarStatus('Ganho')} className="bg-green-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-green-600">Ganho</button>
+                  <button onClick={() => handleMarcarStatus('Perdido')} className="bg-red-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-red-600">Perdido</button>
+                  <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><X size={24} /></button>
                 </div>
               </div>
               
-              {/* Barra de Progresso do Funil */}
-              {etapasDoFunil && etapasDoFunil.length > 0 && (
-                <FunilProgressBar 
-                  etapas={etapasDoFunil} 
-                  etapaAtualId={negocio.etapa_id} 
-                  onEtapaClick={handleMudarEtapa} 
-                />
-              )}
+              {etapasDoFunil && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleMudarEtapa} />)}
             </div>
 
             <div className="flex flex-grow overflow-hidden">
-                <BarraLateral 
-                  negocio={negocio}
-                  etapasDoFunil={etapasDoFunil}
-                  listaDeUsers={listaDeUsers}
-                  onDataChange={onDataChange}
-                />
+                <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange}/>
 
                 <main className="w-2/3 p-6 flex flex-col gap-6 overflow-y-auto">
-                  {alertaEstagnacao && (
-                    <div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 p-2 rounded-md">
-                      <AlertTriangle size={16} />
-                      {alertaEstagnacao}
-                    </div>
-                  )}
+                  {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
                   
                   <div>
                     <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Foco</h3>
                     <div className="flex items-start gap-2">
                         <AtividadeFoco atividade={proximaAtividade} onConcluir={handleToggleCompleta} />
-                        {proximaAtividade && 
-                            <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar">
-                                <CalendarPlus size={20}/>
-                            </button>
-                        }
+                        {proximaAtividade && <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar"><CalendarPlus size={20}/></button>}
                     </div>
                   </div>
 
@@ -372,9 +314,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                   <div className="flex-grow overflow-y-auto pr-2">
                     <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
                     <ul className="-ml-2">
-                      {historico.map((item, index) => (
-                        <ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />
-                      ))}
+                      {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))}
                       {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
                     </ul>
                   </div>
