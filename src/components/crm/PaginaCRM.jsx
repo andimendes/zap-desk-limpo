@@ -5,8 +5,6 @@ import { supabase } from '@/supabaseClient';
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
 import AddNegocioModal from './AddNegocioModal';
-
-// 1. Importamos o ícone 'Filter' que usaremos para o funil
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter } from 'lucide-react';
 
 const PaginaCRM = () => {
@@ -14,6 +12,8 @@ const PaginaCRM = () => {
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
+  
+  // O estado que já tínhamos, agora será alterado pelos botões
   const [viewMode, setViewMode] = useState('kanban');
 
   useEffect(() => {
@@ -42,9 +42,6 @@ const PaginaCRM = () => {
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
-              
-              {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-              {/* 2. Adicionamos um container flex e o ícone 'Filter' antes do seletor */}
               <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <Filter size={16} />
                 <select 
@@ -62,10 +59,33 @@ const PaginaCRM = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"/>
                 </div>
+
+                {/* --- DOCUMENTAÇÃO DA MUDANÇA --- */}
+                {/* Este container agora tem botões com lógica */}
                 <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
-                    <button className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow"><LayoutGrid size={20} /></button>
-                    <button className="p-1.5 text-gray-500 dark:text-gray-400"><List size={20} /></button>
+                    {/* Botão Kanban: 
+                        - onClick: chama setViewMode para 'kanban'
+                        - className: muda dinamicamente se viewMode for 'kanban' */}
+                    <button 
+                      onClick={() => setViewMode('kanban')}
+                      className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`}
+                      title="Visualização em Kanban"
+                    >
+                      <LayoutGrid size={20} />
+                    </button>
+                    {/* Botão Lista: 
+                        - onClick: chama setViewMode para 'list'
+                        - className: muda dinamicamente se viewMode for 'list' */}
+                    <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`}
+                      title="Visualização em Lista"
+                    >
+                      <List size={20} />
+                    </button>
                 </div>
+                {/* --- FIM DA MUDANÇA --- */}
+
                 <button className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
                     <SlidersHorizontal size={16} /> Filtros
                 </button>
@@ -81,6 +101,7 @@ const PaginaCRM = () => {
         </section>
 
         <main>
+          {/* Este bloco já estava pronto para a mudança, agora ele vai funcionar! */}
           {viewMode === 'kanban' ? (
             <CrmBoard 
               funilSelecionadoId={funilSelecionadoId}
@@ -89,7 +110,8 @@ const PaginaCRM = () => {
             />
           ) : (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-              <h2 className="font-bold">Visualização em Lista</h2>
+              <h2 className="font-bold text-2xl text-gray-700 dark:text-gray-300">Visualização em Lista</h2>
+              <p className="text-gray-500 mt-2">Esta área será construída nos próximos passos.</p>
             </div>
           )}
         </main>
