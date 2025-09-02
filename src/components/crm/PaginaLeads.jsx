@@ -2,24 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle, Pencil } from 'lucide-react';
+import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle, Pencil, Trash2 } from 'lucide-react'; // 1. Adicionamos o ícone Trash2
 import AddLeadModal from './AddLeadModal';
 import AddNegocioModal from './AddNegocioModal';
-import EditLeadModal from './EditLeadModal'; // 1. Importamos o novo modal de edição
+import EditLeadModal from './EditLeadModal';
 
 const PaginaLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Estados dos modais
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 2. Estado para o modal de edição
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
-  // Estados para os dados em contexto
   const [leadParaConverter, setLeadParaConverter] = useState(null);
-  const [leadParaEditar, setLeadParaEditar] = useState(null); // 3. Estado para o lead a ser editado
+  const [leadParaEditar, setLeadParaEditar] = useState(null);
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
 
 
@@ -51,8 +49,25 @@ const PaginaLeads = () => {
   const handleLeadAdicionado = (novoLead) => {
     setLeads([novoLead, ...leads]);
   };
+
+  // 2. --- NOVA FUNÇÃO PARA APAGAR UM LEAD ---
+  const handleDeletarLead = async (leadId) => {
+    if (window.confirm('Tem certeza de que deseja apagar este lead? Esta ação não pode ser desfeita.')) {
+      const { error } = await supabase
+        .from('crm_leads')
+        .delete()
+        .eq('id', leadId);
+
+      if (error) {
+        console.error('Erro ao apagar lead:', error);
+        alert('Não foi possível apagar o lead.');
+      } else {
+        // Remove o lead da lista na tela sem precisar de recarregar
+        setLeads(leads.filter(l => l.id !== leadId));
+      }
+    }
+  };
   
-  // 4. Funções para o modal de edição
   const handleAbrirEdicao = (lead) => {
     setLeadParaEditar(lead);
     setIsEditModalOpen(true);
@@ -107,10 +122,16 @@ const PaginaLeads = () => {
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{lead.email}</td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-4">
-                        {/* 5. Adicionamos o botão de Editar */}
-                        <button onClick={() => handleAbrirEdicao(lead)} className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Pencil size={16} />
-                        </button>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* 3. Botão de Editar */}
+                            <button onClick={() => handleAbrirEdicao(lead)} className="text-gray-400 hover:text-blue-600" title="Editar Lead">
+                                <Pencil size={16} />
+                            </button>
+                            {/* 3. Botão de Apagar */}
+                            <button onClick={() => handleDeletarLead(lead.id)} className="text-gray-400 hover:text-red-600" title="Apagar Lead">
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                         {lead.status !== 'Convertido' ? (
                           <button onClick={() => handleAbrirConversao(lead)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
                             Converter <ArrowRight size={14} />
@@ -129,7 +150,6 @@ const PaginaLeads = () => {
         </div>
       </div>
       
-      {/* Nossos três modais, todos geridos por esta página */}
       <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={handleLeadAdicionado} />
       
       {isConvertModalOpen && (
