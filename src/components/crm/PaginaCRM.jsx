@@ -22,6 +22,10 @@ const PaginaCRM = () => {
     dataFim: '' 
   });
 
+  // Usamos uma ref para o botão de filtros.
+  // Isso nos permite medir a posição do botão para posicionar o popover.
+  const filtrosButtonRef = useRef(null);
+
   useEffect(() => {
     const fetchData = async () => {
       const [funisRes, usersRes] = await Promise.all([
@@ -50,7 +54,6 @@ const PaginaCRM = () => {
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
-          {/* Header continua o mesmo */}
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
@@ -61,6 +64,7 @@ const PaginaCRM = () => {
                 </select>
               </div>
             </div>
+            
             <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -70,9 +74,33 @@ const PaginaCRM = () => {
                     <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button>
                     <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button>
                 </div>
-                <button onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-                    <SlidersHorizontal size={16} /> Filtros
-                </button>
+                
+                {/* --- DOCUMENTAÇÃO DA MUDANÇA --- */}
+                {/* 1. Criamos um novo container 'relative' para o botão e o popover */}
+                <div className="relative">
+                  <button 
+                    ref={filtrosButtonRef} // Atribuímos a ref ao botão
+                    onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} 
+                    className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm"
+                  >
+                      <SlidersHorizontal size={16} /> Filtros
+                  </button>
+
+                  {/* 2. Movemos o FiltrosPopover para DENTRO deste novo container. */}
+                  {/* Agora ele será posicionado em relação a este container 'relative'. */}
+                  {isFiltrosOpen && (
+                    <FiltrosPopover 
+                      onClose={() => setIsFiltrosOpen(false)}
+                      listaDeUsers={listaDeUsers}
+                      filtrosAtuais={filtros}
+                      onAplicarFiltros={handleAplicaFiltros}
+                      // Passamos a referência do botão para o popover
+                      buttonRef={filtrosButtonRef} 
+                    />
+                  )}
+                </div>
+                {/* --- FIM DA MUDANÇA --- */}
+
                 <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700"><Plus size={20} /> Novo Negócio</button>
             </div>
           </div>
@@ -88,8 +116,6 @@ const PaginaCRM = () => {
               funilSelecionadoId={funilSelecionadoId}
               onEtapasCarregadas={setEtapasDoFunil}
               listaDeUsers={listaDeUsers}
-              // --- DOCUMENTAÇÃO DA MUDANÇA ---
-              // A MÁGICA COMEÇA AQUI: Passamos o estado 'filtros' para o CrmBoard.
               filtros={filtros}
             />
           ) : (
@@ -97,10 +123,6 @@ const PaginaCRM = () => {
           )}
         </main>
       </div>
-
-      {isFiltrosOpen && (
-        <FiltrosPopover onClose={() => setIsFiltrosOpen(false)} listaDeUsers={listaDeUsers} filtrosAtuais={filtros} onAplicarFiltros={handleAplicaFiltros} />
-      )}
 
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} />}
     </>

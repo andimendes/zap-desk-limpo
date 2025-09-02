@@ -1,13 +1,18 @@
 // src/components/crm/FiltrosPopover.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros }) => {
+// 1. Recebe 'buttonRef' como nova propriedade
+const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros, buttonRef }) => {
   const [filtrosLocais, setFiltrosLocais] = useState(filtrosAtuais);
+  const popoverRef = useRef(null); // Ref para o próprio popover
 
+  // Efeito para fechar o popover se o usuário clicar fora dele
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.filtro-popover-container')) {
+      // Verifica se o clique foi fora do popover E fora do botão que o abriu
+      if (popoverRef.current && !popoverRef.current.contains(event.target) &&
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
         onClose();
       }
     };
@@ -15,7 +20,7 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, buttonRef]); // Adicionamos buttonRef como dependência
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,10 +38,14 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
   };
 
   return (
+    // 2. Posicionamento do popover: 'top-full' e 'right-0' o ancoram ao botão.
+    // 'mt-2' dá um pequeno espaço entre o botão e o popover.
     <div 
-      className="filtro-popover-container absolute top-28 right-8 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border dark:border-gray-700 w-80"
+      ref={popoverRef} // Atribuímos a ref ao popover
+      className="filtro-popover-container absolute top-full right-0 mt-2 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border dark:border-gray-700 w-80"
     >
-      <div className="absolute -top-2 right-28 w-4 h-4 bg-white dark:bg-gray-800 transform rotate-45 border-l border-t dark:border-gray-700"></div>
+      {/* 3. Ajustamos a seta para centralizar com o botão */}
+      <div className="absolute -top-2 right-4 w-4 h-4 bg-white dark:bg-gray-800 transform rotate-45 border-l border-t dark:border-gray-700"></div>
 
       <div className="p-4">
         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">Filtrar Negócios</h3>
@@ -60,25 +69,23 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
 
           <div>
              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Criação</label>
-             {/* Voltamos a usar 'items-center', que é o mais correto semanticamente */}
+             {/* 4. Ajustamos a distribuição dos campos de data */}
+             {/* Usamos 'flex-grow' nos inputs para que eles se estiquem e o 'até' fique centralizado */}
              <div className="flex items-center gap-2">
                 <input 
                   type="date" 
                   name="dataInicio"
                   value={filtrosLocais.dataInicio}
                   onChange={handleChange}
-                  className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="flex-grow px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-                {/* A mudança está aqui: adicionamos a classe 'py-2'. */}
-                {/* Isso dá ao texto o mesmo preenchimento vertical dos inputs, forçando a mesma altura. */}
                 <span className="text-gray-500 py-2">até</span>
                 <input 
                   type="date" 
                   name="dataFim"
                   value={filtrosLocais.dataFim}
                   onChange={handleChange}
-                  className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="flex-grow px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
              </div>
           </div>
