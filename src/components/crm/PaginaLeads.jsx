@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle, Pencil, Trash2 } from 'lucide-react';
 import AddLeadModal from './AddLeadModal';
 import AddNegocioModal from './AddNegocioModal';
-// O EditLeadModal será substituído por um EditContactModal no futuro.
+import EditContactModal from './EditContactModal'; // 1. Importamos o novo modal de edição
 
 const PaginaLeads = () => {
   const [leads, setLeads] = useState([]);
@@ -15,33 +15,17 @@ const PaginaLeads = () => {
   
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const [leadParaConverter, setLeadParaConverter] = useState(null);
+  const [leadParaEditar, setLeadParaEditar] = useState(null);
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
 
 
   useEffect(() => {
     const fetchLeads = async () => {
       setLoading(true);
-      // --- QUERY CORRIGIDA E MAIS ESPECÍFICA ---
-      // Agora, em vez de '*', pedimos colunas específicas e explicitamos a relação
-      const { data, error } = await supabase
-        .from('crm_leads')
-        .select(`
-          id,
-          created_at,
-          fonte,
-          status,
-          contato_id,
-          crm_contatos (
-            id,
-            nome,
-            email,
-            telefone
-          )
-        `)
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from('crm_leads').select('*, crm_contatos(*)').order('created_at', { ascending: false });
       if (error) {
         console.error('Erro ao buscar leads:', error);
         setError('Não foi possível carregar os leads.');
@@ -67,17 +51,21 @@ const PaginaLeads = () => {
   };
 
   const handleDeletarLead = async (lead) => {
-    if (window.confirm(`Tem certeza de que deseja apagar o lead de "${lead.crm_contatos.nome}"? Esta ação não pode ser desfeita.`)) {
-        // A nossa regra "ON DELETE CASCADE" na base de dados já deve apagar o lead se o contato for apagado.
-        // Mas para garantir, podemos apagar o lead primeiro.
+    if (window.confirm(`Tem certeza de que deseja apagar o lead de "${lead.crm_contatos.nome}"?`)) {
         const { error } = await supabase.from('crm_leads').delete().eq('id', lead.id);
-
-        if(error) {
-            alert('Erro ao apagar o lead.');
-        } else {
-            setLeads(leads.filter(l => l.id !== lead.id));
-        }
+        if(error) return alert('Erro ao apagar o lead.');
+        setLeads(leads.filter(l => l.id !== lead.id));
     }
+  };
+  
+  // 2. Funções para controlar o modal de edição
+  const handleAbrirEdicao = (lead) => {
+    setLeadParaEditar(lead);
+    setIsEditModalOpen(true);
+  };
+
+  const handleContatoAtualizado = (leadAtualizado) => {
+    setLeads(leads.map(l => l.id === leadAtualizado.id ? leadAtualizado : l));
   };
   
   const handleAbrirConversao = (lead) => {
@@ -86,7 +74,6 @@ const PaginaLeads = () => {
           nome: lead.crm_contatos.nome,
           email: lead.crm_contatos.email,
           telefone: lead.crm_contatos.telefone,
-          // Futuramente, poderemos adicionar a empresa aqui também
       }
       setLeadParaConverter(leadDataForConversion);
       setIsConvertModalOpen(true);
@@ -123,7 +110,6 @@ const PaginaLeads = () => {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y dark:divide-gray-700">
                 {leads.map(lead => (
-                  // Verificação para garantir que lead.crm_contatos existe antes de tentar renderizar
                   lead.crm_contatos && (
                     <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
                       <td className="px-6 py-4">
@@ -135,7 +121,8 @@ const PaginaLeads = () => {
                       <td className="px-6 py-4 text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-4">
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="text-gray-400 hover:text-blue-600" title="Editar Contato">
+                              {/* 3. Botão de editar agora abre o modal de edição */}
+                              <button onClick={() => handleAbrirEdicao(lead)} className="text-gray-400 hover:text-blue-600" title="Editar Lead/Contato">
                                   <Pencil size={16} />
                               </button>
                               <button onClick={() => handleDeletarLead(lead)} className="text-gray-400 hover:text-red-600" title="Apagar Lead e Contato">
@@ -170,6 +157,16 @@ const PaginaLeads = () => {
             etapas={etapasDoFunil}
             onNegocioAdicionado={handleNegocioAdicionadoDaConversao}
             leadData={leadParaConverter}
+        />
+      )}
+      
+      {/* 4. Renderizamos o novo modal de edição */}
+      {isEditModalOpen && (
+        <EditContactModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onContatoAtualizado={handleContatoAtualizado}
+            lead={leadParaEditar}
         />
       )}
     </>
