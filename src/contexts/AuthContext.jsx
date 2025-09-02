@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.jsx
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -9,72 +11,63 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-
-        if (currentSession?.user) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-          if (!profileData) {
-              setProfile(null);
-              return;
-          }
-
-          // --- ESTA É A CORREÇÃO PRINCIPAL ---
-          // A lógica para buscar os 'roles' já existia, mas não estava
-          // a ser usada para o perfil principal. Agora está.
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('roles (name)')
-            .eq('user_id', currentSession.user.id);
-
-          if (rolesError) throw rolesError;
-          
-          // Combinamos o perfil com os 'roles' corretamente
-          const finalProfile = {
-            ...profileData,
-            // A propriedade 'roles' será uma lista como ['admin']
-            roles: rolesData ? rolesData.map(item => item.roles.name) : []
-          };
-          
-          setProfile(finalProfile);
-
-        } else {
-            setProfile(null);
-        }
-      } catch (error) {
-        console.error("Erro no AuthContext:", error);
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        // Recarregamos tudo para garantir consistência
-        initializeAuth();
+    // Busca a sessão inicial para saber se o utilizador já está logado
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      // O setLoading(false) será chamado dentro do onAuthStateChange
     });
 
+    // Ouve as mudanças de autenticação (login, logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+
+        if (session?.user) {
+          // Se houver uma sessão, busca o perfil correspondente
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*') // Certifique-se de que a coluna 'role' está aqui
+            .eq('id', session.user.id)
+            .single();
+          
+          if (error) {
+            console.error("Erro ao buscar perfil:", error);
+            setProfile(null);
+          } else {
+            setProfile(data);
+          }
+        } else {
+          // Se não houver sessão (logout), limpa o perfil
+          setProfile(null);
+        }
+        
+        // Marca o carregamento como concluído
+        setLoading(false);
+      }
+    );
+
+    // Limpa o "ouvinte" quando o componente é desmontado
     return () => subscription.unsubscribe();
   }, []);
 
-  const value = { session, profile, loading };
+  const value = {
+    session,
+    profile,
+    loading,
+    user: session?.user // Adicionamos um atalho para 'user' para facilitar
+  };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
+      {children}
+    </Auth-Context.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
