@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, AlertTriangle, CalendarPlus, Pencil, Check, X, Users as UsersIcon, Trash2, Upload, Download, Paperclip } from 'lucide-react';
+import { Loader2, AlertTriangle, CalendarPlus, Pencil, Check, X, Users as UsersIcon, Trash2, UserPlus, Search, Upload, Download, Paperclip } from 'lucide-react';
 
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
@@ -74,6 +74,11 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('atividades');
+  const [contatosAssociados, setContatosAssociados] = useState([]);
+  const [isLoadingContatos, setIsLoadingContatos] = useState(false);
+  const [termoBusca, setTermoBusca] = useState('');
+  const [resultadosBusca, setResultadosBusca] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [arquivos, setArquivos] = useState([]);
   const [isLoadingArquivos, setIsLoadingArquivos] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -88,6 +93,18 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       setArquivos(data || []);
     } catch (error) { console.error("Erro ao carregar arquivos:", error); } 
     finally { setIsLoadingArquivos(false); }
+  }, []);
+
+  const carregarContatosAssociados = useCallback(async (negocioId) => {
+    if(!negocioId) return;
+    setIsLoadingContatos(true);
+    try {
+      const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
+      if (error) throw error;
+      const contatos = data.map(item => item.crm_contatos).filter(Boolean);
+      setContatosAssociados(contatos || []);
+    } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
+    finally { setIsLoadingContatos(false); }
   }, []);
 
   const carregarDadosDetalhados = useCallback(async () => {
@@ -123,6 +140,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         setAlertaEstagnacao(`Negócio novo, sem atividades há ${dias} dias.`);
       }
 
+      await carregarContatosAssociados(negocioInicial.id);
       await carregarArquivos(negocioInicial.id);
     } catch (error) {
       console.error("Erro ao carregar detalhes do negócio:", error);
@@ -130,15 +148,34 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     } finally {
       setLoading(false);
     }
-  }, [negocioInicial, onClose, carregarArquivos]);
+  }, [negocioInicial, onClose, carregarContatosAssociados, carregarArquivos]);
 
   useEffect(() => {
     if (isOpen) {
         setActiveTab('atividades');
+        setTermoBusca('');
+        setResultadosBusca([]);
         setEditingItem(null);
         carregarDadosDetalhados();
     }
   }, [isOpen, negocioInicial]);
+  
+  useEffect(() => {
+    const buscarContatos = async () => {
+      if (termoBusca.length < 2) { setResultadosBusca([]); return; }
+      setIsSearching(true);
+      try {
+        const idsAssociados = contatosAssociados.map(c => c.id);
+        const query = supabase.from('crm_contatos').select('*').ilike('nome', `%${termoBusca}%`).limit(5);
+        if (idsAssociados.length > 0) { query.not('id', 'in', `(${idsAssociados.join(',')})`); }
+        const { data, error } = await query;
+        if (error) throw error;
+        setResultadosBusca(data);
+      } catch (error) { console.error("Erro ao buscar contatos:", error); } finally { setIsSearching(false); }
+    };
+    const debounce = setTimeout(() => { buscarContatos(); }, 300);
+    return () => clearTimeout(debounce);
+  }, [termoBusca, contatosAssociados]);
   
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -176,6 +213,25 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     } catch (error) { console.error("Erro ao excluir:", error); alert("Não foi possível excluir o arquivo."); }
   };
   
+  const handleAssociarContato = async (contatoParaAdicionar) => {
+    try {
+      const { error } = await supabase.from('crm_negocio_contatos').insert({ negocio_id: negocio.id, contato_id: contatoParaAdicionar.id });
+      if (error) throw error;
+      setContatosAssociados([...contatosAssociados, contatoParaAdicionar]);
+      setTermoBusca('');
+      setResultadosBusca([]);
+    } catch (error) { console.error("Erro ao associar contato:", error); alert('Não foi possível associar o contato.'); }
+  };
+
+  const handleDesvincularContato = async (contatoIdParaRemover) => {
+    if (!window.confirm("Desvincular este contato?")) return;
+    try {
+      const { error } = await supabase.from('crm_negocio_contatos').delete().match({ negocio_id: negocio.id, contato_id: contatoIdParaRemover });
+      if (error) throw error;
+      setContatosAssociados(contatosAssociados.filter(c => c.id !== contatoIdParaRemover));
+    } catch(error) { console.error("Erro ao desvincular contato:", error); alert('Não foi possível desvincular o contato.'); }
+  };
+
   const handleSaveTitulo = async () => {
     if (!novoTitulo.trim() || novoTitulo === negocio.titulo) { setIsTituloEditing(false); return; }
     try {
@@ -229,6 +285,15 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       setNegocio(data);
       onDataChange(data);
     } catch (error) { console.error("Erro ao mudar etapa:", error); alert("Não foi possível alterar a etapa."); }
+  };
+  
+  const handleMudarResponsavelTopo = async (novoResponsavelId) => {
+    try {
+      const { data, error } = await supabase.from('crm_negocios').update({ responsavel_id: novoResponsavelId || null }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
+      if(error) throw error;
+      setNegocio(data);
+      onDataChange(data);
+    } catch (error) { console.error("Erro ao mudar responsável:", error); alert("Não foi possível alterar o responsável."); }
   };
   
   const handleMarcarStatus = async (status) => {
