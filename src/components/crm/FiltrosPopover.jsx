@@ -2,21 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 
-/**
- * DOCUMENTAÇÃO: FiltrosPopover
- * Este componente é o painel flutuante que contém as opções de filtro.
- * Ele recebe o estado atual dos filtros e uma função para aplicá-los.
- * Internamente, ele usa um estado local para que o usuário possa fazer
- * várias alterações antes de clicar em "Aplicar".
- */
 const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros }) => {
-  // Estado local para guardar as mudanças antes de aplicar
   const [filtrosLocais, setFiltrosLocais] = useState(filtrosAtuais);
 
-  // Efeito para fechar o popover se o usuário clicar fora dele
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Lógica para verificar se o clique foi fora do popover
       if (!event.target.closest('.filtro-popover-container')) {
         onClose();
       }
@@ -35,7 +25,7 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
   const handleLimpar = () => {
     const filtrosLimpos = { responsavelId: 'todos', dataInicio: '', dataFim: '' };
     setFiltrosLocais(filtrosLimpos);
-    onAplicarFiltros(filtrosLimpos); // Aplica a limpeza imediatamente
+    onAplicarFiltros(filtrosLimpos);
   };
 
   const handleAplicar = () => {
@@ -43,18 +33,15 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
   };
 
   return (
-    // O container principal tem posicionamento absoluto para flutuar na tela
     <div 
       className="filtro-popover-container absolute top-28 right-8 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border dark:border-gray-700 w-80"
     >
-      {/* Adicionamos uma pequena seta no topo para indicar de onde ele veio */}
       <div className="absolute -top-2 right-28 w-4 h-4 bg-white dark:bg-gray-800 transform rotate-45 border-l border-t dark:border-gray-700"></div>
 
       <div className="p-4">
         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">Filtrar Negócios</h3>
         
         <div className="space-y-4">
-          {/* Seletor de Responsável */}
           <div>
             <label htmlFor="responsavelId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Responsável</label>
             <select
@@ -71,7 +58,6 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
             </select>
           </div>
 
-          {/* Filtro de Data */}
           <div>
              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Criação</label>
              <div className="flex items-center gap-2">
@@ -80,7 +66,9 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
                   name="dataInicio"
                   value={filtrosLocais.dataInicio}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+                  // A classe "w-full" foi REMOVIDA daqui.
+                  className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
                 <span className="text-gray-500">até</span>
                 <input 
@@ -88,13 +76,14 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
                   name="dataFim"
                   value={filtrosLocais.dataFim}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+                  // A classe "w-full" também foi REMOVIDA daqui.
+                  className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
              </div>
           </div>
         </div>
 
-        {/* Botões de Ação */}
         <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
           <button 
             onClick={handleLimpar}
