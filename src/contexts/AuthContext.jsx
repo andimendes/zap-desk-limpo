@@ -8,59 +8,53 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true); // Começa como true
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // A função onAuthStateChange é a forma mais robusta de gerir a sessão.
-    // Ela é executada uma vez logo no início com a sessão atual (se existir)
-    // e depois sempre que houver uma alteração (login, logout, etc.).
+    console.log("AuthContext: Iniciando o useEffect...");
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log("AuthContext: onAuthStateChange disparou. Evento:", _event);
         setSession(session);
         
         let userProfile = null;
         if (session?.user) {
+          console.log("AuthContext: Sessão encontrada. A buscar perfil para o user ID:", session.user.id);
           try {
-            // Se há uma sessão, busca o perfil e a role (função)
             const { data, error } = await supabase
               .from('profiles')
-              .select(`
-                *,
-                user_roles (
-                  roles ( name )
-                )
-              `)
+              .select(`*, user_roles(roles(name))`)
               .eq('id', session.user.id)
               .single();
 
             if (error) throw error;
 
             if (data) {
-              // Extrai a role do objeto aninhado e adiciona ao perfil
               const role = data.user_roles?.[0]?.roles?.name || null;
               userProfile = { ...data, role };
+              console.log("AuthContext: Perfil e role encontrados:", userProfile);
             }
           } catch (error) {
             console.error("AuthContext: Erro ao buscar perfil e role.", error);
           }
+        } else {
+          console.log("AuthContext: Nenhuma sessão encontrada.");
         }
         
         setProfile(userProfile);
-        // Independentemente do resultado da busca de perfil, o carregamento principal termina aqui.
         setLoading(false);
+        console.log("AuthContext: Carregamento finalizado.");
       }
     );
 
-    // Limpa a subscrição quando o componente é desmontado para evitar fugas de memória
-    return () => subscription.unsubscribe();
-  }, []); // O array de dependências vazio garante que isto só é configurado uma vez
+    return () => {
+      console.log("AuthContext: Limpando a subscrição.");
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  const value = {
-    session,
-    profile,
-    loading,
-    user: session?.user
-  };
+  const value = { session, profile, loading, user: session?.user };
 
   return (
     <AuthContext.Provider value={value}>
