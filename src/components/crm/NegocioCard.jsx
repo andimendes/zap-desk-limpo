@@ -26,7 +26,7 @@ const differenceInDays = (dateLeft, dateRight) => {
 };
 
 const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
-  const diasParado = differenceInDays(new Date(), negocio.updated_at);
+  const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
 
   return (
     <Draggable draggableId={String(negocio.id)} index={index}>
@@ -41,7 +41,10 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
             <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</span>
           </div>
           <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-200/50 pt-3">
-            <div className="flex items-center gap-1.5" title={`Parado nesta etapa há ${diasParado} dias`}><Clock size={12} /><span>{diasParado}d parado</span></div>
+            <div className="flex items-center gap-1.5" title={`Criado há ${diasDesdeCriacao} dias`}>
+              <Clock size={12} />
+              <span>{diasDesdeCriacao}d de idade</span>
+            </div>
             {!negocio.tem_tarefa_futura && (
               <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500" title="Nenhuma tarefa futura agendada"><AlertTriangle size={12} /><span>Sem tarefa</span></div>
             )}
