@@ -14,11 +14,8 @@ const DashboardVendedor = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // A verificação agora é mais robusta
     if (!user?.id) {
-        // Se não houver ID de utilizador, pode ser que ainda esteja a carregar.
-        // Se continuar a carregar por muito tempo, pode haver um problema no AuthContext.
-        return;
+      return;
     }
 
     const fetchDashboardData = async () => {
@@ -27,8 +24,8 @@ const DashboardVendedor = () => {
       try {
         const { data: negocios, error: negociosError } = await supabase
             .from('crm_negocios')
-            .select('valor, status') // Pedimos apenas as colunas que precisamos
-            .eq('responsavel_id', user.id); // Filtramos pelos negócios do utilizador logado
+            .select('valor, status')
+            .eq('responsavel_id', user.id);
 
         if (negociosError) throw negociosError;
 
@@ -54,7 +51,7 @@ const DashboardVendedor = () => {
       }
     };
     fetchDashboardData();
-  }, [user?.id]); // <-- MUDANÇA IMPORTANTE: A dependência agora é o ID do utilizador, que é mais estável.
+  }, [user?.id]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
@@ -83,3 +80,23 @@ const DashboardVendedor = () => {
             icon={<CheckCircle className="text-green-500" />}
             description={`${stats.negociosGanhos} negócios ganhos`}
           />
+          <StatCard 
+            title="Negócios Perdidos"
+            value={stats.negociosPerdidos}
+            icon={<XCircle className="text-red-500" />}
+            description={`de ${stats.negociosGanhos + stats.negociosPerdidos} negócios fechados`}
+          />
+          {/* Adicionei de volta um StatCard que faltava para fechar a grelha de 4 colunas */}
+          <StatCard 
+            title="Negócios Ativos"
+            value={stats.totalNegociosAtivos}
+            icon={<Target className="text-yellow-500" />}
+            description="Oportunidades no funil"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DashboardVendedor;
