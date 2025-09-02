@@ -1,55 +1,65 @@
 // src/components/crm/ItemLinhaDoTempo.jsx
 
 import React from 'react';
-import { MessageSquare, CheckCircle, Calendar, Trash2, Pencil } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { FileText, Calendar, CheckCircle, Trash2 } from 'lucide-react';
+
+// Função para formatar a data de forma amigável
+const formatarData = (data) => {
+    return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(data);
+};
 
 const ItemLinhaDoTempo = ({ item, onAction }) => {
-  const Icone = {
-    'nota': MessageSquare,
-    'atividade': item.concluida ? CheckCircle : Calendar,
-  }[item.tipo];
+    const isNota = item.tipo === 'nota';
+    const isConcluida = item.concluida;
 
-  const corIcone = {
-    'nota': 'text-yellow-600 dark:text-yellow-400',
-    'atividade': item.concluida ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400',
-  }[item.tipo];
-  
-  return (
-    <li className="flex gap-4 group">
-      {/* Icone e Linha Vertical */}
-      <div className="flex flex-col items-center">
-        <div className={`p-2 bg-gray-100 dark:bg-gray-700 rounded-full ${corIcone}`}>
-          <Icone size={16} />
-        </div>
-        <div className="flex-grow w-px bg-gray-200 dark:bg-gray-600"></div>
-      </div>
+    const Icone = isNota ? FileText : (isConcluida ? CheckCircle : Calendar);
+    const corIcone = isConcluida ? 'text-green-500' : 'text-gray-500';
 
-      {/* Conteúdo do Item */}
-      <div className="flex-1 pb-8">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {item.tipo === 'atividade' ? `Atividade ${item.concluida ? 'concluída' : 'planeada'}` : 'Nota'}
-            </p>
-            <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{item.conteudo}</p>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-            {format(item.data, "dd MMM yyyy 'às' HH:mm", { locale: ptBR })}
-          </div>
-        </div>
-        
-        {/* Ações que aparecem em hover - apenas para atividades */}
-        {item.tipo === 'atividade' && (
-          <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => onAction('edit', item.original)} className="p-1 text-gray-500 hover:text-green-600"><Pencil size={14}/></button>
-            <button onClick={() => onAction('delete', item.original.id)} className="p-1 text-gray-500 hover:text-red-600"><Trash2 size={14}/></button>
-          </div>
-        )}
-      </div>
-    </li>
-  );
+    return (
+        <li className="flex items-start gap-4 py-3 group">
+            {/* Ícone e Linha Vertical */}
+            <div className="flex flex-col items-center">
+                <div className={`p-2 rounded-full bg-gray-100 dark:bg-gray-700 ${corIcone}`}>
+                    <Icone size={16} />
+                </div>
+                {/* A linha vertical pode ser adicionada aqui se desejado */}
+            </div>
+
+            {/* Conteúdo do Item */}
+            <div className="flex-1">
+                <div className="flex justify-between items-center">
+                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                        {isNota ? 'Nota' : (isConcluida ? 'Atividade concluída' : 'Atividade planejada')}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {formatarData(item.data)}
+                    </p>
+                </div>
+                <p className="text-gray-800 dark:text-gray-200 mt-1 break-words">
+                    {item.conteudo}
+                </p>
+            </div>
+
+            {/* Botão de Excluir */}
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                    // --- ESTA É A CORREÇÃO PRINCIPAL ---
+                    // Agora passamos o 'item' completo para a função onAction
+                    onClick={() => onAction('delete', item)}
+                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title="Excluir item"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+        </li>
+    );
 };
 
 export default ItemLinhaDoTempo;
