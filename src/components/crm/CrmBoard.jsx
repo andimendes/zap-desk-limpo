@@ -28,25 +28,21 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
+// --- MUDANÇA 1: RECEBEMOS 'listaDeUsers' COMO PROP ---
+const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange, listaDeUsers }) => {
   const [etapas, setEtapas] = useState([]);
   const [negocios, setNegocios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
-  const [listaDeUsers, setListaDeUsers] = useState([]);
+  
+  // O estado de 'listaDeUsers' foi removido daqui.
   
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name');
-      if (error) console.error("Não foi possível carregar a lista de responsáveis.");
-      else setListaDeUsers(data);
-    };
-    fetchUsers();
-  }, []);
+  // --- MUDANÇA 2: A LÓGICA PARA BUSCAR USUÁRIOS FOI REMOVIDA DAQUI ---
+  // A busca agora é feita pelo componente pai (PaginaCRM).
 
   const fetchEtapasENegocios = useCallback(async () => {
       if (!funilSelecionadoId) return;
@@ -108,14 +104,8 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
     <>
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-          {/* O container branco agora é um bloco normal, sem `inline-block` */}
           <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
             {error && <div className="text-red-500 mb-4">{error}</div>}
-            
-            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-            {/* A alteração está aqui: adicionamos `justify-center`. */}
-            {/* Isso fará com que o conteúdo flex (as colunas) seja centralizado horizontalmente */}
-            {/* quando houver espaço sobrando no container. */}
             <div className="flex space-x-6 overflow-x-auto pb-4 justify-center">
               {loading ? (
                 <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
@@ -150,6 +140,7 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
           onClose={() => setNegocioSelecionado(null)} 
           onDataChange={handleNegocioDataChange}
           etapasDoFunil={etapas} 
+          // --- MUDANÇA 3: O MODAL AGORA RECEBE A LISTA DE USUÁRIOS DA PROP ---
           listaDeUsers={listaDeUsers}
         />}
     </>

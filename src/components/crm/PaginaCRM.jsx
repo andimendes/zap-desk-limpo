@@ -12,23 +12,38 @@ const PaginaCRM = () => {
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
-  
-  // O estado que já tínhamos, agora será alterado pelos botões
   const [viewMode, setViewMode] = useState('kanban');
 
+  // --- MUDANÇA 1: ESTADO PARA GUARDAR A LISTA DE USUÁRIOS ---
+  const [listaDeUsers, setListaDeUsers] = useState([]);
+
   useEffect(() => {
-    const fetchFunis = async () => {
-      const { data, error } = await supabase.from('crm_funis').select('*').order('created_at');
-      if (error) {
-        console.error("Não foi possível carregar os funis.", error);
+    const fetchData = async () => {
+      // --- MUDANÇA 2: BUSCAMOS FUNIS E USUÁRIOS JUNTOS ---
+      // Usamos Promise.all para carregar os dados em paralelo, o que é mais eficiente.
+      const [funisRes, usersRes] = await Promise.all([
+        supabase.from('crm_funis').select('*').order('created_at'),
+        supabase.from('profiles').select('id, full_name').order('full_name')
+      ]);
+
+      // Carrega os funis
+      if (funisRes.error) {
+        console.error("Não foi possível carregar os funis.", funisRes.error);
       } else {
-        setFunis(data);
-        if (data && data.length > 0) {
-          setFunilSelecionadoId(data[0].id);
+        setFunis(funisRes.data);
+        if (funisRes.data && funisRes.data.length > 0) {
+          setFunilSelecionadoId(funisRes.data[0].id);
         }
       }
+
+      // Carrega os usuários
+      if (usersRes.error) {
+        console.error("Não foi possível carregar a lista de responsáveis.", usersRes.error);
+      } else {
+        setListaDeUsers(usersRes.data);
+      }
     };
-    fetchFunis();
+    fetchData();
   }, []);
 
   const handleBoardDataChange = () => {
@@ -39,6 +54,7 @@ const PaginaCRM = () => {
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
+          {/* O conteúdo do header continua o mesmo */}
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
@@ -53,39 +69,19 @@ const PaginaCRM = () => {
                 </select>
               </div>
             </div>
-            
             <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"/>
                 </div>
-
-                {/* --- DOCUMENTAÇÃO DA MUDANÇA --- */}
-                {/* Este container agora tem botões com lógica */}
                 <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
-                    {/* Botão Kanban: 
-                        - onClick: chama setViewMode para 'kanban'
-                        - className: muda dinamicamente se viewMode for 'kanban' */}
-                    <button 
-                      onClick={() => setViewMode('kanban')}
-                      className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`}
-                      title="Visualização em Kanban"
-                    >
+                    <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban">
                       <LayoutGrid size={20} />
                     </button>
-                    {/* Botão Lista: 
-                        - onClick: chama setViewMode para 'list'
-                        - className: muda dinamicamente se viewMode for 'list' */}
-                    <button 
-                      onClick={() => setViewMode('list')}
-                      className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`}
-                      title="Visualização em Lista"
-                    >
+                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista">
                       <List size={20} />
                     </button>
                 </div>
-                {/* --- FIM DA MUDANÇA --- */}
-
                 <button className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
                     <SlidersHorizontal size={16} /> Filtros
                 </button>
@@ -101,12 +97,13 @@ const PaginaCRM = () => {
         </section>
 
         <main>
-          {/* Este bloco já estava pronto para a mudança, agora ele vai funcionar! */}
           {viewMode === 'kanban' ? (
             <CrmBoard 
               funilSelecionadoId={funilSelecionadoId}
               onEtapasCarregadas={setEtapasDoFunil}
               onDataChange={handleBoardDataChange}
+              // --- MUDANÇA 3: PASSAMOS A LISTA DE USUÁRIOS PARA O CRMBOARD ---
+              listaDeUsers={listaDeUsers}
             />
           ) : (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow">
