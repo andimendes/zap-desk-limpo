@@ -133,6 +133,8 @@ const PaginaCRM = () => {
           <CrmDashboard 
             filtros={filtros}
             termoPesquisa={termoPesquisaDebounced}
+            // --- MUDANÇA AQUI ---
+            funilId={funilSelecionadoId}
           />
         </section>
         <main>
