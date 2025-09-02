@@ -1,6 +1,6 @@
 // src/components/crm/CrmBoard.jsx
 
-import React, { useState, useEffect, useCallback } from 'react'; // <--- A CORREÇÃO ESTÁ AQUI
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient.js'; 
 import AddNegocioModal from './AddNegocioModal.jsx';
 import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
@@ -140,12 +140,29 @@ const CrmBoard = () => {
     setNegocioSelecionado(null);
   };
   
+  // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+  // Esta é a função que ajustamos.
   const handleNegocioDataChange = (negocioAtualizado) => {
-    setNegocios(currentNegocios => currentNegocios.map(n => n.id === negocioAtualizado.id ? negocioAtualizado : n));
-    if (negocioSelecionado && negocioSelecionado.id === negocioAtualizado.id) {
-      setNegocioSelecionado(negocioAtualizado);
+    
+    // 1. Primeiro, verificamos se o negócio foi marcado como 'Excluido' pelo modal.
+    if (negocioAtualizado.status === 'Excluido') {
+        
+        // 2. Se foi excluído, usamos .filter() para criar uma nova lista
+        //    contendo todos os negócios, EXCETO aquele com o ID correspondente.
+        setNegocios(currentNegocios => currentNegocios.filter(n => n.id !== negocioAtualizado.id));
+
+    } else {
+        
+        // 3. Se não foi excluído, significa que foi uma atualização normal (título, valor, etc.).
+        //    Nesse caso, mantemos a lógica original com .map() para atualizar o negócio na lista.
+        setNegocios(currentNegocios => currentNegocios.map(n => n.id === negocioAtualizado.id ? negocioAtualizado : n));
+        
+        if (negocioSelecionado && negocioSelecionado.id === negocioAtualizado.id) {
+          setNegocioSelecionado(negocioAtualizado);
+        }
     }
   };
+  // --- FIM DA CORREÇÃO ---
 
   return (
     <>
