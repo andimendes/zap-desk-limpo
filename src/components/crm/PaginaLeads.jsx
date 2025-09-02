@@ -1,13 +1,13 @@
 // src/components/crm/PaginaLeads.jsx
 
-import React, 'useState', 'useEffect' from 'react';
+import React, { useState, useEffect } from 'react'; // <-- A CORREÇÃO ESTÁ AQUI
 import { supabase } from '@/supabaseClient';
-import { useAuth } from '@/contexts/AuthContext'; // 1. Importamos o useAuth
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle } from 'lucide-react';
 import AddLeadModal from './AddLeadModal';
 
 const PaginaLeads = () => {
-  const { session } = useAuth(); // 2. Pegamos a sessão do utilizador logado
+  const { session } = useAuth();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -34,7 +34,6 @@ const PaginaLeads = () => {
     setLeads([novoLead, ...leads]);
   };
 
-  // 3. --- NOSSA NOVA FUNÇÃO DE CONVERSÃO ---
   const handleConverterEmNegocio = async (lead) => {
     if (!session?.user?.id) {
         alert('Sessão inválida.');
@@ -55,10 +54,9 @@ const PaginaLeads = () => {
                 contato_email: lead.email,
                 contato_telefone: lead.telefone,
                 user_id: session.user.id,
-                responsavel_id: session.user.id, // O responsável inicial é quem converteu
+                responsavel_id: session.user.id,
                 status: 'Ativo',
-                lead_origem_id: lead.id // Ligamos o negócio ao lead de origem
-                // A etapa inicial (etapa_id) ficará nula. O utilizador terá de a definir no Kanban.
+                lead_origem_id: lead.id
             })
             .select('id')
             .single();
@@ -75,7 +73,6 @@ const PaginaLeads = () => {
 
         alert(`Lead "${lead.nome}" convertido com sucesso! Um novo negócio foi criado no seu funil de vendas.`);
         
-        // Atualiza a lista de leads na tela para refletir a mudança de status
         setLeads(leads.map(l => l.id === lead.id ? { ...l, status: 'Convertido' } : l));
 
     } catch (error) {
