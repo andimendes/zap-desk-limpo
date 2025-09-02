@@ -60,9 +60,8 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
 
           <div>
              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Criação</label>
-             {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-             {/* A única mudança está aqui: trocamos 'items-center' por 'items-baseline' */}
-             <div className="flex items-baseline gap-2">
+             {/* Voltamos a usar 'items-center', que é o mais correto semanticamente */}
+             <div className="flex items-center gap-2">
                 <input 
                   type="date" 
                   name="dataInicio"
@@ -70,7 +69,10 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
                   onChange={handleChange}
                   className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                <span className="text-gray-500">até</span>
+                {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+                {/* A mudança está aqui: adicionamos a classe 'py-2'. */}
+                {/* Isso dá ao texto o mesmo preenchimento vertical dos inputs, forçando a mesma altura. */}
+                <span className="text-gray-500 py-2">até</span>
                 <input 
                   type="date" 
                   name="dataFim"
