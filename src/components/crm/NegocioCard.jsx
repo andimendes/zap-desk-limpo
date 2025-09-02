@@ -3,8 +3,6 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { User, AlertTriangle, Clock } from 'lucide-react';
-// A importação do 'supabase' não é mais necessária aqui
-// import { supabase } from '@/supabaseClient';
 
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
@@ -14,11 +12,13 @@ const differenceInDays = (dateLeft, dateRight) => {
 };
 
 const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
-  const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
+  
+  // --- TESTE DE DIAGNÓSTICO ---
+  // Esta linha irá mostrar no console do navegador os dados exatos do responsável para cada card.
+  console.log('Dados do Responsável para o card:', negocio.titulo, negocio.responsavel);
+  // --- FIM DO TESTE ---
 
-  // --- DOCUMENTAÇÃO DA CORREÇÃO FINAL ---
-  // A lógica complicada para gerar a URL foi removida.
-  // Agora, simplesmente usamos a URL que já vem da tabela 'profiles'.
+  const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
   const avatarUrl = negocio.responsavel?.avatar_url || null;
 
   return (
@@ -41,7 +41,6 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
           
           <div className="flex justify-between items-end">
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              {/* O 'src' da imagem agora usa a 'avatarUrl' diretamente */}
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
               ) : (
