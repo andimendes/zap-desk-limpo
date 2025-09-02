@@ -5,7 +5,7 @@ import { supabase } from '@/supabaseClient';
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
 import AddNegocioModal from './AddNegocioModal';
-import FiltrosPopover from './FiltrosPopover'; // 1. Importamos nosso novo componente
+import FiltrosPopover from './FiltrosPopover';
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter } from 'lucide-react';
 
 const PaginaCRM = () => {
@@ -15,10 +15,8 @@ const PaginaCRM = () => {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
   const [listaDeUsers, setListaDeUsers] = useState([]);
-
-  // --- MUDANÇA 1: ESTADOS PARA CONTROLAR OS FILTROS ---
-  const [isFiltrosOpen, setIsFiltrosOpen] = useState(false); // Controla se o popover está visível
-  const [filtros, setFiltros] = useState({ // Guarda os filtros aplicados
+  const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
+  const [filtros, setFiltros] = useState({
     responsavelId: 'todos', 
     dataInicio: '', 
     dataFim: '' 
@@ -43,16 +41,16 @@ const PaginaCRM = () => {
     fetchData();
   }, []);
   
-  // --- MUDANÇA 2: FUNÇÃO PARA APLICAR OS FILTROS ---
   const handleAplicaFiltros = (novosFiltros) => {
-    setFiltros(novosFiltros); // Atualiza o estado principal dos filtros
-    setIsFiltrosOpen(false); // Fecha o popover
+    setFiltros(novosFiltros);
+    setIsFiltrosOpen(false);
   };
 
   return (
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
+          {/* Header continua o mesmo */}
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
@@ -63,7 +61,6 @@ const PaginaCRM = () => {
                 </select>
               </div>
             </div>
-            
             <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -73,15 +70,9 @@ const PaginaCRM = () => {
                     <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button>
                     <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button>
                 </div>
-                
-                {/* --- MUDANÇA 3: O BOTÃO AGORA ABRE E FECHA O POPOVER --- */}
-                <button 
-                  onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} 
-                  className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm"
-                >
+                <button onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
                     <SlidersHorizontal size={16} /> Filtros
                 </button>
-
                 <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700"><Plus size={20} /> Novo Negócio</button>
             </div>
           </div>
@@ -97,7 +88,9 @@ const PaginaCRM = () => {
               funilSelecionadoId={funilSelecionadoId}
               onEtapasCarregadas={setEtapasDoFunil}
               listaDeUsers={listaDeUsers}
-              // Futuramente passaremos os filtros aqui
+              // --- DOCUMENTAÇÃO DA MUDANÇA ---
+              // A MÁGICA COMEÇA AQUI: Passamos o estado 'filtros' para o CrmBoard.
+              filtros={filtros}
             />
           ) : (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow"><h2 className="font-bold text-2xl text-gray-700 dark:text-gray-300">Visualização em Lista</h2><p className="text-gray-500 mt-2">Esta área será construída nos próximos passos.</p></div>
@@ -105,14 +98,8 @@ const PaginaCRM = () => {
         </main>
       </div>
 
-      {/* --- MUDANÇA 4: RENDERIZAMOS O POPOVER QUANDO ELE ESTIVER ABERTO --- */}
       {isFiltrosOpen && (
-        <FiltrosPopover 
-          onClose={() => setIsFiltrosOpen(false)}
-          listaDeUsers={listaDeUsers}
-          filtrosAtuais={filtros}
-          onAplicarFiltros={handleAplicaFiltros}
-        />
+        <FiltrosPopover onClose={() => setIsFiltrosOpen(false)} listaDeUsers={listaDeUsers} filtrosAtuais={filtros} onAplicarFiltros={handleAplicaFiltros} />
       )}
 
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} />}
