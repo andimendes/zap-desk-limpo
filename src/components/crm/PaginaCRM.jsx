@@ -11,7 +11,6 @@ import FiltrosPopover from './FiltrosPopover';
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
 
 const PaginaCRM = () => {
-  // ... (outros estados permanecem iguais)
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
@@ -24,54 +23,72 @@ const PaginaCRM = () => {
   const [negocios, setNegocios] = useState([]);
   const [loadingNegocios, setLoadingNegocios] = useState(true);
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
+  const [termoPesquisa, setTermoPesquisa] = useState('');
+  const [termoPesquisaDebounced, setTermoPesquisaDebounced] = useState('');
 
-  // --- MUDANÇA 1: ESTADOS PARA A BARRA DE PESQUISA ---
-  const [termoPesquisa, setTermoPesquisa] = useState(''); // Guarda o valor do input em tempo real
-  const [termoPesquisaDebounced, setTermoPesquisaDebounced] = useState(''); // Guarda o valor após o usuário parar de digitar
-
-  // --- MUDANÇA 2: EFEITO DE "DEBOUNCE" PARA A PESQUISA ---
-  // Este efeito cria um temporizador. Ele espera 500ms após a última letra ser digitada
-  // para então atualizar o 'termoPesquisaDebounced', que é o que realmente dispara a busca.
   useEffect(() => {
-    const timerId = setTimeout(() => {
-      setTermoPesquisaDebounced(termoPesquisa);
-    }, 500); // 500ms de espera
-
-    return () => {
-      clearTimeout(timerId); // Limpa o temporizador se o usuário digitar novamente
-    };
+    const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
+    return () => { clearTimeout(timerId); };
   }, [termoPesquisa]);
 
-
-  useEffect(() => { /* ... (useEffect da busca inicial sem alterações) ... */ }, []);
+  useEffect(() => {
+    const fetchData = async () => {
+      const [funisRes, usersRes] = await Promise.all([
+        supabase.from('crm_funis').select('id, nome_funil').order('created_at'),
+        supabase.from('profiles').select('id, full_name, avatar_url').order('full_name')
+      ]);
+      if (funisRes.data) {
+        setFunis(funisRes.data);
+        if (funisRes.data.length > 0) {
+          const primeiroFunilValido = funisRes.data.find(f => typeof f.id === 'string' && f.id.length > 30);
+          if (primeiroFunilValido) {
+            setFunilSelecionadoId(primeiroFunilValido.id);
+          } else { setLoadingNegocios(false); }
+        } else { setLoadingNegocios(false); }
+      }
+      if (usersRes.data) setListaDeUsers(usersRes.data);
+    };
+    fetchData();
+  }, []);
 
   const fetchDadosDoFunil = useCallback(async () => {
-    if (!funilSelecionadoId) { /* ... (sem alterações) ... */ }
+    // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+    // Esta é a verificação crucial. Agora só continuamos se o ID for uma string
+    // e tiver um comprimento que se assemelhe a um UUID. Isso previne a busca com 'null'.
+    if (typeof funilSelecionadoId !== 'string' || funilSelecionadoId.length < 30) {
+      setNegocios([]);
+      setLoadingNegocios(false);
+      return;
+    }
+    
     setLoadingNegocios(true);
     try {
       const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
       if (etapasError) throw etapasError;
+
       setEtapasDoFunil(etapasData || []);
       const etapaIds = (etapasData || []).map(e => e.id);
+
       if (etapaIds.length > 0) {
         let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), created_at, contato_principal_nome').in('etapa_id', etapaIds).eq('status', 'Ativo');
-        
-        // Aplica os filtros (sem alteração)
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
-
-        // --- MUDANÇA 3: APLICA O FILTRO DE PESQUISA NA CONSULTA ---
-        if (termoPesquisaDebounced) {
-          // .or() busca em múltiplos campos. 'ilike' busca por texto parcial e ignora maiúsculas/minúsculas.
-          query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%,empresa_contato.ilike.%${termoPesquisaDebounced}%`);
-        }
+        if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%,empresa_contato.ilike.%${termoPesquisaDebounced}%`);
 
         const { data: negociosData, error: negociosError } = await query;
         if (negociosError) throw negociosError;
-        
-        // ... (lógica de enriquecimento de dados continua a mesma)
 
+        const negociosIds = (negociosData || []).map(n => n.id);
+        if (negociosIds.length > 0) {
+          const { data: tarefas } = await supabase.from('crm_atividades').select('negocio_id').in('negocio_id', negociosIds).eq('concluida', false);
+          const tarefasValidas = Array.isArray(tarefas) ? tarefas : [];
+          const negociosComTarefas = new Set(tarefasValidas.map(t => t.negocio_id));
+          const negociosEnriquecidos = negociosData.map(negocio => ({ ...negocio, tem_tarefa_futura: negociosComTarefas.has(negocio.id) }));
+          setNegocios(negociosEnriquecidos);
+        } else {
+          setNegocios([]);
+        }
       } else {
         setNegocios([]);
       }
@@ -81,7 +98,6 @@ const PaginaCRM = () => {
     } finally {
       setLoadingNegocios(false);
     }
-  // --- MUDANÇA 4: A BUSCA AGORA DEPENDE DO TERMO PESQUISADO (DEBOUNCED) ---
   }, [funilSelecionadoId, filtros, termoPesquisaDebounced]);
 
   useEffect(() => { fetchDadosDoFunil(); }, [fetchDadosDoFunil]);
@@ -94,29 +110,44 @@ const PaginaCRM = () => {
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
-            <div className="flex items-baseline gap-4">{/* ... (título e seletor de funil sem alterações) ... */}</div>
-            
+            <div className="flex items-baseline gap-4">
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <Filter size={16} />
+                <select value={funilSelecionadoId || ''} onChange={(e) => setFunilSelecionadoId(e.target.value)} className="text-sm font-medium bg-transparent border-none focus:ring-0">
+                  {funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}
+                </select>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                {/* --- MUDANÇA 5: CONECTAMOS O INPUT DE PESQUISA AO NOSSO ESTADO --- */}
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar negócios..." 
-                  className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
-                  value={termoPesquisa}
-                  onChange={(e) => setTermoPesquisa(e.target.value)}
-                />
+                <input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700" value={termoPesquisa} onChange={(e) => setTermoPesquisa(e.target.value)} />
               </div>
-              {/* ... (restante do cabeçalho sem alterações) ... */}
+              <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
+                <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button>
+              </div>
+              <div className="relative">
+                <button ref={filtrosButtonRef} onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                  <SlidersHorizontal size={16} /> Filtros
+                </button>
+                {isFiltrosOpen && (<FiltrosPopover onClose={() => setIsFiltrosOpen(false)} listaDeUsers={listaDeUsers} filtrosAtuais={filtros} onAplicarFiltros={handleAplicaFiltros} buttonRef={filtrosButtonRef} />)}
+              </div>
+              <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700"><Plus size={20} /> Novo Negócio</button>
             </div>
           </div>
         </header>
-        {/* ... (restante do JSX sem alterações) ... */}
+        <section className="mb-6">
+          <CrmDashboard />
+        </section>
+        <main>
+          {loadingNegocios ? <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div> : viewMode === 'kanban' ? <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} /> : <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />}
+        </main>
       </div>
-      {/* ... (modais sem alterações) ... */}
+      {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
+      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleDataChange} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} />}
     </>
   );
 };
-
 export default PaginaCRM;
