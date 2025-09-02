@@ -108,13 +108,15 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
     <>
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-          {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-          {/* A alteração está aqui: adicionamos `inline-block min-w-full`. */}
-          {/* `inline-block` faz o container ter a largura do seu conteúdo. */}
-          {/* `min-w-full` garante que, se o conteúdo for menor que a tela, o container ainda ocupe 100% da largura, evitando que fique estreito demais. */}
-          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg inline-block min-w-full">
+          {/* O container branco agora é um bloco normal, sem `inline-block` */}
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
             {error && <div className="text-red-500 mb-4">{error}</div>}
-            <div className="flex space-x-6 overflow-x-auto pb-4">
+            
+            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+            {/* A alteração está aqui: adicionamos `justify-center`. */}
+            {/* Isso fará com que o conteúdo flex (as colunas) seja centralizado horizontalmente */}
+            {/* quando houver espaço sobrando no container. */}
+            <div className="flex space-x-6 overflow-x-auto pb-4 justify-center">
               {loading ? (
                 <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
               ) : etapas.length > 0 ? (

@@ -5,7 +5,9 @@ import { supabase } from '@/supabaseClient';
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
 import AddNegocioModal from './AddNegocioModal';
-import { Plus, Search, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
+
+// 1. Importamos o ícone 'Filter' que usaremos para o funil
+import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter } from 'lucide-react';
 
 const PaginaCRM = () => {
   const [funis, setFunis] = useState([]);
@@ -38,18 +40,21 @@ const PaginaCRM = () => {
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
-            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-            {/* A alteração está aqui: trocamos 'items-center' por 'items-baseline'. */}
-            {/* Isso alinha os elementos pela base do texto, o que é ideal para diferentes tamanhos de fonte. */}
             <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
-              <select 
-                value={funilSelecionadoId} 
-                onChange={(e) => setFunilSelecionadoId(e.target.value)} 
-                className="text-sm font-medium text-gray-500 bg-transparent border-none focus:ring-0 dark:text-gray-400"
-              >
-                {funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}
-              </select>
+              
+              {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+              {/* 2. Adicionamos um container flex e o ícone 'Filter' antes do seletor */}
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <Filter size={16} />
+                <select 
+                  value={funilSelecionadoId} 
+                  onChange={(e) => setFunilSelecionadoId(e.target.value)} 
+                  className="text-sm font-medium bg-transparent border-none focus:ring-0"
+                >
+                  {funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}
+                </select>
+              </div>
             </div>
             
             <div className="flex items-center gap-2">
