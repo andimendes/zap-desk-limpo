@@ -2,40 +2,43 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle } from 'lucide-react';
+import { Loader2, PlusCircle, User, Building, Mail, Phone, ArrowRight, CheckCircle, Pencil } from 'lucide-react';
 import AddLeadModal from './AddLeadModal';
-import AddNegocioModal from './AddNegocioModal'; // Importamos o AddNegocioModal
+import AddNegocioModal from './AddNegocioModal';
+import EditLeadModal from './EditLeadModal'; // 1. Importamos o novo modal de edição
 
 const PaginaLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   
-  // Estados para a conversão
+  // Estados dos modais
+  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 2. Estado para o modal de edição
+  
+  // Estados para os dados em contexto
   const [leadParaConverter, setLeadParaConverter] = useState(null);
+  const [leadParaEditar, setLeadParaEditar] = useState(null); // 3. Estado para o lead a ser editado
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
 
 
-  const fetchLeads = async () => {
-    // Não seta o loading aqui para permitir recarregamentos mais suaves
-    const { data, error } = await supabase.from('crm_leads').select('*').order('created_at', { ascending: false });
-    if (error) {
-      console.error('Erro ao buscar leads:', error);
-      setError('Não foi possível carregar os leads.');
-    } else {
-      setLeads(data);
-    }
-    setLoading(false);
-  };
-  
   useEffect(() => {
+    const fetchLeads = async () => {
+      const { data, error } = await supabase.from('crm_leads').select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.error('Erro ao buscar leads:', error);
+        setError('Não foi possível carregar os leads.');
+      } else {
+        setLeads(data);
+      }
+      setLoading(false);
+    };
+    
     setLoading(true);
     fetchLeads();
-    // Busca as etapas do funil para passar ao AddNegocioModal
+
     const fetchEtapas = async () => {
-      // Busca as etapas do primeiro funil que encontrar. Pode ser melhorado para ser mais específico.
       const { data: funis } = await supabase.from('crm_funis').select('id').limit(1).single();
       if(funis) {
           const { data: etapas } = await supabase.from('crm_etapas').select('*').eq('funil_id', funis.id).order('ordem');
@@ -49,18 +52,25 @@ const PaginaLeads = () => {
     setLeads([novoLead, ...leads]);
   };
   
+  // 4. Funções para o modal de edição
+  const handleAbrirEdicao = (lead) => {
+    setLeadParaEditar(lead);
+    setIsEditModalOpen(true);
+  };
+
+  const handleLeadAtualizado = (leadAtualizado) => {
+    setLeads(leads.map(l => l.id === leadAtualizado.id ? leadAtualizado : l));
+  };
+  
   const handleAbrirConversao = (lead) => {
       setLeadParaConverter(lead);
       setIsConvertModalOpen(true);
   }
   
-  // Esta função é chamada pelo AddNegocioModal após a conversão ser bem-sucedida
   const handleNegocioAdicionadoDaConversao = (novoNegocio, leadIdConvertido) => {
       if(leadIdConvertido) {
-          // Atualiza a UI para mostrar que o lead foi convertido, sem precisar de buscar na base de dados novamente
           setLeads(leads.map(l => l.id === leadIdConvertido ? { ...l, status: 'Convertido' } : l));
       }
-      // Aqui você poderia também notificar o CrmBoard para adicionar o novo negócio
   }
 
 
@@ -90,21 +100,27 @@ const PaginaLeads = () => {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y dark:divide-gray-700">
                 {leads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
                     <td className="px-6 py-4"><div className="flex items-center text-sm font-medium text-gray-900 dark:text-gray-200"><User size={16} className="text-gray-400 mr-3"/>{lead.nome}</div></td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{lead.empresa || 'N/A'}</td>
                     <td className="px-6 py-4"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${lead.status === 'Convertido' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{lead.status}</span></td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{lead.email}</td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
-                      {lead.status !== 'Convertido' ? (
-                        <button onClick={() => handleAbrirConversao(lead)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                          Converter <ArrowRight size={14} />
+                      <div className="flex items-center justify-end gap-4">
+                        {/* 5. Adicionamos o botão de Editar */}
+                        <button onClick={() => handleAbrirEdicao(lead)} className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Pencil size={16} />
                         </button>
-                      ) : (
-                        <span className="text-green-600 flex items-center justify-start gap-1 text-xs">
-                           <CheckCircle size={14} /> Convertido
-                        </span>
-                      )}
+                        {lead.status !== 'Convertido' ? (
+                          <button onClick={() => handleAbrirConversao(lead)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            Converter <ArrowRight size={14} />
+                          </button>
+                        ) : (
+                          <span className="text-green-600 flex items-center justify-end gap-1 text-xs">
+                             <CheckCircle size={14} /> Convertido
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -113,7 +129,7 @@ const PaginaLeads = () => {
         </div>
       </div>
       
-      {/* Nossos dois modais, renderizados condicionalmente */}
+      {/* Nossos três modais, todos geridos por esta página */}
       <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={handleLeadAdicionado} />
       
       {isConvertModalOpen && (
@@ -123,6 +139,15 @@ const PaginaLeads = () => {
             etapas={etapasDoFunil}
             onNegocioAdicionado={handleNegocioAdicionadoDaConversao}
             leadData={leadParaConverter}
+        />
+      )}
+
+      {isEditModalOpen && (
+        <EditLeadModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onLeadAtualizado={handleLeadAtualizado}
+            lead={leadParaEditar}
         />
       )}
     </>
