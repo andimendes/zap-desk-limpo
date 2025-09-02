@@ -8,7 +8,6 @@ import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
-import AddLeadModal from './AddLeadModal';
 
 const differenceInDays = (dateLeft, dateRight) => {
     const diff = dateLeft.getTime() - dateRight.getTime();
@@ -39,7 +38,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [loading, setLoading] = useState(true);
   const [isTituloEditing, setIsTituloEditing] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
-  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('atividades');
@@ -216,21 +214,92 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  const handleSaveTitulo = async () => { console.log("Ação: Salvar título"); };
-  const handleMudarEtapa = async (novaEtapaId) => { console.log("Ação: Mudar etapa"); };
-  const handleMudarResponsavelTopo = async (novoResponsavelId) => { console.log("Ação: Mudar responsável"); };
-  const handleMarcarStatus = async (status) => { console.log("Ação: Marcar status"); };
-  const handleToggleCompleta = async (id, statusAtual) => { console.log("Ação: Marcar atividade como completa"); };
-  const handleDeletarAtividade = async (id) => { console.log("Ação: Deletar atividade"); };
-  const handleAcaoHistorico = (action, data) => { console.log("Ação: Ação no histórico"); };
-  const handleCreateGoogleEvent = async (atividade) => { console.log("Ação: Criar evento no Google"); };
+  const handleSaveTitulo = async () => {
+    if (!novoTitulo.trim() || novoTitulo === negocio.titulo) {
+      setIsTituloEditing(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.from('crm_negocios').update({ titulo: novoTitulo.trim() }).eq('id', negocio.id).select().single();
+      if (error) throw error;
+      setNegocio(prev => ({...prev, ...data}));
+      onDataChange(data);
+      setIsTituloEditing(false);
+    } catch (error) {
+      console.error("Erro ao salvar título:", error);
+      alert("Não foi possível atualizar o título.");
+    }
+  };
+  
+  const handleToggleCompleta = async (id, statusAtual) => {
+    try {
+      await supabase.from('crm_atividades').update({ concluida: !statusAtual }).eq('id', id);
+      await carregarDadosDetalhados();
+    } catch (error) {
+      console.error("Erro ao concluir atividade:", error);
+      alert("Não foi possível marcar a atividade como concluída.");
+    }
+  };
+  
+  const handleAcaoHistorico = async (action, item) => {
+    if (action === 'delete') {
+      if (!window.confirm(`Tem certeza que deseja excluir esta ${item.tipo}?`)) return;
+      const tabela = item.tipo === 'nota' ? 'crm_notas' : 'crm_atividades';
+      try {
+        const { error } = await supabase.from(tabela).delete().eq('id', item.original.id);
+        if (error) throw error;
+        setHistorico(historico.filter(h => h.original.id !== item.original.id));
+      } catch (error) {
+        console.error(`Erro ao excluir ${item.tipo}:`, error);
+        alert(`Não foi possível excluir a ${item.tipo}.`);
+      }
+    }
+  };
+  
+  const handleMudarEtapa = async (novaEtapaId) => {
+    try {
+      const { data, error } = await supabase.from('crm_negocios').update({ etapa_id: novaEtapaId }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
+      if(error) throw error;
+      setNegocio(data);
+      onDataChange(data);
+    } catch (error) {
+      console.error("Erro ao mudar etapa:", error);
+      alert("Não foi possível alterar a etapa.");
+    }
+  };
+  
+  const handleMudarResponsavelTopo = async (novoResponsavelId) => {
+    try {
+      const { data, error } = await supabase.from('crm_negocios').update({ responsavel_id: novoResponsavelId || null }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
+      if(error) throw error;
+      setNegocio(data);
+      onDataChange(data);
+    } catch (error) {
+      console.error("Erro ao mudar responsável:", error);
+      alert("Não foi possível alterar o responsável.");
+    }
+  };
+  
+  const handleMarcarStatus = async (status) => {
+    const { data, error } = await supabase.from('crm_negocios').update({ status }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
+    if(error) {
+      alert(`Não foi possível marcar como ${status}.`);
+    } else {
+      alert(`Negócio marcado como ${status}!`);
+      onDataChange(data);
+      onClose();
+    }
+  };
+
+  const handleCreateGoogleEvent = async (atividade) => { console.log("Ação: Criar evento no Google para:", atividade); };
+  
   const handleExcluirNegocio = async () => {
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
       if (error) throw error;
       alert('Negócio excluído com sucesso!');
-      onDataChange({ ...negocio, status: 'Excluido' }); 
+      onDataChange({ id: negocio.id, status: 'Excluido' }); 
       setIsConfirmDeleteOpen(false);
       onClose();
     } catch (error) {
@@ -242,7 +311,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 
   if (!isOpen) return null;
 
-  const tabs = [ { id: 'atividades', label: 'Atividades' }, { id: 'arquivos', label: 'Arquivos' }];
+  const tabs = [ { id: 'atividades', label: 'Atividades' }, { id: 'arquivos', label: 'Arquivos' } ];
 
   return (
     <>
@@ -287,12 +356,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
               
               <div className="flex flex-grow overflow-hidden">
                 <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                  <BarraLateral 
-                    negocio={negocio} 
-                    etapasDoFunil={etapasDoFunil} 
-                    listaDeUsers={listaDeUsers} 
-                    onDataChange={onDataChange} 
-                  />
+                  <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} />
                 </div>
                 <div className="w-2/3 flex flex-col overflow-hidden">
                   <div className="border-b border-gray-200 dark:border-gray-700">
