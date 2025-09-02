@@ -11,51 +11,49 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("--- DEBUG: AuthContext useEffect INICIOU ---");
-
+    // onAuthStateChange é executado na carga inicial e em cada mudança de sessão
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        console.log("--- DEBUG: onAuthStateChange disparou. Evento:", _event);
         setSession(session);
         
         let userProfile = null;
         if (session?.user) {
-          console.log("--- DEBUG: Sessão encontrada. Tentando buscar perfil para o user ID:", session.user.id);
           try {
-            const { data, error } = await supabase
+            // Passo 1: Busca o perfil básico. Esta query é simples e deve funcionar.
+            const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select(`*, user_roles(roles(name))`)
+              .select('*')
               .eq('id', session.user.id)
               .single();
 
-            console.log("--- DEBUG: Resposta da query de perfil:", { data, error });
+            if (profileError) throw profileError;
 
-            if (error) throw error;
+            if (profileData) {
+              userProfile = { ...profileData, role: null }; // Começa com role nula
 
-            if (data) {
-              const role = data.user_roles?.[0]?.roles?.name || null;
-              userProfile = { ...data, role };
-              console.log("--- DEBUG: Perfil final construído:", userProfile);
-            } else {
-              console.log("--- DEBUG: Nenhum dado de perfil encontrado para o utilizador.");
+              // Passo 2: Busca a função (role) numa query separada e mais segura
+              const { data: roleData, error: roleError } = await supabase
+                .from('user_roles')
+                .select('roles(name)')
+                .eq('user_id', session.user.id)
+                .single();
+
+              // Se encontrar uma role, adiciona ao perfil. Se não, não há problema.
+              if (roleData?.roles?.name) {
+                userProfile.role = roleData.roles.name;
+              }
             }
           } catch (error) {
-            console.error("--- DEBUG: ERRO no bloco try/catch ao buscar perfil.", error);
+            console.error("AuthContext: Erro ao buscar perfil completo.", error);
           }
-        } else {
-          console.log("--- DEBUG: Nenhuma sessão encontrada.");
         }
         
         setProfile(userProfile);
-        setLoading(false);
-        console.log("--- DEBUG: Carregamento DEFINIDO PARA FALSE. A aplicação devia aparecer agora. ---");
+        setLoading(false); // O carregamento termina aqui, aconteça o que acontecer.
       }
     );
 
-    return () => {
-      console.log("--- DEBUG: Limpando a subscrição do AuthContext. ---");
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const value = { session, profile, loading, user: session?.user };
