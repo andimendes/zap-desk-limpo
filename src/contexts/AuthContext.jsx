@@ -11,22 +11,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Busca a sessão inicial para saber se o utilizador já está logado
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      // O setLoading(false) será chamado dentro do onAuthStateChange
     });
 
-    // Ouve as mudanças de autenticação (login, logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
 
         if (session?.user) {
-          // Se houver uma sessão, busca o perfil correspondente
           const { data, error } = await supabase
             .from('profiles')
-            .select('*') // Certifique-se de que a coluna 'role' está aqui
+            .select('*')
             .eq('id', session.user.id)
             .single();
           
@@ -37,16 +33,13 @@ export const AuthProvider = ({ children }) => {
             setProfile(data);
           }
         } else {
-          // Se não houver sessão (logout), limpa o perfil
           setProfile(null);
         }
         
-        // Marca o carregamento como concluído
         setLoading(false);
       }
     );
 
-    // Limpa o "ouvinte" quando o componente é desmontado
     return () => subscription.unsubscribe();
   }, []);
 
@@ -54,13 +47,13 @@ export const AuthProvider = ({ children }) => {
     session,
     profile,
     loading,
-    user: session?.user // Adicionamos um atalho para 'user' para facilitar
+    user: session?.user
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider> // <-- A CORREÇÃO ESTÁ AQUI
+      {children} {/* <-- ALTERAÇÃO IMPORTANTE: Removemos a condição '!loading &&' */}
+    </AuthContext.Provider>
   );
 };
 
