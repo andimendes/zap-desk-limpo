@@ -1,5 +1,3 @@
-// src/contexts/AuthContext.jsx
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -11,64 +9,72 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange é executado na carga inicial e em cada mudança de sessão
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        
-        let userProfile = null;
-        if (session?.user) {
-          try {
-            // Passo 1: Busca o perfil básico. Esta query é simples e deve funcionar.
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
 
-            if (profileError) throw profileError;
+        if (currentSession?.user) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
 
-            if (profileData) {
-              userProfile = { ...profileData, role: null }; // Começa com role nula
-
-              // Passo 2: Busca a função (role) numa query separada e mais segura
-              const { data: roleData, error: roleError } = await supabase
-                .from('user_roles')
-                .select('roles(name)')
-                .eq('user_id', session.user.id)
-                .single();
-
-              // Se encontrar uma role, adiciona ao perfil. Se não, não há problema.
-              if (roleData?.roles?.name) {
-                userProfile.role = roleData.roles.name;
-              }
-            }
-          } catch (error) {
-            console.error("AuthContext: Erro ao buscar perfil completo.", error);
+          if (profileError) throw profileError;
+          if (!profileData) {
+              setProfile(null);
+              return;
           }
+
+          // --- ESTA É A CORREÇÃO PRINCIPAL ---
+          // A lógica para buscar os 'roles' já existia, mas não estava
+          // a ser usada para o perfil principal. Agora está.
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('roles (name)')
+            .eq('user_id', currentSession.user.id);
+
+          if (rolesError) throw rolesError;
+          
+          // Combinamos o perfil com os 'roles' corretamente
+          const finalProfile = {
+            ...profileData,
+            // A propriedade 'roles' será uma lista como ['admin']
+            roles: rolesData ? rolesData.map(item => item.roles.name) : []
+          };
+          
+          setProfile(finalProfile);
+
+        } else {
+            setProfile(null);
         }
-        
-        setProfile(userProfile);
-        setLoading(false); // O carregamento termina aqui, aconteça o que acontecer.
+      } catch (error) {
+        console.error("Erro no AuthContext:", error);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-    );
+    };
+    
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+        // Recarregamos tudo para garantir consistência
+        initializeAuth();
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const value = { session, profile, loading, user: session?.user };
+  const value = { session, profile, loading };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
