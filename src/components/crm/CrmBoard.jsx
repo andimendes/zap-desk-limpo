@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js'; 
-import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
 import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 
 const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
-  // ... (Componente EtapaColuna continua o mesmo)
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col">
       <div className="mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
@@ -19,37 +17,20 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-// --- MUDANÇA 1: O COMPONENTE AGORA É MUITO MAIS SIMPLES ---
-// Ele recebe as listas de 'etapas', 'negocios' e 'listaDeUsers' prontas.
-// E recebe funções 'onDragEnd' e 'onDataChange' para avisar o pai de qualquer mudança.
-const CrmBoard = ({ etapas, negocios, listaDeUsers, onDragEnd, onDataChange }) => {
-  const [negocioSelecionado, setNegocioSelecionado] = useState(null);
+// O CrmBoard agora é um componente puramente de apresentação
+const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
 
-  // --- MUDANÇA 2: TODA A LÓGICA DE BUSCA DE DADOS FOI REMOVIDA DAQUI ---
+  // O estado e o componente do Modal de Detalhes foram removidos daqui
 
   const handleOnDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
-    // Otimismo: Atualiza a UI imediatamente (esta parte é opcional mas melhora a experiência)
-    // A lógica principal de atualização está no pai.
-    
-    // Atualiza o negócio no banco de dados
-    const { error } = await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
-    if (error) {
-      alert("Erro ao mover o negócio.");
-    }
-    // Avisa o componente pai para recarregar todos os dados.
-    onDragEnd(); 
-  };
-    
-  const handleNegocioDataChange = () => {
-    // Apenas avisa o componente pai que algo mudou (ex: um negócio foi editado ou excluído)
-    onDataChange();
-    setNegocioSelecionado(null);
+    await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
+    onDataChange(); // Avisa o pai para recarregar os dados
   };
 
   return (
@@ -58,41 +39,33 @@ const CrmBoard = ({ etapas, negocios, listaDeUsers, onDragEnd, onDataChange }) =
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
             <div className="flex space-x-6 overflow-x-auto pb-4 justify-center">
-              {etapas.length > 0 ? (
-                etapas.map(etapa => {
-                  const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
-                  const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
-                  return (
-                    <EtapaColuna 
-                      key={etapa.id} 
-                      etapa={etapa} 
-                      negocios={negociosDaEtapa.map((negocio, index) => (
-                        <NegocioCard key={negocio.id} negocio={negocio} index={index} onCardClick={setNegocioSelecionado} etapasDoFunil={etapas} />
-                      ))}
-                      totalValor={valorDaEtapa}
-                      totalNegocios={negociosDaEtapa.length}
-                    />
-                  );
-                })
-              ) : (
-                <div className="w-full text-center py-10">
-                  <p className="text-gray-500 dark:text-gray-400">Nenhum negócio encontrado com os filtros atuais.</p>
-                </div>
-              )}
+              {etapas.map(etapa => {
+                const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
+                const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
+                return (
+                  <EtapaColuna 
+                    key={etapa.id} 
+                    etapa={etapa} 
+                    negocios={negociosDaEtapa.map((negocio, index) => (
+                      <NegocioCard 
+                        key={negocio.id} 
+                        negocio={negocio} 
+                        index={index} 
+                        // A função onNegocioClick agora vem do pai
+                        onCardClick={onNegocioClick} 
+                        etapasDoFunil={etapas} 
+                      />
+                    ))}
+                    totalValor={valorDaEtapa}
+                    totalNegocios={negociosDaEtapa.length}
+                  />
+                );
+              })}
             </div>
           </div>
         </DragDropContext>
       )}
-
-      {negocioSelecionado && 
-        <NegocioDetalhesModal 
-          isOpen={!!negocioSelecionado} 
-          negocio={negocioSelecionado} 
-          onClose={() => setNegocioSelecionado(null)} 
-          onDataChange={handleNegocioDataChange} // O modal agora chama esta função simplificada
-          etapasDoFunil={etapas} 
-          listaDeUsers={listaDeUsers}
-        />}
+      {/* O Modal de Detalhes não é mais renderizado aqui */}
     </>
   );
 };
