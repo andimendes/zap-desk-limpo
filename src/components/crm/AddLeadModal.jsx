@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const AddLeadModal = ({ isOpen, onClose, onLeadAdicionado }) => {
   const { session } = useAuth();
   
-  // Estados do formulário
+  // O formulário agora é para os dados do Contato + fonte do Lead
   const [nome, setNome] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [email, setEmail] = useState('');
@@ -20,12 +20,11 @@ const AddLeadModal = ({ isOpen, onClose, onLeadAdicionado }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!nome) {
-      setError('O nome do lead é obrigatório.');
+      setError('O nome do contato é obrigatório.');
       return;
     }
-    
     if (!session?.user?.id) {
-      setError('Sessão de utilizador inválida. Por favor, faça login novamente.');
+      setError('Sessão de utilizador inválida.');
       return;
     }
 
@@ -33,28 +32,37 @@ const AddLeadModal = ({ isOpen, onClose, onLeadAdicionado }) => {
     setError('');
 
     try {
-      const { data: novoLead, error: insertError } = await supabase
-        .from('crm_leads')
-        .insert({
-          nome,
-          empresa: empresa || null,
-          email: email || null,
-          telefone: telefone || null,
-          fonte: fonte || null,
-          user_id: session.user.id,
-          // O status já tem o default 'Novo' na base de dados, então não precisamos de o enviar
-        })
+      // Passo 1: Criar o Contato na tabela crm_contatos
+      // (No futuro, podemos adicionar aqui a lógica para associar a uma empresa existente)
+      const { data: novoContato, error: contatoError } = await supabase
+        .from('crm_contatos')
+        .insert({ nome, email, telefone })
         .select()
         .single();
+      
+      if (contatoError) throw contatoError;
 
-      if (insertError) throw insertError;
+      // Passo 2: Criar o Lead na tabela crm_leads, associando-o ao novo contato
+      const { data: novoLead, error: leadError } = await supabase
+        .from('crm_leads')
+        .insert({
+          user_id: session.user.id,
+          contato_id: novoContato.id, // <-- A LIGAÇÃO PRINCIPAL
+          fonte: fonte,
+          // O status já tem o default 'Novo'
+        })
+        .select('*, crm_contatos(*)') // Já busca o lead com os dados do contato
+        .single();
+
+      if (leadError) throw leadError;
 
       onLeadAdicionado(novoLead);
       handleClose();
 
     } catch (error) {
-      console.error('Erro ao adicionar lead:', error);
-      setError('Não foi possível adicionar o lead. Verifique as permissões da base de dados (RLS).');
+      console.error('Erro no fluxo de adicionar lead:', error);
+      setError('Não foi possível adicionar o lead. Verifique a consola para mais detalhes.');
+      // Adicionar lógica para apagar o contato se a criação do lead falhar (opcional)
     } finally {
       setLoading(false);
     }
@@ -70,9 +78,7 @@ const AddLeadModal = ({ isOpen, onClose, onLeadAdicionado }) => {
     onClose();
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
@@ -83,29 +89,29 @@ const AddLeadModal = ({ isOpen, onClose, onLeadAdicionado }) => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="nome" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Nome*</label>
-              <input id="nome" type="text" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+              <label htmlFor="nome" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Nome do Contato*</label>
+              <input id="nome" type="text" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" required />
             </div>
             <div>
               <label htmlFor="empresa" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Empresa</label>
-              <input id="empresa" type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="empresa" type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="email" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">E-mail</label>
-              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
             </div>
              <div>
               <label htmlFor="telefone" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Telefone</label>
-              <input id="telefone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="telefone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
             </div>
           </div>
 
           <div>
             <label htmlFor="fonte" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Fonte do Lead</label>
-            <input id="fonte" type="text" value={fonte} onChange={(e) => setFonte(e.target.value)} placeholder="Ex: Indicação, Site, Evento" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="fonte" type="text" value={fonte} onChange={(e) => setFonte(e.target.value)} placeholder="Ex: Indicação, Site, Evento" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
           </div>
 
           <div className="flex justify-end space-x-4 pt-4">
