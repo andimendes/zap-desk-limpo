@@ -10,6 +10,38 @@ import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
 import AddLeadModal from './AddLeadModal';
 
+const EditComposer = ({ item, onSave, onCancel }) => {
+    const [editedContent, setEditedContent] = useState(item.conteudo);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        await onSave(item, editedContent);
+        setIsSaving(false);
+    };
+    
+    return (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-800 rounded-lg p-4 my-4">
+            <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Editando {item.tipo}</h3>
+            <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-yellow-500"
+                rows="4"
+            />
+            <div className="flex justify-end gap-2 mt-2">
+                <button onClick={onCancel} className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300">
+                    Cancelar
+                </button>
+                <button onClick={handleSave} disabled={isSaving || !editedContent.trim()} className="py-2 px-4 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 flex items-center">
+                    {isSaving && <Loader2 className="animate-spin mr-2" size={16} />}
+                    Salvar Alterações
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const differenceInDays = (dateLeft, dateRight) => {
     const diff = dateLeft.getTime() - dateRight.getTime();
     return Math.round(diff / (1000 * 60 * 60 * 24));
@@ -50,6 +82,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [arquivos, setArquivos] = useState([]);
   const [isLoadingArquivos, setIsLoadingArquivos] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
 
   const carregarArquivos = useCallback(async (negocioId) => {
     if (!negocioId) return;
@@ -122,6 +155,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         setActiveTab('atividades');
         setTermoBusca('');
         setResultadosBusca([]);
+        setEditingItem(null);
         carregarDadosDetalhados();
     }
   }, [isOpen, negocioInicial]);
@@ -203,8 +237,9 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data, error } = await supabase.from('crm_negocios').update({ titulo: novoTitulo.trim() }).eq('id', negocio.id).select().single();
       if (error) throw error;
-      setNegocio(prev => ({...prev, ...data}));
-      onDataChange(data);
+      const updatedNegocio = {...negocio, ...data};
+      setNegocio(updatedNegocio);
+      onDataChange(updatedNegocio);
       setIsTituloEditing(false);
     } catch (error) { console.error("Erro ao salvar título:", error); alert("Não foi possível atualizar o título."); }
   };
@@ -213,7 +248,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       await supabase.from('crm_atividades').update({ concluida: !statusAtual }).eq('id', id);
       await carregarDadosDetalhados();
-    } catch (error) { console.error("Erro ao concluir atividade:", error); alert("Não foi possível marcar a atividade como concluída."); }
+    } catch (error) { console.error("Erro ao concluir atividade:", error); alert("Não foi possível marcar a atividade."); }
   };
   
   const handleAcaoHistorico = async (action, item) => {
@@ -225,6 +260,22 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         if (error) throw error;
         setHistorico(historico.filter(h => h.original.id !== item.original.id));
       } catch (error) { console.error(`Erro ao excluir ${item.tipo}:`, error); alert(`Não foi possível excluir a ${item.tipo}.`); }
+    } else if (action === 'edit') {
+        setEditingItem(item);
+    }
+  };
+
+  const handleSaveEdit = async (item, newContent) => {
+    const tabela = item.tipo === 'nota' ? 'crm_notas' : 'crm_atividades';
+    const coluna = item.tipo === 'nota' ? 'conteudo' : 'descricao';
+    try {
+        const { error } = await supabase.from(tabela).update({ [coluna]: newContent }).eq('id', item.original.id);
+        if (error) throw error;
+        setEditingItem(null);
+        await carregarDadosDetalhados();
+    } catch(error) {
+        console.error(`Erro ao editar ${item.tipo}:`, error);
+        alert(`Não foi possível salvar as alterações da ${item.tipo}.`);
     }
   };
   
@@ -330,7 +381,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                             {proximaAtividade && <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar"><CalendarPlus size={20}/></button>}
                           </div>
                         </div>
-                        <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+
+                        {editingItem ? (
+                            <EditComposer item={editingItem} onSave={handleSaveEdit} onCancel={() => setEditingItem(null)} />
+                        ) : (
+                            <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+                        )}
+
                         <div className="flex-grow overflow-y-auto pr-2">
                           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
                           <ul className="-ml-2">

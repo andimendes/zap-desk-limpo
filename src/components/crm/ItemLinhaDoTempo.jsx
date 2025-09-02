@@ -1,7 +1,7 @@
 // src/components/crm/ItemLinhaDoTempo.jsx
 
 import React from 'react';
-import { FileText, Calendar, CheckCircle, Trash2 } from 'lucide-react';
+import { FileText, Calendar, CheckCircle, Trash2, Pencil } from 'lucide-react';
 
 const formatarData = (data) => {
     return new Intl.DateTimeFormat('pt-BR', {
@@ -42,7 +42,16 @@ const ItemLinhaDoTempo = ({ item, onAction }) => {
                 </p>
             </div>
 
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {!isConcluida && (
+                    <button 
+                        onClick={() => onAction('edit', item)}
+                        className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="Editar item"
+                    >
+                        <Pencil size={16} />
+                    </button>
+                )}
                 <button 
                     onClick={() => onAction('delete', item)}
                     className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
