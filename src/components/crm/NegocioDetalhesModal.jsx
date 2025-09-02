@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-// 1. Ícone Trash2 importado para o botão de excluir
 import { Loader2, AlertTriangle, CalendarPlus, Pencil, Check, X, Users as UsersIcon, Trash2 } from 'lucide-react';
 
 // Importando os nossos componentes
@@ -46,7 +45,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
 
-  // 2. Novos estados para controlar o modal de confirmação de exclusão e o loading
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -59,7 +57,23 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) return;
     try {
       const { data: updatedNegocio, error: negocioError } = await supabase.from('crm_negocios').select('*, responsavel:profiles(full_name)').eq('id', negocioInicial.id).single();
-      if (negocioError) throw negocioError;
+      
+      // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+      // Esta é a principal alteração. Verificamos se ocorreu um erro.
+      if (negocioError) {
+        // O código 'PGRST116' é específico do Supabase/PostgREST para "nenhuma linha encontrada".
+        if (negocioError.code === 'PGRST116') {
+          console.warn('Tentativa de carregar um negócio que não existe mais:', negocioInicial.id);
+          alert('Este negócio não foi encontrado. Pode ter sido excluído.');
+          onClose(); // Fechamos o modal para evitar que o usuário veja uma tela de erro.
+          return; // Interrompemos a execução da função aqui.
+        } else {
+          // Se for qualquer outro tipo de erro (ex: problema de rede), nós ainda queremos saber.
+          throw negocioError;
+        }
+      }
+      // --- FIM DA CORREÇÃO ---
+
       setNegocio(updatedNegocio);
       setNovoTitulo(updatedNegocio.titulo);
       
@@ -86,11 +100,11 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       }
     } catch (error) {
       console.error("Erro ao carregar detalhes do negócio:", error);
-      alert("Não foi possível carregar os dados.");
+      alert("Não foi possível carregar os dados detalhados do negócio.");
     } finally {
       setLoading(false);
     }
-  }, [negocioInicial]);
+  }, [negocioInicial, onClose]); // Adicionamos onClose às dependências do useCallback
 
   useEffect(() => {
     if (isOpen) {
@@ -99,21 +113,16 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, carregarDadosDetalhados]);
   
-  // --- Funções de Ação ---
-  const handleSaveTitulo = async () => { /* ...código existente sem alteração... */ };
-  const handleMudarEtapa = async (novaEtapaId) => { /* ...código existente sem alteração... */ };
-  const handleMudarResponsavelTopo = async (novoResponsavelId) => { /* ...código existente sem alteração... */ };
-  const handleMarcarStatus = async (status) => { /* ...código existente sem alteração... */ };
-  const handleToggleCompleta = async (id, statusAtual) => { /* ...código existente sem alteração... */ };
-  const handleDeletarAtividade = async (id) => { /* ...código existente sem alteração... */ };
-  const handleAcaoHistorico = (action, data) => { /* ...código existente sem alteração... */ };
-  const handleCreateGoogleEvent = async (atividade) => { /* ...código existente sem alteração... */ };
+  // --- Funções de Ação (sem alterações, exceto a nova handleExcluirNegocio) ---
+  const handleSaveTitulo = async () => { /* ...código existente... */ };
+  const handleMudarEtapa = async (novaEtapaId) => { /* ...código existente... */ };
+  const handleMudarResponsavelTopo = async (novoResponsavelId) => { /* ...código existente... */ };
+  const handleMarcarStatus = async (status) => { /* ...código existente... */ };
+  const handleToggleCompleta = async (id, statusAtual) => { /* ...código existente... */ };
+  const handleDeletarAtividade = async (id) => { /* ...código existente... */ };
+  const handleAcaoHistorico = (action, data) => { /* ...código existente... */ };
+  const handleCreateGoogleEvent = async (atividade) => { /* ...código existente... */ };
 
-  /**
-   * DOCUMENTAÇÃO:
-   * Nova função para excluir o negócio.
-   * É chamada pelo modal de confirmação.
-   */
   const handleExcluirNegocio = async () => {
     setIsDeleting(true);
     try {
@@ -127,13 +136,9 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       }
 
       alert('Negócio excluído com sucesso!');
-      
-      // Notifica o componente pai (Kanban) que este negócio foi alterado/removido
-      // para que ele possa desaparecer da tela.
       onDataChange({ ...negocio, status: 'Excluido' }); 
-      
-      setIsConfirmDeleteOpen(false); // Fecha o modal de confirmação
-      onClose(); // Fecha o modal principal
+      setIsConfirmDeleteOpen(false);
+      onClose();
 
     } catch (error) {
       console.error("Erro ao excluir negócio:", error);
@@ -145,18 +150,30 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 
   if (!isOpen) return null;
 
+  // O JSX abaixo continua o mesmo que você já tinha feito
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 sm:p-8" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
           {loading ? (
             <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div>
-          ) : (
+          ) : negocio && ( // Adicionamos uma verificação para garantir que 'negocio' existe antes de renderizar
             <>
               <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
-                    {/* ...bloco do título editável sem alteração... */}
+                    {isTituloEditing ? (
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitulo(); }} className="text-2xl font-bold dark:bg-gray-700 dark:text-gray-100 p-1 border rounded"/>
+                        <button onClick={handleSaveTitulo} className="text-green-600 hover:text-green-800"><Check size={18}/></button>
+                        <button onClick={() => { setIsTituloEditing(false); }} className="text-red-600 hover:text-red-800"><X size={18}/></button>
+                      </div>
+                    ) : (
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 break-words flex items-center gap-2">
+                        {negocio.titulo}
+                        <button onClick={() => setIsTituloEditing(true)} className="text-gray-500 hover:text-blue-600"><Pencil size={16}/></button>
+                      </h2>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
@@ -168,39 +185,42 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                     </div>
                     <button onClick={() => handleMarcarStatus('Ganho')} className="bg-green-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-green-600">Ganho</button>
                     <button onClick={() => handleMarcarStatus('Perdido')} className="bg-red-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-red-600">Perdido</button>
-                    
-                    {/* 3. Botão de Excluir adicionado */}
-                    <button 
-                      onClick={() => setIsConfirmDeleteOpen(true)} 
-                      className="text-gray-500 hover:text-red-600 dark:hover:text-red-500 p-1"
-                      title="Excluir Negócio"
-                    >
+                    <button onClick={() => setIsConfirmDeleteOpen(true)} className="text-gray-500 hover:text-red-600 dark:hover:text-red-500 p-1" title="Excluir Negócio">
                       <Trash2 size={20} />
                     </button>
-
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><X size={24} /></button>
                   </div>
                 </div>
                 {etapasDoFunil && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleMudarEtapa} />)}
               </div>
               <div className="flex flex-grow overflow-hidden">
-                {/* ...resto do componente sem alteração... */}
+                  <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} onAddLeadClick={() => setIsAddLeadModalOpen(true)} />
+                  <main className="w-2/3 p-6 flex flex-col gap-6 overflow-y-auto">
+                    {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Foco</h3>
+                      <div className="flex items-start gap-2">
+                          <AtividadeFoco atividade={proximaAtividade} onConcluir={handleToggleCompleta} />
+                          {proximaAtividade && <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar"><CalendarPlus size={20}/></button>}
+                      </div>
+                    </div>
+                    <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+                    <div className="flex-grow overflow-y-auto pr-2">
+                      <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
+                      <ul className="-ml-2">
+                        {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))}
+                        {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
+                      </ul>
+                    </div>
+                  </main>
               </div>
             </>
           )}
         </div>
       </div>
       
-      <AddLeadModal 
-        isOpen={isAddLeadModalOpen}
-        onClose={() => setIsAddLeadModalOpen(false)}
-        onLeadAdicionado={() => {
-            alert('Novo lead adicionado com sucesso!');
-            setIsAddLeadModalOpen(false);
-        }}
-      />
+      <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={() => { alert('Novo lead adicionado com sucesso!'); setIsAddLeadModalOpen(false); }} />
 
-      {/* 4. Modal de Confirmação de Exclusão */}
       {isConfirmDeleteOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
@@ -209,17 +229,10 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
               Tem a certeza de que deseja excluir o negócio "{negocio.titulo}"? Esta ação não pode ser desfeita.
             </p>
             <div className="mt-6 flex justify-end gap-3">
-              <button 
-                onClick={() => setIsConfirmDeleteOpen(false)}
-                className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-              >
+              <button onClick={() => setIsConfirmDeleteOpen(false)} className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
                 Cancelar
               </button>
-              <button 
-                onClick={handleExcluirNegocio}
-                disabled={isDeleting}
-                className="py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 flex items-center"
-              >
+              <button onClick={handleExcluirNegocio} disabled={isDeleting} className="py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 flex items-center">
                 {isDeleting && <Loader2 className="animate-spin mr-2" size={16} />}
                 Sim, Excluir
               </button>
