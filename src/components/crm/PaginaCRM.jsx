@@ -64,7 +64,7 @@ const PaginaCRM = () => {
       setEtapasDoFunil(etapasData || []);
       const etapaIds = (etapasData || []).map(e => e.id);
       if (etapaIds.length > 0) {
-        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), created_at').in('etapa_id', etapaIds).eq('status', 'Ativo');
+        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), etapa_modificada_em').in('etapa_id', etapaIds).eq('status', 'Ativo');
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
@@ -133,7 +133,6 @@ const PaginaCRM = () => {
           <CrmDashboard 
             filtros={filtros}
             termoPesquisa={termoPesquisaDebounced}
-            // --- MUDANÇA AQUI ---
             funilId={funilSelecionadoId}
           />
         </section>

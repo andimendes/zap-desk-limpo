@@ -3,6 +3,7 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { User, AlertTriangle, Clock } from 'lucide-react';
+import { supabase } from '@/supabaseClient';
 
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
@@ -12,7 +13,7 @@ const differenceInDays = (dateLeft, dateRight) => {
 };
 
 const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
-  const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
+  const diasParado = differenceInDays(new Date(), negocio.etapa_modificada_em);
   const avatarUrl = negocio.responsavel?.avatar_url || null;
 
   return (
@@ -27,10 +28,7 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
         >
           <div>
             <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
-            {/* A linha abaixo já exibe a empresa/contato e está correta */}
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa_contato}</p>
-            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
-            {/* A linha que tentava exibir 'contato_principal_nome' foi REMOVIDA. */}
           </div>
           
           <div className="flex justify-between items-end">
@@ -48,9 +46,9 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
           </div>
 
           <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-200/50 pt-3">
-            <div className="flex items-center gap-1.5" title={`Criado há ${diasDesdeCriacao} dias`}>
+            <div className="flex items-center gap-1.5" title={`Parado nesta etapa há ${diasParado} dias`}>
               <Clock size={12} />
-              <span>{diasDesdeCriacao}d de idade</span>
+              <span>{diasParado}d parado</span>
             </div>
             {!negocio.tem_tarefa_futura && (
               <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500" title="Nenhuma tarefa futura agendada"><AlertTriangle size={12} /><span>Sem tarefa</span></div>
