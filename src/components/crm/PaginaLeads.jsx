@@ -23,10 +23,23 @@ const PaginaLeads = () => {
   useEffect(() => {
     const fetchLeads = async () => {
       setLoading(true);
-      // Query atualizada para buscar os leads e os dados dos contatos relacionados
+      // --- QUERY CORRIGIDA E MAIS ESPECÍFICA ---
+      // Agora, em vez de '*', pedimos colunas específicas e explicitamos a relação
       const { data, error } = await supabase
         .from('crm_leads')
-        .select('*, crm_contatos(*)') // <-- A GRANDE MUDANÇA ESTÁ AQUI
+        .select(`
+          id,
+          created_at,
+          fonte,
+          status,
+          contato_id,
+          crm_contatos (
+            id,
+            nome,
+            email,
+            telefone
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -54,26 +67,26 @@ const PaginaLeads = () => {
   };
 
   const handleDeletarLead = async (lead) => {
-    if (window.confirm(`Tem certeza de que deseja apagar o lead de "${lead.crm_contatos.nome}"?`)) {
-        // Primeiro apaga o lead, depois o contato.
-        const { error: leadError } = await supabase.from('crm_leads').delete().eq('id', lead.id);
-        if(leadError) return alert('Erro ao apagar o lead.');
+    if (window.confirm(`Tem certeza de que deseja apagar o lead de "${lead.crm_contatos.nome}"? Esta ação não pode ser desfeita.`)) {
+        // A nossa regra "ON DELETE CASCADE" na base de dados já deve apagar o lead se o contato for apagado.
+        // Mas para garantir, podemos apagar o lead primeiro.
+        const { error } = await supabase.from('crm_leads').delete().eq('id', lead.id);
 
-        const { error: contatoError } = await supabase.from('crm_contatos').delete().eq('id', lead.contato_id);
-        if(contatoError) return alert('Lead apagado, mas houve erro ao apagar o contato associado.');
-
-        setLeads(leads.filter(l => l.id !== lead.id));
+        if(error) {
+            alert('Erro ao apagar o lead.');
+        } else {
+            setLeads(leads.filter(l => l.id !== lead.id));
+        }
     }
   };
   
   const handleAbrirConversao = (lead) => {
-      // Passamos os dados do contato para o modal de conversão
       const leadDataForConversion = {
           id: lead.id,
           nome: lead.crm_contatos.nome,
-          empresa: lead.crm_contatos.empresa_id, // Futuramente, podemos buscar o nome da empresa
           email: lead.crm_contatos.email,
           telefone: lead.crm_contatos.telefone,
+          // Futuramente, poderemos adicionar a empresa aqui também
       }
       setLeadParaConverter(leadDataForConversion);
       setIsConvertModalOpen(true);
@@ -102,43 +115,46 @@ const PaginaLeads = () => {
           <table className="min-w-full divide-y dark:divide-gray-700">
              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contato</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fonte</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contato</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fonte</th>
                   <th className="relative px-6 py-3"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y dark:divide-gray-700">
                 {leads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900 dark:text-gray-200">{lead.crm_contatos?.nome || 'Contato não encontrado'}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{lead.crm_contatos?.email}</div>
-                    </td>
-                    <td className="px-6 py-4"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${lead.status === 'Convertido' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{lead.status}</span></td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{lead.fonte}</td>
-                    <td className="px-6 py-4 text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-4">
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="text-gray-400 hover:text-blue-600" title="Editar Contato">
-                                <Pencil size={16} />
+                  // Verificação para garantir que lead.crm_contatos existe antes de tentar renderizar
+                  lead.crm_contatos && (
+                    <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900 dark:text-gray-200">{lead.crm_contatos.nome}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{lead.crm_contatos.email}</div>
+                      </td>
+                      <td className="px-6 py-4"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${lead.status === 'Convertido' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{lead.status}</span></td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{lead.fonte}</td>
+                      <td className="px-6 py-4 text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-4">
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button className="text-gray-400 hover:text-blue-600" title="Editar Contato">
+                                  <Pencil size={16} />
+                              </button>
+                              <button onClick={() => handleDeletarLead(lead)} className="text-gray-400 hover:text-red-600" title="Apagar Lead e Contato">
+                                  <Trash2 size={16} />
+                              </button>
+                          </div>
+                          {lead.status !== 'Convertido' ? (
+                            <button onClick={() => handleAbrirConversao(lead)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                              Converter <ArrowRight size={14} />
                             </button>
-                            <button onClick={() => handleDeletarLead(lead)} className="text-gray-400 hover:text-red-600" title="Apagar Lead e Contato">
-                                <Trash2 size={16} />
-                            </button>
+                          ) : (
+                            <span className="text-green-600 flex items-center justify-end gap-1 text-xs">
+                               <CheckCircle size={14} /> Convertido
+                            </span>
+                          )}
                         </div>
-                        {lead.status !== 'Convertido' ? (
-                          <button onClick={() => handleAbrirConversao(lead)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                            Converter <ArrowRight size={14} />
-                          </button>
-                        ) : (
-                          <span className="text-green-600 flex items-center justify-end gap-1 text-xs">
-                             <CheckCircle size={14} /> Convertido
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                  )
                 ))}
               </tbody>
           </table>
