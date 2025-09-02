@@ -11,47 +11,42 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("AuthContext: Iniciando o useEffect...");
+    const fetchSessionAndProfile = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+
+      if (currentSession?.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Erro ao buscar perfil:", profileError);
+          setProfile(null);
+        } else {
+          setProfile(profileData);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log("AuthContext: onAuthStateChange disparou. Evento:", _event);
-        setSession(session);
-        
-        let userProfile = null;
-        if (session?.user) {
-          console.log("AuthContext: Sessão encontrada. A buscar perfil para o user ID:", session.user.id);
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select(`*, user_roles(roles(name))`)
-              .eq('id', session.user.id)
-              .single();
-
-            if (error) throw error;
-
-            if (data) {
-              const role = data.user_roles?.[0]?.roles?.name || null;
-              userProfile = { ...data, role };
-              console.log("AuthContext: Perfil e role encontrados:", userProfile);
-            }
-          } catch (error) {
-            console.error("AuthContext: Erro ao buscar perfil e role.", error);
-          }
+      (_event, newSession) => {
+        setSession(newSession);
+        if (!newSession) {
+            setProfile(null);
         } else {
-          console.log("AuthContext: Nenhuma sessão encontrada.");
+            // Recarrega o perfil se houver uma nova sessão
+            fetchSessionAndProfile();
         }
-        
-        setProfile(userProfile);
-        setLoading(false);
-        console.log("AuthContext: Carregamento finalizado.");
       }
     );
 
-    return () => {
-      console.log("AuthContext: Limpando a subscrição.");
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const value = { session, profile, loading, user: session?.user };
