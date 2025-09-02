@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import DashboardVendedor from '@/components/crm/DashboardVendedor'; // O dashboard do vendedor
-import DashboardGerente from '@/components/crm/DashboardGerente'; // O nosso novo dashboard
+import DashboardVendedor from '@/components/crm/DashboardVendedor';
+import DashboardGerente from '@/components/crm/DashboardGerente';
 import { Loader2 } from 'lucide-react';
 
 const DashboardPage = () => {
@@ -17,10 +17,11 @@ const DashboardPage = () => {
     );
   }
 
-  // Verificamos a função (role) do utilizador.
-  // Se for 'ADM', mostramos o Dashboard de Gerente.
-  // Caso contrário, mostramos o Dashboard de Vendedor.
-  if (profile && profile.role === 'ADM') {
+  // --- CORREÇÃO IMPORTANTE ---
+  // Verificamos se 'profile.role' existe e convertemos para maiúsculas
+  // antes de comparar. Isto evita erros se a role estiver em minúsculas ('adm')
+  // ou se o campo for nulo.
+  if (profile && profile.role?.toUpperCase() === 'ADM') {
     return <DashboardGerente />;
   } else {
     return <DashboardVendedor />;
