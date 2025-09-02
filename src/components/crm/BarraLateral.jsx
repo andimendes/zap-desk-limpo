@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Building, User, DollarSign, Tag, Users as UsersIcon, Pencil, X, Check, PlusCircle } from 'lucide-react';
+import { Building, User, DollarSign, Tag, Users as UsersIcon, Pencil, X, Check } from 'lucide-react';
 
 const DetalheItem = ({ icon, label, value }) => (
   <div>
@@ -14,8 +14,7 @@ const DetalheItem = ({ icon, label, value }) => (
   </div>
 );
 
-// Adicionamos a nova prop onAddLeadClick
-const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange, onAddLeadClick }) => {
+const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
 
@@ -29,6 +28,10 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange, onAd
       });
     }
   }, [negocio]);
+
+  if (!negocio) {
+      return null;
+  }
 
   const etapaAtual = etapasDoFunil.find(e => e.id === negocio.etapa_id);
 
@@ -81,8 +84,7 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange, onAd
   };
 
   return (
-    <div className="w-1/3 max-w-sm bg-gray-50 dark:bg-gray-800/50 p-6 border-r dark:border-gray-700 h-full overflow-y-auto flex flex-col gap-6">
-      
+    <div className="bg-gray-50 dark:bg-gray-900/50 p-6 h-full overflow-y-auto flex flex-col gap-6">
       <div className="space-y-4">
         <DetalheItem icon={<DollarSign size={14} />} label="Valor" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}/>
         <DetalheItem icon={<Tag size={14} />} label="Funil / Etapa" value={etapaAtual?.nome_etapa || 'Etapa não encontrada'} />
@@ -122,18 +124,6 @@ const BarraLateral = ({ negocio, etapasDoFunil, listaDeUsers, onDataChange, onAd
           {listaDeUsers.map(user => (<option key={user.id} value={user.id}>{user.full_name}</option>))}
         </select>
       </div>
-
-      {/* --- BOTÃO NOVO ADICIONADO AQUI --- */}
-      <div className="mt-auto pt-4 border-t dark:border-gray-600">
-        <button 
-          onClick={onAddLeadClick}
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-2 px-3 rounded-lg text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900"
-        >
-          <PlusCircle size={16} />
-          Adicionar Lead Rápido
-        </button>
-      </div>
-      
     </div>
   );
 };
