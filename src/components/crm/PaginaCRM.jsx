@@ -1,23 +1,21 @@
 // src/components/crm/PaginaCRM.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
-// ... (outros imports)
-import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
-// ... (outros componentes importados)
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
 import CrmListView from './CrmListView';
 import AddNegocioModal from './AddNegocioModal';
 import NegocioDetalhesModal from './NegocioDetalhesModal';
 import FiltrosPopover from './FiltrosPopover';
-
+import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
 
 const PaginaCRM = () => {
-  // ... (todos os estados continuam os mesmos)
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
+  const filtrosButtonRef = useRef(null);
+  
   const [funis, setFunis] = useState([]);
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
@@ -27,50 +25,52 @@ const PaginaCRM = () => {
   const [loadingNegocios, setLoadingNegocios] = useState(true);
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      const [funisRes, usersRes] = await Promise.all([
+        supabase.from('crm_funis').select('*').order('created_at'),
+        supabase.from('profiles').select('id, full_name').order('full_name')
+      ]);
+      if (funisRes.data) {
+        setFunis(funisRes.data);
+        if (funisRes.data.length > 0) setFunilSelecionadoId(funisRes.data[0].id);
+      }
+      if (usersRes.data) setListaDeUsers(usersRes.data);
+    };
+    fetchData();
+  }, []);
 
-  useEffect(() => { /* ... (useEffect da busca inicial sem alterações) ... */ }, []);
-
-  // --- MUDANÇA PRINCIPAL AQUI ---
   const fetchDadosDoFunil = useCallback(async () => {
     if (!funilSelecionadoId) return;
     setLoadingNegocios(true);
     
-    // 1. Busca as etapas (sem alteração)
     const { data: etapasData } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
     setEtapasDoFunil(etapasData || []);
 
     const etapaIds = (etapasData || []).map(e => e.id);
     if (etapaIds.length > 0) {
-      // 2. Monta a busca de negócios com filtros (sem alteração)
-      let query = supabase.from('crm_negocios')
-        // Adicionamos 'updated_at' para calcular os dias parado. O ideal seria ter um campo 'etapa_modificada_em'.
-        .select('*, responsavel:profiles(full_name), updated_at')
-        .in('etapa_id', etapaIds)
-        .eq('status', 'Ativo');
+      let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name), updated_at').in('etapa_id', etapaIds).eq('status', 'Ativo');
       
       if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
       if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
       if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
 
       const { data: negociosData, error: negociosError } = await query;
+      
       if (negociosError) {
         console.error("Erro ao buscar negócios:", negociosError);
         setNegocios([]);
-      } else {
-        // 3. ENRIQUECIMENTO DOS DADOS
+      } else if (negociosData) {
         const negociosIds = negociosData.map(n => n.id);
         
-        // Busca, de uma só vez, todas as tarefas não concluídas para os negócios encontrados
-        const { data: tarefas } = await supabase
-          .from('crm_atividades')
-          .select('negocio_id')
-          .in('negocio_id', negociosIds)
-          .eq('concluida', false);
+        const { data: tarefas } = await supabase.from('crm_atividades').select('negocio_id').in('negocio_id', negociosIds).eq('concluida', false);
         
-        // Cria um conjunto (Set) para busca rápida de IDs que têm tarefas
-        const negociosComTarefas = new Set(tarefas.map(t => t.negocio_id));
+        // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+        // A falha estava aqui. Se 'tarefas' viesse como 'null', o código quebrava.
+        // Agora, garantimos que 'tarefas' seja sempre um array, mesmo que vazio.
+        const tarefasValidas = Array.isArray(tarefas) ? tarefas : [];
+        const negociosComTarefas = new Set(tarefasValidas.map(t => t.negocio_id));
 
-        // Mapeia os negócios originais para adicionar a nova informação
         const negociosEnriquecidos = negociosData.map(negocio => ({
           ...negocio,
           tem_tarefa_futura: negociosComTarefas.has(negocio.id)
@@ -86,13 +86,29 @@ const PaginaCRM = () => {
 
   useEffect(() => { fetchDadosDoFunil(); }, [fetchDadosDoFunil]);
 
-  const handleAplicaFiltros = (novosFiltros) => { /* ... (sem alterações) ... */ };
-  const handleDataChange = () => { /* ... (sem alterações) ... */ };
+  const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
+  const handleDataChange = () => { fetchDadosDoFunil(); setNegocioSelecionado(null); };
   
   return (
-    // O JSX da página principal não muda, apenas o que é passado para o CrmBoard
     <>
-      {/* ... (todo o JSX de PaginaCRM continua o mesmo) ... */}
+      <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
+        {/* O código do cabeçalho completo, que havia sido omitido por engano */}
+        <header className="mb-6">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <div className="flex items-baseline gap-4"><h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1><div className="flex items-center gap-2 text-gray-500 dark:text-gray-400"><Filter size={16} /><select value={funilSelecionadoId} onChange={(e) => setFunilSelecionadoId(e.target.value)} className="text-sm font-medium bg-transparent border-none focus:ring-0">{funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}</select></div></div>
+            <div className="flex items-center gap-2"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"/></div><div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center"><button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button><button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button></div><div className="relative"><button ref={filtrosButtonRef} onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm"><SlidersHorizontal size={16} /> Filtros</button>{isFiltrosOpen && (<FiltrosPopover onClose={() => setIsFiltrosOpen(false)} listaDeUsers={listaDeUsers} filtrosAtuais={filtros} onAplicarFiltros={handleAplicaFiltros} buttonRef={filtrosButtonRef} />)}</div><button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700"><Plus size={20} /> Novo Negócio</button></div>
+          </div>
+        </header>
+
+        <section className="mb-6"><CrmDashboard /></section>
+
+        <main>
+          {loadingNegocios ? (<div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div>) : viewMode === 'kanban' ? (<CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} />) : (<CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />)}
+        </main>
+      </div>
+
+      {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
+      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleDataChange} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} />}
     </>
   );
 };
