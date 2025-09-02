@@ -3,7 +3,8 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { User, AlertTriangle, Clock } from 'lucide-react';
-import { supabase } from '@/supabaseClient'; // --- MUDANÇA AQUI: Importar supabase para uso direto ---
+// A importação do 'supabase' não é mais necessária aqui
+// import { supabase } from '@/supabaseClient';
 
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
@@ -15,10 +16,10 @@ const differenceInDays = (dateLeft, dateRight) => {
 const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
   const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
 
-  // A lógica de construção da URL pública permanece a mesma, mas agora o 'supabase' está acessível
-  const avatarUrl = negocio.responsavel?.avatar_url 
-    ? supabase.storage.from('avatars').getPublicUrl(negocio.responsavel.avatar_url).data.publicUrl
-    : null;
+  // --- DOCUMENTAÇÃO DA CORREÇÃO FINAL ---
+  // A lógica complicada para gerar a URL foi removida.
+  // Agora, simplesmente usamos a URL que já vem da tabela 'profiles'.
+  const avatarUrl = negocio.responsavel?.avatar_url || null;
 
   return (
     <Draggable draggableId={String(negocio.id)} index={index}>
@@ -40,6 +41,7 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
           
           <div className="flex justify-between items-end">
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              {/* O 'src' da imagem agora usa a 'avatarUrl' diretamente */}
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
               ) : (
@@ -61,12 +63,6 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
               <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500" title="Nenhuma tarefa futura agendada"><AlertTriangle size={12} /><span>Sem tarefa</span></div>
             )}
           </div>
-          
-          <style jsx>{`
-            .tooltip-container { position: relative; display: inline-block; }
-            .tooltip-text { visibility: hidden; width: 120px; background-color: #333; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -60px; opacity: 0; transition: opacity 0.3s; }
-            .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
-          `}</style>
         </div>
       )}
     </Draggable>
