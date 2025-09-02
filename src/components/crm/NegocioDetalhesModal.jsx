@@ -47,14 +47,12 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- NOVO ESTADO PARA CONTROLAR A ABA ATIVA ---
-  // Por padrão, a aba 'atividades' começará selecionada.
+  // NOVO ESTADO PARA CONTROLAR A ABA ATIVA
   const [activeTab, setActiveTab] = useState('atividades');
 
   useEffect(() => {
     setNegocio(negocioInicial);
     setNovoTitulo(negocioInicial?.titulo || '');
-    // Resetar para a aba de atividades sempre que um novo negócio for aberto
     setActiveTab('atividades');
   }, [negocioInicial]);
 
@@ -113,7 +111,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, carregarDadosDetalhados]);
   
-  // --- Funções de Ação (sem alterações) ---
+  // Funções de Ação (sem alterações)
   const handleSaveTitulo = async () => { /* ...código existente... */ };
   const handleMudarEtapa = async (novaEtapaId) => { /* ...código existente... */ };
   const handleMudarResponsavelTopo = async (novoResponsavelId) => { /* ...código existente... */ };
@@ -122,12 +120,31 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const handleDeletarAtividade = async (id) => { /* ...código existente... */ };
   const handleAcaoHistorico = (action, data) => { /* ...código existente... */ };
   const handleCreateGoogleEvent = async (atividade) => { /* ...código existente... */ };
-  const handleExcluirNegocio = async () => { /* ...código existente... */ };
+  const handleExcluirNegocio = async () => { 
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('crm_negocios')
+        .delete()
+        .eq('id', negocio.id);
+      
+      if (error) throw error;
+
+      alert('Negócio excluído com sucesso!');
+      onDataChange({ ...negocio, status: 'Excluido' }); 
+      setIsConfirmDeleteOpen(false);
+      onClose();
+
+    } catch (error) {
+      console.error("Erro ao excluir negócio:", error);
+      alert("Não foi possível excluir o negócio. Tente novamente.");
+    } finally {
+      setIsDeleting(false);
+    }
+   };
   
-  // --- INÍCIO DA NOVA ESTRUTURA DE RENDERIZAÇÃO ---
   if (!isOpen) return null;
 
-  // Definição das abas para facilitar a renderização e manutenção
   const tabs = [
     { id: 'atividades', label: 'Atividades' },
     { id: 'contatos', label: 'Contatos' },
@@ -143,7 +160,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div>
           ) : negocio && (
             <>
-              {/* CABEÇALHO DO MODAL (continua o mesmo) */}
+              {/* CABEÇALHO DO MODAL */}
               <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
@@ -179,7 +196,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                 {etapasDoFunil && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleMudarEtapa} />)}
               </div>
               
-              {/* --- NOVA SEÇÃO DE ABAS --- */}
+              {/* SEÇÃO DE ABAS */}
               <div className="flex flex-col flex-grow overflow-hidden">
                 {/* 1. NAVEGAÇÃO DAS ABAS */}
                 <div className="border-b border-gray-200 dark:border-gray-700">
@@ -201,7 +218,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                   </ul>
                 </div>
 
-                {/* 2. CONTEÚDO DAS ABAS (RENDERIZAÇÃO CONDICIONAL) */}
+                {/* 2. CONTEÚDO DAS ABAS */}
                 <div className="flex-grow overflow-y-auto">
                   {activeTab === 'atividades' && (
                     <div className="p-6 flex flex-col gap-6">
@@ -239,7 +256,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                   )}
 
                   {activeTab === 'detalhes' && (
-                    // O conteúdo que antes estava na BarraLateral agora vive aqui
                     <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} onAddLeadClick={() => setIsAddLeadModalOpen(true)} />
                   )}
                 </div>
@@ -249,9 +265,28 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         </div>
       </div>
       
-      {/* Modais auxiliares continuam os mesmos */}
       <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={() => { alert('Novo lead adicionado com sucesso!'); setIsAddLeadModalOpen(false); }} />
-      {isConfirmDeleteOpen && ( /* ...código do modal de confirmação... */ )}
+
+      {/* CÓDIGO DO MODAL DE CONFIRMAÇÃO CORRIGIDO E INCLUÍDO */}
+      {isConfirmDeleteOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Confirmar Exclusão</h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Tem a certeza de que deseja excluir o negócio "{negocio.titulo}"? Esta ação não pode ser desfeita.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setIsConfirmDeleteOpen(false)} className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                Cancelar
+              </button>
+              <button onClick={handleExcluirNegocio} disabled={isDeleting} className="py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 flex items-center">
+                {isDeleting && <Loader2 className="animate-spin mr-2" size={16} />}
+                Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
