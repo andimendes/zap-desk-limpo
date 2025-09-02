@@ -52,17 +52,43 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [isLoadingArquivos, setIsLoadingArquivos] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const carregarArquivos = useCallback(async (negocioId) => { /* ...código da função... */ });
-  const carregarContatosAssociados = useCallback(async (negocioId) => { /* ...código da função... */ });
+  const carregarArquivos = useCallback(async (negocioId) => {
+    if (!negocioId) return;
+    setIsLoadingArquivos(true);
+    try {
+      const { data, error } = await supabase.from('crm_arquivos').select('*').eq('negocio_id', negocioId).order('created_at', { ascending: false });
+      if (error) throw error;
+      setArquivos(data);
+    } catch (error) {
+      console.error("Erro ao carregar arquivos:", error);
+    } finally {
+      setIsLoadingArquivos(false);
+    }
+  }, []);
+
+  const carregarContatosAssociados = useCallback(async (negocioId) => {
+    if(!negocioId) return;
+    setIsLoadingContatos(true);
+    try {
+      const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
+      if (error) throw error;
+      const contatos = data.map(item => item.crm_contatos).filter(Boolean);
+      setContatosAssociados(contatos);
+    } catch (error) {
+      console.error("Erro ao carregar contatos associados:", error);
+    } finally {
+      setIsLoadingContatos(false);
+    }
+  }, []);
 
   const carregarDadosDetalhados = useCallback(async () => {
     if (!negocioInicial?.id) return;
+    setLoading(true);
     try {
       const { data: updatedNegocio, error: negocioError } = await supabase.from('crm_negocios').select('*, responsavel:profiles(full_name)').eq('id', negocioInicial.id).single();
       if (negocioError) {
         if (negocioError.code === 'PGRST116') {
-          alert('Este negócio não foi encontrado.');
-          onClose(); return;
+          alert('Este negócio não foi encontrado.'); onClose(); return;
         } else { throw negocioError; }
       }
       setNegocio(updatedNegocio);
@@ -89,12 +115,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         setAlertaEstagnacao(`Negócio novo, sem atividades há ${dias} dias.`);
       }
 
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Carregando dados adicionais de forma sequencial e segura.
       await carregarContatosAssociados(negocioInicial.id);
       await carregarArquivos(negocioInicial.id);
-      // --- FIM DA CORREÇÃO ---
-
     } catch (error) {
       console.error("Erro ao carregar detalhes do negócio:", error);
       alert("Não foi possível carregar os dados detalhados do negócio.");
@@ -103,13 +125,93 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [negocioInicial, onClose, carregarContatosAssociados, carregarArquivos]);
 
-  // ... (todas as outras funções e useEffects completos) ...
+  useEffect(() => {
+    if (isOpen) {
+        setActiveTab('atividades');
+        setTermoBusca('');
+        setResultadosBusca([]);
+        carregarDadosDetalhados();
+    }
+  }, [isOpen, negocioInicial]); // Simplificado para re-rodar se o negocioInicial mudar
+  
+  useEffect(() => {
+    const buscarContatos = async () => {
+      if (termoBusca.length < 2) { setResultadosBusca([]); return; }
+      setIsSearching(true);
+      try {
+        const idsAssociados = contatosAssociados.map(c => c.id);
+        const query = supabase.from('crm_contatos').select('*').ilike('nome', `%${termoBusca}%`).limit(5);
+        if (idsAssociados.length > 0) { query.not('id', 'in', `(${idsAssociados.join(',')})`); }
+        const { data, error } = await query;
+        if (error) throw error;
+        setResultadosBusca(data);
+      } catch (error) { console.error("Erro ao buscar contatos:", error); } finally { setIsSearching(false); }
+    };
+    const debounce = setTimeout(() => { buscarContatos(); }, 300);
+    return () => clearTimeout(debounce);
+  }, [termoBusca, contatosAssociados]);
+
+  const handleAssociarContato = async (contatoParaAdicionar) => { /* ...código da função... */ };
+  const handleDesvincularContato = async (contatoIdParaRemover) => { /* ...código da função... */ };
+  const handleFileUpload = async (event) => { /* ...código da função... */ };
+  const handleFileDownload = async (filePath) => { /* ...código da função... */ };
+  const handleFileDelete = async (arquivo) => { /* ...código da função... */ };
+  const handleSaveTitulo = async () => { console.log("Salvar título:", novoTitulo); };
+  const handleMudarEtapa = async (novaEtapaId) => { console.log("Mudar para etapa:", novaEtapaId); };
+  const handleMudarResponsavelTopo = async (novoResponsavelId) => { console.log("Mudar responsável para:", novoResponsavelId); };
+  const handleMarcarStatus = async (status) => { console.log("Marcar status como:", status); };
+  const handleToggleCompleta = async (id, statusAtual) => { console.log("Mudar status da atividade:", id, !statusAtual); };
+  const handleDeletarAtividade = async (id) => { console.log("Deletar atividade:", id); };
+  const handleAcaoHistorico = (action, data) => { console.log("Ação no histórico:", action, data); };
+  const handleCreateGoogleEvent = async (atividade) => { console.log("Criar evento no Google para:", atividade); };
+  const handleExcluirNegocio = async () => { /* ...código da função... */ };
 
   if (!isOpen) return null;
 
-  // ... (todo o JSX completo, sem placeholders) ...
+  const tabs = [
+    { id: 'atividades', label: 'Atividades' },
+    { id: 'contatos', label: 'Contatos' },
+    { id: 'arquivos', label: 'Arquivos' },
+    { id: 'detalhes', label: 'Detalhes' },
+  ];
+
   return (
-    // ...
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 sm:p-8" onClick={onClose}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+          {loading ? (
+            <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div>
+          ) : negocio && (
+            <>
+              <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
+                 {/* ... JSX do Cabeçalho ... */}
+              </div>
+              <div className="flex flex-col flex-grow overflow-hidden">
+                <div className="border-b border-gray-200 dark:border-gray-700">
+                  <ul className="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
+                    {tabs.map(tab => (
+                      <li key={tab.id} className="mr-2">
+                        <button onClick={() => setActiveTab(tab.id)} className={`inline-block p-4 rounded-t-lg border-b-2 transition-colors duration-200 ${ activeTab === tab.id ? 'text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300' }`}>
+                          {tab.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex-grow overflow-y-auto">
+                  {activeTab === 'atividades' && ( <div className="p-6 flex flex-col gap-6">{/* ... JSX da aba Atividades ... */}</div> )}
+                  {activeTab === 'contatos' && ( <div className="p-6">{/* ... JSX da aba Contatos ... */}</div> )}
+                  {activeTab === 'arquivos' && ( <div className="p-6">{/* ... JSX da aba Arquivos ... */}</div> )}
+                  {activeTab === 'detalhes' && ( <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} onAddLeadClick={() => setIsAddLeadModalOpen(true)} /> )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={() => { alert('Novo lead adicionado com sucesso!'); setIsAddLeadModalOpen(false); }} />
+      {isConfirmDeleteOpen && ( <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">{/* ... JSX do modal de confirmação ... */}</div> )}
+    </>
   );
 };
 
