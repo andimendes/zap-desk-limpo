@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
-    </Auth-Context.Provider>
+    </AuthContext.Provider> // <-- A CORREÇÃO ESTÁ AQUI
   );
 };
 
