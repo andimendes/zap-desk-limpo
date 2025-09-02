@@ -11,32 +11,45 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    const fetchSessionAndProfile = async () => {
+      // 1. Pega a sessão atual
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
+      // 2. Se houver sessão, busca o perfil
+      if (currentSession?.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .single();
 
-        if (session?.user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (error) {
-            console.error("Erro ao buscar perfil:", error);
-            setProfile(null);
-          } else {
-            setProfile(data);
-          }
-        } else {
+        if (profileError) {
+          console.error("Erro ao buscar perfil na carga inicial:", profileError);
           setProfile(null);
+        } else {
+          setProfile(profileData);
         }
+      }
+      
+      // 3. Independentemente do resultado, o carregamento inicial termina aqui
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    // 4. Ouve por futuras mudanças (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        // Quando o estado muda, simplesmente atualiza a sessão.
+        // O perfil será buscado novamente se a página for recarregada ou se a lógica for acionada em outro lugar.
+        // Para a nossa necessidade, apenas atualizar a sessão é suficiente e mais estável.
+        setSession(newSession);
         
-        setLoading(false);
+        // Se o utilizador fizer logout, limpa o perfil.
+        if (!newSession) {
+            setProfile(null);
+        }
       }
     );
 
@@ -52,7 +65,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {children} {/* <-- ALTERAÇÃO IMPORTANTE: Removemos a condição '!loading &&' */}
+      {children}
     </AuthContext.Provider>
   );
 };
