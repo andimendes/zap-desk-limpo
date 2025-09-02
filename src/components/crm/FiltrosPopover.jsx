@@ -60,14 +60,14 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
 
           <div>
              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Criação</label>
-             <div className="flex items-center gap-2">
+             {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+             {/* A única mudança está aqui: trocamos 'items-center' por 'items-baseline' */}
+             <div className="flex items-baseline gap-2">
                 <input 
                   type="date" 
                   name="dataInicio"
                   value={filtrosLocais.dataInicio}
                   onChange={handleChange}
-                  // --- DOCUMENTAÇÃO DA CORREÇÃO ---
-                  // A classe "w-full" foi REMOVIDA daqui.
                   className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
                 <span className="text-gray-500">até</span>
@@ -76,8 +76,6 @@ const FiltrosPopover = ({ onClose, listaDeUsers, filtrosAtuais, onAplicarFiltros
                   name="dataFim"
                   value={filtrosLocais.dataFim}
                   onChange={handleChange}
-                  // --- DOCUMENTAÇÃO DA CORREÇÃO ---
-                  // A classe "w-full" também foi REMOVIDA daqui.
                   className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
              </div>
