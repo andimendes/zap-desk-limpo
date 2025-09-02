@@ -17,22 +17,27 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-// O CrmBoard agora é um componente puramente de apresentação
+// --- DOCUMENTAÇÃO DA CORREÇÃO ---
+// Esta é a versão final e simplificada do CrmBoard.
+// Ele não tem mais estado próprio para o negócio selecionado nem renderiza o NegocioDetalhesModal.
+// Ele apenas recebe os dados e as funções para notificar o componente pai.
 const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
-
-  // O estado e o componente do Modal de Detalhes foram removidos daqui
 
   const handleOnDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
+    
     await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
-    onDataChange(); // Avisa o pai para recarregar os dados
+    
+    // Após arrastar, simplesmente chama a função onDataChange que veio do pai.
+    // O pai (PaginaCRM) será responsável por recarregar os dados.
+    onDataChange(); 
   };
-
+    
   return (
     <>
       {winReady && (
@@ -51,7 +56,6 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
                         key={negocio.id} 
                         negocio={negocio} 
                         index={index} 
-                        // A função onNegocioClick agora vem do pai
                         onCardClick={onNegocioClick} 
                         etapasDoFunil={etapas} 
                       />
@@ -65,7 +69,7 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
           </div>
         </DragDropContext>
       )}
-      {/* O Modal de Detalhes não é mais renderizado aqui */}
+      {/* O NegocioDetalhesModal foi completamente removido daqui, pois agora é controlado pela PaginaCRM.jsx */}
     </>
   );
 };
