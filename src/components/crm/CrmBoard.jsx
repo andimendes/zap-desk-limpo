@@ -17,10 +17,6 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-// --- DOCUMENTAÇÃO DA CORREÇÃO ---
-// Esta é a versão final e simplificada do CrmBoard.
-// Ele não tem mais estado próprio para o negócio selecionado nem renderiza o NegocioDetalhesModal.
-// Ele apenas recebe os dados e as funções para notificar o componente pai.
 const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
@@ -30,11 +26,7 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
-    
     await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
-    
-    // Após arrastar, simplesmente chama a função onDataChange que veio do pai.
-    // O pai (PaginaCRM) será responsável por recarregar os dados.
     onDataChange(); 
   };
     
@@ -43,33 +35,31 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
+            {/* Adicionamos uma verificação extra para 'etapas' */}
             <div className="flex space-x-6 overflow-x-auto pb-4 justify-center">
-              {etapas.map(etapa => {
-                const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
-                const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
-                return (
-                  <EtapaColuna 
-                    key={etapa.id} 
-                    etapa={etapa} 
-                    negocios={negociosDaEtapa.map((negocio, index) => (
-                      <NegocioCard 
-                        key={negocio.id} 
-                        negocio={negocio} 
-                        index={index} 
-                        onCardClick={onNegocioClick} 
-                        etapasDoFunil={etapas} 
-                      />
-                    ))}
-                    totalValor={valorDaEtapa}
-                    totalNegocios={negociosDaEtapa.length}
-                  />
-                );
-              })}
+              {etapas && etapas.length > 0 ? (
+                etapas.map(etapa => {
+                  const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
+                  const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
+                  return (
+                    <EtapaColuna 
+                      key={etapa.id} 
+                      etapa={etapa} 
+                      negocios={negociosDaEtapa.map((negocio, index) => (
+                        <NegocioCard key={negocio.id} negocio={negocio} index={index} onCardClick={onNegocioClick} etapasDoFunil={etapas} />
+                      ))}
+                      totalValor={valorDaEtapa}
+                      totalNegocios={negociosDaEtapa.length}
+                    />
+                  );
+                })
+              ) : (
+                <div className="w-full text-center py-10"><p className="text-gray-500 dark:text-gray-400">Nenhum negócio encontrado.</p></div>
+              )}
             </div>
           </div>
         </DragDropContext>
       )}
-      {/* O NegocioDetalhesModal foi completamente removido daqui, pois agora é controlado pela PaginaCRM.jsx */}
     </>
   );
 };
