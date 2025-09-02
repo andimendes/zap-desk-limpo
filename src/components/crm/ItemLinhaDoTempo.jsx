@@ -3,7 +3,6 @@
 import React from 'react';
 import { FileText, Calendar, CheckCircle, Trash2 } from 'lucide-react';
 
-// Função para formatar a data de forma amigável
 const formatarData = (data) => {
     return new Intl.DateTimeFormat('pt-BR', {
         day: '2-digit',
@@ -11,7 +10,7 @@ const formatarData = (data) => {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-    }).format(data);
+    }).format(new Date(data));
 };
 
 const ItemLinhaDoTempo = ({ item, onAction }) => {
@@ -23,15 +22,12 @@ const ItemLinhaDoTempo = ({ item, onAction }) => {
 
     return (
         <li className="flex items-start gap-4 py-3 group">
-            {/* Ícone e Linha Vertical */}
             <div className="flex flex-col items-center">
                 <div className={`p-2 rounded-full bg-gray-100 dark:bg-gray-700 ${corIcone}`}>
                     <Icone size={16} />
                 </div>
-                {/* A linha vertical pode ser adicionada aqui se desejado */}
             </div>
 
-            {/* Conteúdo do Item */}
             <div className="flex-1">
                 <div className="flex justify-between items-center">
                     <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
@@ -46,11 +42,8 @@ const ItemLinhaDoTempo = ({ item, onAction }) => {
                 </p>
             </div>
 
-            {/* Botão de Excluir */}
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
-                    // --- ESTA É A CORREÇÃO PRINCIPAL ---
-                    // Agora passamos o 'item' completo para a função onAction
                     onClick={() => onAction('delete', item)}
                     className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
                     title="Excluir item"
