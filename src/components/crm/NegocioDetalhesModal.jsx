@@ -8,7 +8,7 @@ import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
-import AddLeadModal from './AddLeadModal'; // A IMPORTAÇÃO QUE FALTAVA FOI RE-ADICIONADA
+import AddLeadModal from './AddLeadModal';
 
 const differenceInDays = (dateLeft, dateRight) => {
     const diff = dateLeft.getTime() - dateRight.getTime();
@@ -58,11 +58,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       const { data, error } = await supabase.from('crm_arquivos').select('*').eq('negocio_id', negocioId).order('created_at', { ascending: false });
       if (error) throw error;
       setArquivos(data || []);
-    } catch (error) {
-      console.error("Erro ao carregar arquivos:", error);
-    } finally {
-      setIsLoadingArquivos(false);
-    }
+    } catch (error) { console.error("Erro ao carregar arquivos:", error); } 
+    finally { setIsLoadingArquivos(false); }
   }, []);
 
   const carregarContatosAssociados = useCallback(async (negocioId) => {
@@ -73,11 +70,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       if (error) throw error;
       const contatos = data.map(item => item.crm_contatos).filter(Boolean);
       setContatosAssociados(contatos || []);
-    } catch (error) {
-      console.error("Erro ao carregar contatos associados:", error);
-    } finally {
-      setIsLoadingContatos(false);
-    }
+    } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
+    finally { setIsLoadingContatos(false); }
   }, []);
 
   const carregarDadosDetalhados = useCallback(async () => {
@@ -162,11 +156,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       const { error: insertError } = await supabase.from('crm_arquivos').insert({ negocio_id: negocio.id, user_id: user.id, nome_arquivo: file.name, path_storage: uploadData.path, tamanho_arquivo: file.size, tipo_mime: file.type });
       if (insertError) throw insertError;
       await carregarArquivos(negocio.id);
-    } catch (error) {
-      console.error("Erro no upload:", error); alert("Falha no upload do arquivo.");
-    } finally {
-      setIsUploading(false); event.target.value = '';
-    }
+    } catch (error) { console.error("Erro no upload:", error); alert("Falha no upload do arquivo."); } 
+    finally { setIsUploading(false); event.target.value = ''; }
   };
 
   const handleFileDownload = async (filePath) => {
@@ -174,9 +165,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         const { data, error } = await supabase.storage.from('crm-arquivos').getPublicUrl(filePath);
         if (error) throw error;
         window.open(data.publicUrl, '_blank');
-    } catch (error) {
-        console.error("Erro no download:", error); alert("Não foi possível obter o link do arquivo.");
-    }
+    } catch (error) { console.error("Erro no download:", error); alert("Não foi possível obter o link do arquivo."); }
   };
 
   const handleFileDelete = async (arquivo) => {
@@ -187,9 +176,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         const { error: dbError } = await supabase.from('crm_arquivos').delete().eq('id', arquivo.id);
         if (dbError) throw dbError;
         setArquivos(arquivos.filter(a => a.id !== arquivo.id));
-    } catch (error) {
-        console.error("Erro ao excluir:", error); alert("Não foi possível excluir o arquivo.");
-    }
+    } catch (error) { console.error("Erro ao excluir:", error); alert("Não foi possível excluir o arquivo."); }
   };
   
   const handleAssociarContato = async (contatoParaAdicionar) => {
@@ -199,9 +186,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       setContatosAssociados([...contatosAssociados, contatoParaAdicionar]);
       setTermoBusca('');
       setResultadosBusca([]);
-    } catch (error) {
-      console.error("Erro ao associar contato:", error); alert('Não foi possível associar o contato.');
-    }
+    } catch (error) { console.error("Erro ao associar contato:", error); alert('Não foi possível associar o contato.'); }
   };
 
   const handleDesvincularContato = async (contatoIdParaRemover) => {
@@ -210,36 +195,25 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       const { error } = await supabase.from('crm_negocio_contatos').delete().match({ negocio_id: negocio.id, contato_id: contatoIdParaRemover });
       if (error) throw error;
       setContatosAssociados(contatosAssociados.filter(c => c.id !== contatoIdParaRemover));
-    } catch(error) {
-      console.error("Erro ao desvincular contato:", error); alert('Não foi possível desvincular o contato.');
-    }
+    } catch(error) { console.error("Erro ao desvincular contato:", error); alert('Não foi possível desvincular o contato.'); }
   };
 
   const handleSaveTitulo = async () => {
-    if (!novoTitulo.trim() || novoTitulo === negocio.titulo) {
-      setIsTituloEditing(false);
-      return;
-    }
+    if (!novoTitulo.trim() || novoTitulo === negocio.titulo) { setIsTituloEditing(false); return; }
     try {
       const { data, error } = await supabase.from('crm_negocios').update({ titulo: novoTitulo.trim() }).eq('id', negocio.id).select().single();
       if (error) throw error;
       setNegocio(prev => ({...prev, ...data}));
       onDataChange(data);
       setIsTituloEditing(false);
-    } catch (error) {
-      console.error("Erro ao salvar título:", error);
-      alert("Não foi possível atualizar o título.");
-    }
+    } catch (error) { console.error("Erro ao salvar título:", error); alert("Não foi possível atualizar o título."); }
   };
   
   const handleToggleCompleta = async (id, statusAtual) => {
     try {
       await supabase.from('crm_atividades').update({ concluida: !statusAtual }).eq('id', id);
       await carregarDadosDetalhados();
-    } catch (error) {
-      console.error("Erro ao concluir atividade:", error);
-      alert("Não foi possível marcar a atividade como concluída.");
-    }
+    } catch (error) { console.error("Erro ao concluir atividade:", error); alert("Não foi possível marcar a atividade como concluída."); }
   };
   
   const handleAcaoHistorico = async (action, item) => {
@@ -250,10 +224,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         const { error } = await supabase.from(tabela).delete().eq('id', item.original.id);
         if (error) throw error;
         setHistorico(historico.filter(h => h.original.id !== item.original.id));
-      } catch (error) {
-        console.error(`Erro ao excluir ${item.tipo}:`, error);
-        alert(`Não foi possível excluir a ${item.tipo}.`);
-      }
+      } catch (error) { console.error(`Erro ao excluir ${item.tipo}:`, error); alert(`Não foi possível excluir a ${item.tipo}.`); }
     }
   };
   
@@ -263,10 +234,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       if(error) throw error;
       setNegocio(data);
       onDataChange(data);
-    } catch (error) {
-      console.error("Erro ao mudar etapa:", error);
-      alert("Não foi possível alterar a etapa.");
-    }
+    } catch (error) { console.error("Erro ao mudar etapa:", error); alert("Não foi possível alterar a etapa."); }
   };
   
   const handleMudarResponsavelTopo = async (novoResponsavelId) => {
@@ -275,17 +243,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       if(error) throw error;
       setNegocio(data);
       onDataChange(data);
-    } catch (error) {
-      console.error("Erro ao mudar responsável:", error);
-      alert("Não foi possível alterar o responsável.");
-    }
+    } catch (error) { console.error("Erro ao mudar responsável:", error); alert("Não foi possível alterar o responsável."); }
   };
   
   const handleMarcarStatus = async (status) => {
     const { data, error } = await supabase.from('crm_negocios').update({ status }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
-    if(error) {
-      alert(`Não foi possível marcar como ${status}.`);
-    } else {
+    if(error) { alert(`Não foi possível marcar como ${status}.`); } 
+    else {
       alert(`Negócio marcado como ${status}!`);
       onDataChange(data);
       onClose();
@@ -303,16 +267,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       onDataChange({ id: negocio.id, status: 'Excluido' }); 
       setIsConfirmDeleteOpen(false);
       onClose();
-    } catch (error) {
-      console.error("Erro ao excluir negócio:", error); alert("Não foi possível excluir o negócio.");
-    } finally {
-      setIsDeleting(false);
-    }
+    } catch (error) { console.error("Erro ao excluir negócio:", error); alert("Não foi possível excluir o negócio."); } 
+    finally { setIsDeleting(false); }
   };
 
   if (!isOpen) return null;
 
-  const tabs = [ { id: 'atividades', label: 'Atividades' }, { id: 'arquivos', label: 'Arquivos' }, { id: 'detalhes', label: 'Detalhes' }];
+  const tabs = [ { id: 'atividades', label: 'Atividades' }, { id: 'arquivos', label: 'Arquivos' } ];
 
   return (
     <>
@@ -339,13 +300,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
-                      <UsersIcon size={14} />
-                      <select value={negocio.responsavel_id || ''} onChange={(e) => handleMudarResponsavelTopo(e.target.value)} className="bg-transparent border-none focus:ring-0 text-sm font-medium dark:text-gray-200">
-                        <option value="">Ninguém</option>
-                        {listaDeUsers.map(user => (<option key={user.id} value={user.id}>{user.full_name}</option>))}
-                      </select>
-                    </div>
                     <button onClick={() => handleMarcarStatus('Ganho')} className="bg-green-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-green-600">Ganho</button>
                     <button onClick={() => handleMarcarStatus('Perdido')} className="bg-red-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-red-600">Perdido</button>
                     <button onClick={() => setIsConfirmDeleteOpen(true)} className="text-gray-500 hover:text-red-600 dark:hover:text-red-500 p-1" title="Excluir Negócio"><Trash2 size={20} /></button>
@@ -355,86 +309,67 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                 {etapasDoFunil && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleMudarEtapa} />)}
               </div>
               
-              <div className="flex flex-col flex-grow overflow-hidden">
-                <div className="border-b border-gray-200 dark:border-gray-700">
-                  <ul className="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
-                    {tabs.map(tab => (<li key={tab.id} className="mr-2"><button onClick={() => setActiveTab(tab.id)} className={`inline-block p-4 rounded-t-lg border-b-2 transition-colors duration-200 ${ activeTab === tab.id ? 'text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300' }`}>{tab.label}</button></li>))}
-                  </ul>
+              <div className="flex flex-grow overflow-hidden">
+                <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+                  <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} />
                 </div>
-                <div className="flex-grow overflow-y-auto">
-                  {activeTab === 'atividades' && (
-                    <div className="p-6 flex flex-col gap-6">
-                      {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Foco</h3>
-                        <div className="flex items-start gap-2">
-                          <AtividadeFoco atividade={proximaAtividade} onConcluir={handleToggleCompleta} />
-                          {proximaAtividade && <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar"><CalendarPlus size={20}/></button>}
+                <div className="w-2/3 flex flex-col overflow-hidden">
+                  <div className="border-b border-gray-200 dark:border-gray-700">
+                    <ul className="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
+                      {tabs.map(tab => (<li key={tab.id} className="mr-2"><button onClick={() => setActiveTab(tab.id)} className={`inline-block p-4 rounded-t-lg border-b-2 transition-colors duration-200 ${ activeTab === tab.id ? 'text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500' : 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300' }`}>{tab.label}</button></li>))}
+                    </ul>
+                  </div>
+                  <div className="flex-grow overflow-y-auto">
+                    {activeTab === 'atividades' && (
+                      <div className="p-6 flex flex-col gap-6">
+                        {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Foco</h3>
+                          <div className="flex items-start gap-2">
+                            <AtividadeFoco atividade={proximaAtividade} onConcluir={handleToggleCompleta} />
+                            {proximaAtividade && <button onClick={() => handleCreateGoogleEvent(proximaAtividade)} className="p-2 text-gray-500 hover:text-blue-600" title="Adicionar ao Google Calendar"><CalendarPlus size={20}/></button>}
+                          </div>
                         </div>
-                      </div>
-                      <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
-                      <div className="flex-grow overflow-y-auto pr-2">
-                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
-                        <ul className="-ml-2">
-                          {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))}
-                          {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-                  {activeTab === 'contatos' && (
-                    <div className="p-6">
-                      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contatos Associados</h3>
-                      {isLoadingContatos ? (<div className="flex justify-center items-center h-24"><Loader2 className="animate-spin text-blue-500" /></div>) : (
-                        <div className="space-y-3 mb-6">
-                          {contatosAssociados.length > 0 ? ( contatosAssociados.map(contato => ( <div key={contato.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"><div><p className="font-semibold text-gray-800 dark:text-gray-200">{contato.nome}</p><p className="text-sm text-gray-600 dark:text-gray-400">{contato.email || 'Sem e-mail'}</p></div><button onClick={() => handleDesvincularContato(contato.id)} className="text-gray-400 hover:text-red-500 p-1" title="Desvincular contato"><Trash2 size={16} /></button></div>))) : (<p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Nenhum contato associado.</p>)}
-                        </div>
-                      )}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adicionar contato</label>
-                        <div className="relative">
-                          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                          <input type="text" value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} placeholder="Digite para buscar..." className="w-full p-2 pl-10 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"/>
-                          {isSearching && <Loader2 size={18} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-                        </div>
-                        {resultadosBusca.length > 0 && (
-                          <ul className="border border-gray-300 dark:border-gray-600 rounded-md mt-1 max-h-48 overflow-y-auto">
-                            {resultadosBusca.map(contato => (<li key={contato.id} className="flex justify-between items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700"><div><p className="font-semibold text-gray-800 dark:text-gray-200">{contato.nome}</p><p className="text-sm text-gray-600 dark:text-gray-400">{contato.email || 'Sem e-mail'}</p></div><button onClick={() => handleAssociarContato(contato)} className="text-blue-600 hover:text-blue-800 p-1" title="Adicionar contato"><UserPlus size={18} /></button></li>))}
+                        <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+                        <div className="flex-grow overflow-y-auto pr-2">
+                          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
+                          <ul className="-ml-2">
+                            {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))}
+                            {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
                           </ul>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {activeTab === 'arquivos' && (
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Arquivos do Negócio</h3>
+                    )}
+                    {activeTab === 'arquivos' && (
+                      <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Arquivos</h3>
                           <label className={`bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 flex items-center gap-2 cursor-pointer ${isUploading ? 'bg-blue-300 cursor-not-allowed' : ''}`}>
                               {isUploading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}
-                              <span>{isUploading ? 'Enviando...' : 'Enviar Arquivo'}</span>
+                              <span>{isUploading ? 'Enviando...' : 'Enviar'}</span>
                               <input type="file" disabled={isUploading} onChange={handleFileUpload} className="hidden" />
                           </label>
-                      </div>
-                      {isLoadingArquivos ? (<div className="flex justify-center items-center h-24"><Loader2 className="animate-spin text-blue-500" /></div>) : (
-                        <div className="space-y-3">
-                          {arquivos.length > 0 ? ( arquivos.map(arquivo => ( <div key={arquivo.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md transition-all hover:shadow-md"><div className="flex items-center gap-3"><Paperclip className="text-gray-500" /><div className="truncate"><p className="font-semibold text-gray-800 dark:text-gray-200 truncate">{arquivo.nome_arquivo}</p><p className="text-sm text-gray-600 dark:text-gray-400">{`${(arquivo.tamanho_arquivo / 1024 / 1024).toFixed(2)} MB`}</p></div></div><div className="flex items-center gap-2"><button onClick={() => handleFileDownload(arquivo.path_storage)} className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Baixar"><Download size={18} /></button><button onClick={() => handleFileDelete(arquivo)} className="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Excluir"><Trash2 size={18} /></button></div></div>))) : (<div className="text-center py-10 border-2 border-dashed rounded-lg"><p className="text-gray-500">Nenhum arquivo enviado.</p><p className="text-sm text-gray-400">Use o botão acima para adicionar documentos.</p></div>)}
                         </div>
-                      )}
-                    </div>
-                  )}
-                  {activeTab === 'detalhes' && ( <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} /> )}
+                        {isLoadingArquivos ? (<div className="flex justify-center items-center h-24"><Loader2 className="animate-spin text-blue-500" /></div>) : (
+                          <div className="space-y-3">
+                            {arquivos.length > 0 ? ( arquivos.map(arquivo => ( <div key={arquivo.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md transition-all hover:shadow-md"><div className="flex items-center gap-3"><Paperclip className="text-gray-500" /><div className="truncate"><p className="font-semibold text-gray-800 dark:text-gray-200 truncate">{arquivo.nome_arquivo}</p><p className="text-sm text-gray-600 dark:text-gray-400">{`${(arquivo.tamanho_arquivo / 1024 / 1024).toFixed(2)} MB`}</p></div></div><div className="flex items-center gap-2"><button onClick={() => handleFileDownload(arquivo.path_storage)} className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Baixar"><Download size={18} /></button><button onClick={() => handleFileDelete(arquivo)} className="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Excluir"><Trash2 size={18} /></button></div></div>))) : (<div className="text-center py-10 border-2 border-dashed rounded-lg"><p className="text-gray-500">Nenhum arquivo enviado.</p><p className="text-sm text-gray-400">Use o botão acima.</p></div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
           )}
         </div>
       </div>
-      <AddLeadModal isOpen={false} onClose={() => {}} onLeadAdicionado={() => {}} />
+      <AddLeadModal isOpen={false} onClose={()=>{}} onLeadAdicionado={()=>{}} />
       {isConfirmDeleteOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Confirmar Exclusão</h3>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Tem certeza que deseja excluir o negócio "{negocio?.titulo}"? Esta ação não pode ser desfeita.</p>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Tem certeza que deseja excluir o negócio "{negocio?.titulo}"?</p>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setIsConfirmDeleteOpen(false)} className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">Cancelar</button>
               <button onClick={handleExcluirNegocio} disabled={isDeleting} className="py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 flex items-center">{isDeleting && <Loader2 className="animate-spin mr-2" size={16} />} Sim, Excluir</button>
