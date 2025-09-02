@@ -1,92 +1,117 @@
 // src/components/crm/PaginaCRM.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabaseClient';
 
-// 1. Importando os componentes que já temos
+// Importando os nossos componentes
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
+import AddNegocioModal from './AddNegocioModal'; // Precisamos do Modal aqui agora
 
-// Importando ícones que usaremos no cabeçalho em breve
+// Importando ícones
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
 
-/**
- * DOCUMENTAÇÃO: PaginaCRM
- * Este é o nosso novo componente principal que organiza toda a tela do CRM.
- * Ele cria um layout unificado com três seções:
- * 1. Cabeçalho de Ações: Onde ficarão os botões, filtros e pesquisa.
- * 2. Dashboard: Onde os cartões de KPI (estatísticas) são exibidos.
- * 3. Área de Trabalho: Onde o funil (Kanban ou Lista) será mostrado.
- */
 const PaginaCRM = () => {
-  // Este estado vai controlar se estamos vendo o Kanban ou a Lista.
-  // Por enquanto, ele está fixo em 'kanban', mas vamos usar o botão para alterá-lo no próximo passo.
+  // --- ESTADOS ELEVADOS ---
+  // Estes estados antes viviam no CrmBoard, agora estão no componente pai.
+  const [funis, setFunis] = useState([]);
+  const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
+  const [etapasDoFunil, setEtapasDoFunil] = useState([]);
+  const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
 
+  // Efeito para buscar a lista de funis disponíveis assim que a página carrega.
+  useEffect(() => {
+    const fetchFunis = async () => {
+      const { data, error } = await supabase.from('crm_funis').select('*').order('created_at');
+      if (error) {
+        console.error("Não foi possível carregar os funis.", error);
+      } else {
+        setFunis(data);
+        // Se houver funis, seleciona o primeiro da lista como padrão.
+        if (data && data.length > 0) {
+          setFunilSelecionadoId(data[0].id);
+        }
+      }
+    };
+    fetchFunis();
+  }, []);
+
+  // Função para ser chamada pelo CrmBoard quando os negócios forem adicionados/alterados
+  // para que a página inteira possa ser atualizada no futuro.
+  const handleBoardDataChange = () => {
+    // No futuro, podemos usar isso para recarregar o dashboard, por exemplo.
+    console.log("Dados do board foram alterados.");
+  };
+
   return (
-    // Div principal que ocupa toda a tela e tem um fundo cinza claro
-    <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
-      
-      {/* =============================================== */}
-      {/* 1. CABEÇALHO DE AÇÕES GLOBAIS                  */}
-      {/* =============================================== */}
-      {/* Por enquanto, é um placeholder. No próximo passo, vamos adicionar os botões de verdade aqui. */}
-      <header className="mb-6">
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          {/* Lado Esquerdo: Título */}
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
-          
-          {/* Lado Direito: Botões de Ação */}
-          <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar negócios..." 
-                  className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
-                />
-              </div>
-              
-              <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
-                  <button className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow"><LayoutGrid size={20} /></button>
-                  <button className="p-1.5 text-gray-500 dark:text-gray-400"><List size={20} /></button>
-              </div>
-
-              <button className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-                  <SlidersHorizontal size={16} />
-                  Filtros
-              </button>
-
-              <button className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700">
-                <Plus size={20} />
-                Novo Negócio
-              </button>
+    <>
+      <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
+        <header className="mb-6">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            {/* Lado Esquerdo: Título e Seletor de Funil */}
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
+              {/* --- AJUSTE 1: SELETOR DE FUNIL DISCRETO --- */}
+              <select 
+                value={funilSelecionadoId} 
+                onChange={(e) => setFunilSelecionadoId(e.target.value)} 
+                className="text-sm font-medium text-gray-500 bg-transparent border-none focus:ring-0 dark:text-gray-400"
+              >
+                {funis.map(funil => <option key={funil.id} value={funil.id}>{funil.nome_funil}</option>)}
+              </select>
+            </div>
+            
+            {/* Lado Direito: Botões de Ação */}
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"/>
+                </div>
+                <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
+                    <button className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow"><LayoutGrid size={20} /></button>
+                    <button className="p-1.5 text-gray-500 dark:text-gray-400"><List size={20} /></button>
+                </div>
+                <button className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                    <SlidersHorizontal size={16} /> Filtros
+                </button>
+                {/* O botão agora abre o modal controlado por este componente */}
+                <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+                  <Plus size={20} /> Novo Negócio
+                </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* =============================================== */}
-      {/* 2. DASHBOARD DE KPIS DINÂMICOS                 */}
-      {/* =============================================== */}
-      {/* Esta seção agora contém o nosso componente de dashboard. */}
-      <section className="mb-6">
-        <CrmDashboard />
-      </section>
+        <section className="mb-6">
+          <CrmDashboard />
+        </section>
 
-      {/* =============================================== */}
-      {/* 3. ÁREA DE TRABALHO PRINCIPAL (FUNIL)          */}
-      {/* =============================================== */}
-      {/* Aqui é onde o Kanban (CrmBoard) ou a futura Lista serão renderizados. */}
-      <main>
-        {viewMode === 'kanban' ? (
-          <CrmBoard />
-        ) : (
-          <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-            {/* Placeholder para a futura visualização em lista */}
-            <h2 className="font-bold">Visualização em Lista (será construída no Passo 4)</h2>
-          </div>
-        )}
-      </main>
-    </div>
+        <main>
+          {viewMode === 'kanban' ? (
+            // Passamos o ID do funil selecionado para o CrmBoard
+            <CrmBoard 
+              funilSelecionadoId={funilSelecionadoId}
+              onEtapasCarregadas={setEtapasDoFunil} // Permite ao Board nos informar quais são as etapas do funil
+              onDataChange={handleBoardDataChange} // Permite ao Board nos avisar de mudanças
+            />
+          ) : (
+            <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <h2 className="font-bold">Visualização em Lista</h2>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* O Modal para adicionar negócio agora é renderizado e controlado aqui */}
+      {isAddModalOpen && 
+        <AddNegocioModal 
+          isOpen={isAddModalOpen} 
+          onClose={() => setAddModalOpen(false)} 
+          etapas={etapasDoFunil} 
+          onNegocioAdicionado={handleBoardDataChange} 
+        />}
+    </>
   );
 };
 
