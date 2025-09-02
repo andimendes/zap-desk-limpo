@@ -27,10 +27,10 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
         >
           <div>
             <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
+            {/* A linha abaixo já exibe a empresa/contato e está correta */}
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa_contato}</p>
-            {negocio.contato_principal_nome && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Contato: {negocio.contato_principal_nome}</p>
-            )}
+            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+            {/* A linha que tentava exibir 'contato_principal_nome' foi REMOVIDA. */}
           </div>
           
           <div className="flex justify-between items-end">
