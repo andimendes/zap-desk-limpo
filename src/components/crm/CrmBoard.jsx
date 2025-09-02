@@ -8,7 +8,6 @@ import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { Loader2 } from 'lucide-react';
 
 const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
-  // ... (Componente EtapaColuna continua o mesmo)
   return (
     <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 w-80 flex-shrink-0 flex flex-col">
       <div className="mb-4 pb-2 border-b-2 border-gray-300 dark:border-gray-700">
@@ -29,7 +28,6 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-// O CrmBoard agora recebe o ID do funil como uma "prop"
 const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
   const [etapas, setEtapas] = useState([]);
   const [negocios, setNegocios] = useState([]);
@@ -38,11 +36,9 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   const [listaDeUsers, setListaDeUsers] = useState([]);
   
-  // O winReady continua sendo útil para o Drag and Drop
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
 
-  // Busca a lista de usuários (responsáveis) uma única vez
   useEffect(() => {
     const fetchUsers = async () => {
       const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name');
@@ -52,7 +48,6 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
     fetchUsers();
   }, []);
 
-  // A função de buscar dados agora depende do funilSelecionadoId que vem de fora
   const fetchEtapasENegocios = useCallback(async () => {
       if (!funilSelecionadoId) return;
       setLoading(true);
@@ -61,7 +56,7 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
         const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
         if (etapasError) throw etapasError;
         setEtapas(etapasData);
-        onEtapasCarregadas(etapasData); // Avisa o componente pai sobre as etapas carregadas
+        onEtapasCarregadas(etapasData);
 
         const etapaIds = etapasData.map(e => e.id);
         if (etapaIds.length > 0) {
@@ -93,7 +88,7 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
       alert("Erro ao mover o negócio.");
       fetchEtapasENegocios();
     } else {
-      onDataChange(); // Avisa o pai que um dado mudou
+      onDataChange();
     }
   };
     
@@ -106,15 +101,18 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
             setNegocioSelecionado(negocioAtualizado);
         }
     }
-    onDataChange(); // Avisa o pai que um dado mudou
+    onDataChange();
   };
 
   return (
     <>
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-          {/* --- AJUSTE 2 e 3: O CABEÇALHO ANTIGO FOI REMOVIDO DAQUI --- */}
-          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
+          {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+          {/* A alteração está aqui: adicionamos `inline-block min-w-full`. */}
+          {/* `inline-block` faz o container ter a largura do seu conteúdo. */}
+          {/* `min-w-full` garante que, se o conteúdo for menor que a tela, o container ainda ocupe 100% da largura, evitando que fique estreito demais. */}
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg inline-block min-w-full">
             {error && <div className="text-red-500 mb-4">{error}</div>}
             <div className="flex space-x-6 overflow-x-auto pb-4">
               {loading ? (
@@ -143,7 +141,6 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, onDataChange }) => {
         </DragDropContext>
       )}
 
-      {/* O Modal de detalhes continua aqui, pois é específico do Board */}
       {negocioSelecionado && 
         <NegocioDetalhesModal 
           isOpen={!!negocioSelecionado} 

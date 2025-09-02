@@ -2,25 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-
-// Importando os nossos componentes
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
-import AddNegocioModal from './AddNegocioModal'; // Precisamos do Modal aqui agora
-
-// Importando ícones
+import AddNegocioModal from './AddNegocioModal';
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
 
 const PaginaCRM = () => {
-  // --- ESTADOS ELEVADOS ---
-  // Estes estados antes viviam no CrmBoard, agora estão no componente pai.
   const [funis, setFunis] = useState([]);
   const [funilSelecionadoId, setFunilSelecionadoId] = useState('');
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
 
-  // Efeito para buscar a lista de funis disponíveis assim que a página carrega.
   useEffect(() => {
     const fetchFunis = async () => {
       const { data, error } = await supabase.from('crm_funis').select('*').order('created_at');
@@ -28,7 +21,6 @@ const PaginaCRM = () => {
         console.error("Não foi possível carregar os funis.", error);
       } else {
         setFunis(data);
-        // Se houver funis, seleciona o primeiro da lista como padrão.
         if (data && data.length > 0) {
           setFunilSelecionadoId(data[0].id);
         }
@@ -37,10 +29,7 @@ const PaginaCRM = () => {
     fetchFunis();
   }, []);
 
-  // Função para ser chamada pelo CrmBoard quando os negócios forem adicionados/alterados
-  // para que a página inteira possa ser atualizada no futuro.
   const handleBoardDataChange = () => {
-    // No futuro, podemos usar isso para recarregar o dashboard, por exemplo.
     console.log("Dados do board foram alterados.");
   };
 
@@ -49,10 +38,11 @@ const PaginaCRM = () => {
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
         <header className="mb-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
-            {/* Lado Esquerdo: Título e Seletor de Funil */}
-            <div className="flex items-center gap-4">
+            {/* --- DOCUMENTAÇÃO DA CORREÇÃO --- */}
+            {/* A alteração está aqui: trocamos 'items-center' por 'items-baseline'. */}
+            {/* Isso alinha os elementos pela base do texto, o que é ideal para diferentes tamanhos de fonte. */}
+            <div className="flex items-baseline gap-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Funil de Vendas</h1>
-              {/* --- AJUSTE 1: SELETOR DE FUNIL DISCRETO --- */}
               <select 
                 value={funilSelecionadoId} 
                 onChange={(e) => setFunilSelecionadoId(e.target.value)} 
@@ -62,7 +52,6 @@ const PaginaCRM = () => {
               </select>
             </div>
             
-            {/* Lado Direito: Botões de Ação */}
             <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -75,7 +64,6 @@ const PaginaCRM = () => {
                 <button className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
                     <SlidersHorizontal size={16} /> Filtros
                 </button>
-                {/* O botão agora abre o modal controlado por este componente */}
                 <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-blue-700">
                   <Plus size={20} /> Novo Negócio
                 </button>
@@ -89,11 +77,10 @@ const PaginaCRM = () => {
 
         <main>
           {viewMode === 'kanban' ? (
-            // Passamos o ID do funil selecionado para o CrmBoard
             <CrmBoard 
               funilSelecionadoId={funilSelecionadoId}
-              onEtapasCarregadas={setEtapasDoFunil} // Permite ao Board nos informar quais são as etapas do funil
-              onDataChange={handleBoardDataChange} // Permite ao Board nos avisar de mudanças
+              onEtapasCarregadas={setEtapasDoFunil}
+              onDataChange={handleBoardDataChange}
             />
           ) : (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -103,7 +90,6 @@ const PaginaCRM = () => {
         </main>
       </div>
 
-      {/* O Modal para adicionar negócio agora é renderizado e controlado aqui */}
       {isAddModalOpen && 
         <AddNegocioModal 
           isOpen={isAddModalOpen} 
