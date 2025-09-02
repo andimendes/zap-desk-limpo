@@ -130,7 +130,10 @@ const PaginaCRM = () => {
           </div>
         </header>
         <section className="mb-6">
-          <CrmDashboard />
+          <CrmDashboard 
+            filtros={filtros}
+            termoPesquisa={termoPesquisaDebounced}
+          />
         </section>
         <main>
           {loadingNegocios ? <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div> : viewMode === 'kanban' ? <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} /> : <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />}

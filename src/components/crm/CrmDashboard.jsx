@@ -4,24 +4,46 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, DollarSign, Target, CheckCircle, XCircle } from 'lucide-react';
 import StatCard from '@/components/dashboard/StatCard';
-// A importação da 'recharts' foi removida
 
-const CrmDashboard = () => {
+// 1. O componente agora recebe 'filtros' e 'termoPesquisa'
+const CrmDashboard = ({ filtros, termoPesquisa }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
+  // 2. O useEffect agora depende dos filtros e da pesquisa.
+  // Ele será executado novamente sempre que um filtro for alterado.
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       setError('');
       try {
-        // Otimizado: agora buscamos apenas os negócios, pois as etapas não são mais necessárias para os cards.
-        const { data: negocios, error: negociosError } = await supabase.from('crm_negocios').select('*');
+        // 3. A busca agora é dinâmica e aplica os filtros recebidos.
+        // Note que esta busca NÃO filtra por status 'Ativo', pois o dashboard
+        // precisa de todos os status (Ganho, Perdido) para seus cálculos.
+        let query = supabase.from('crm_negocios').select('*');
+
+        // Aplica filtros de responsável e data
+        if (filtros.responsavelId && filtros.responsavelId !== 'todos') {
+          query = query.eq('responsavel_id', filtros.responsavelId);
+        }
+        if (filtros.dataInicio) {
+          query = query.gte('created_at', filtros.dataInicio);
+        }
+        if (filtros.dataFim) {
+          query = query.lte('created_at', filtros.dataFim);
+        }
+
+        // Aplica filtro de pesquisa de texto
+        if (termoPesquisa) {
+          query = query.or(`titulo.ilike.%${termoPesquisa}%,empresa_contato.ilike.%${termoPesquisa}%`);
+        }
+
+        const { data: negocios, error: negociosError } = await query;
 
         if (negociosError) throw negociosError;
 
-        // A lógica de cálculo para os cards permanece a mesma
+        // A lógica de cálculo permanece a mesma, mas agora opera sobre os dados filtrados
         const negociosAtivos = negocios.filter(n => n.status === 'Ativo');
         const negociosGanhos = negocios.filter(n => n.status === 'Ganho');
         const negociosPerdidos = negocios.filter(n => n.status === 'Perdido');
@@ -29,8 +51,6 @@ const CrmDashboard = () => {
         const totalFechados = negociosGanhos.length + negociosPerdidos.length;
         const winRate = totalFechados > 0 ? (negociosGanhos.length / totalFechados) * 100 : 0;
         
-        // A parte que calculava os dados do funil (funnelData) foi removida.
-
         setStats({
           totalNegociosAtivos: negociosAtivos.length,
           pipelineValue: pipelineValue,
@@ -46,10 +66,11 @@ const CrmDashboard = () => {
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [filtros, termoPesquisa]); // Dependências do useEffect
 
   if (loading) {
-    return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin text-blue-500 inline-block" /></div>;
+    // Retornamos null durante o loading para uma transição mais suave
+    return null;
   }
   if (error) {
     return <div className="p-8 text-red-500">{error}</div>;
@@ -58,7 +79,6 @@ const CrmDashboard = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {stats && (
-        // A secção do gráfico foi removida, mantendo apenas a grelha de cards.
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard 
             title="Pipeline Ativo"
