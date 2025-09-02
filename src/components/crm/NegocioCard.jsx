@@ -12,12 +12,6 @@ const differenceInDays = (dateLeft, dateRight) => {
 };
 
 const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
-  
-  // --- TESTE DE DIAGNÓSTICO ---
-  // Esta linha irá mostrar no console do navegador os dados exatos do responsável para cada card.
-  console.log('Dados do Responsável para o card:', negocio.titulo, negocio.responsavel);
-  // --- FIM DO TESTE ---
-
   const diasDesdeCriacao = differenceInDays(new Date(), negocio.created_at);
   const avatarUrl = negocio.responsavel?.avatar_url || null;
 
