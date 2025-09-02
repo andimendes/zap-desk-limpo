@@ -2,33 +2,36 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { useAuth } from '@/contexts/AuthContext'; // Importante para filtrar por utilizador
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, DollarSign, Target, CheckCircle, XCircle } from 'lucide-react';
 import StatCard from '@/components/dashboard/StatCard';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const DashboardVendedor = () => {
-  const { user } = useAuth(); // Pega o utilizador logado
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user) return; // Não faz nada se o utilizador não estiver carregado
+    // A verificação agora é mais robusta
+    if (!user?.id) {
+        // Se não houver ID de utilizador, pode ser que ainda esteja a carregar.
+        // Se continuar a carregar por muito tempo, pode haver um problema no AuthContext.
+        return;
+    }
 
     const fetchDashboardData = async () => {
       setLoading(true);
       setError('');
       try {
-        // Agora a query busca apenas negócios do utilizador logado
         const { data: negocios, error: negociosError } = await supabase
             .from('crm_negocios')
-            .select('*')
-            .eq('responsavel_id', user.id);
+            .select('valor, status') // Pedimos apenas as colunas que precisamos
+            .eq('responsavel_id', user.id); // Filtramos pelos negócios do utilizador logado
 
         if (negociosError) throw negociosError;
 
-        // Os cálculos agora são específicos para o vendedor
         const negociosAtivos = negocios.filter(n => n.status === 'Ativo');
         const negociosGanhos = negocios.filter(n => n.status === 'Ganho');
         const negociosPerdidos = negocios.filter(n => n.status === 'Perdido');
@@ -44,14 +47,14 @@ const DashboardVendedor = () => {
           winRate: winRate,
         });
       } catch (err) {
-        console.error("Erro ao carregar dados do dashboard:", err);
+        console.error("Erro ao carregar dados do dashboard do vendedor:", err);
         setError("Não foi possível carregar os dados do dashboard.");
       } finally {
         setLoading(false);
       }
     };
     fetchDashboardData();
-  }, [user]); // Executa sempre que o 'user' mudar
+  }, [user?.id]); // <-- MUDANÇA IMPORTANTE: A dependência agora é o ID do utilizador, que é mais estável.
 
   if (loading) {
     return <div className="flex justify-center items-center h-full p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
@@ -67,26 +70,16 @@ const DashboardVendedor = () => {
       </h1>
       
       {stats && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard 
-              title="Meu Pipeline Ativo"
-              value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pipelineValue)}
-              icon={<DollarSign className="text-blue-500" />}
-              description={`${stats.totalNegociosAtivos} negócios em aberto`}
-            />
-            <StatCard 
-              title="Minha Taxa de Conversão"
-              value={`${stats.winRate.toFixed(1)}%`}
-              icon={<CheckCircle className="text-green-500" />}
-              description={`${stats.negociosGanhos} negócios ganhos`}
-            />
-            {/* ... outros cards ... */}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default DashboardVendedor;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard 
+            title="Meu Pipeline Ativo"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pipelineValue)}
+            icon={<DollarSign className="text-blue-500" />}
+            description={`${stats.totalNegociosAtivos} negócios em aberto`}
+          />
+          <StatCard 
+            title="Minha Taxa de Conversão"
+            value={`${stats.winRate.toFixed(1)}%`}
+            icon={<CheckCircle className="text-green-500" />}
+            description={`${stats.negociosGanhos} negócios ganhos`}
+          />
