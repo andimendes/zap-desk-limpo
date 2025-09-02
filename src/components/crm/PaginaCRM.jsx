@@ -16,7 +16,7 @@ const PaginaCRM = () => {
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
   const filtrosButtonRef = useRef(null);
   const [funis, setFunis] = useState([]);
-  const [funilSelecionadoId, setFunilSelecionadoId] = useState(null); // Inicia como nulo
+  const [funilSelecionadoId, setFunilSelecionadoId] = useState(null);
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
   const [listaDeUsers, setListaDeUsers] = useState([]);
   const [filtros, setFiltros] = useState({ responsavelId: 'todos', dataInicio: '', dataFim: '' });
@@ -30,12 +30,22 @@ const PaginaCRM = () => {
         supabase.from('crm_funis').select('id, nome_funil').order('created_at'),
         supabase.from('profiles').select('id, full_name').order('full_name')
       ]);
+
       if (funisRes.data) {
         setFunis(funisRes.data);
+        // --- DOCUMENTAÇÃO DA CORREÇÃO ---
+        // Em vez de pegar o primeiro funil, agora procuramos o primeiro VÁLIDO.
         if (funisRes.data.length > 0) {
-          setFunilSelecionadoId(funisRes.data[0].id);
+          // Um UUID tem 36 caracteres. Buscamos o primeiro ID que pareça um UUID.
+          const primeiroFunilValido = funisRes.data.find(f => typeof f.id === 'string' && f.id.length > 30);
+          if (primeiroFunilValido) {
+            setFunilSelecionadoId(primeiroFunilValido.id);
+          } else {
+            console.warn("Nenhum funil com ID válido (UUID) foi encontrado.");
+            setLoadingNegocios(false);
+          }
         } else {
-          setLoadingNegocios(false); // Se não há funis, para de carregar
+          setLoadingNegocios(false);
         }
       }
       if (usersRes.data) setListaDeUsers(usersRes.data);
@@ -44,18 +54,16 @@ const PaginaCRM = () => {
   }, []);
 
   const fetchDadosDoFunil = useCallback(async () => {
-    // --- DOCUMENTAÇÃO DA CORREÇÃO ---
-    // Adicionamos uma verificação extra para garantir que o ID do funil é válido antes de prosseguir.
     if (!funilSelecionadoId) {
       setNegocios([]);
-      setLoadingNegocios(false);
+      // Não definimos loading como false aqui para esperar o useEffect acima resolver
       return;
     }
     
     setLoadingNegocios(true);
     try {
       const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
-      if (etapasError) throw etapasError; // Lança o erro para ser pego pelo catch
+      if (etapasError) throw etapasError;
 
       setEtapasDoFunil(etapasData || []);
       const etapaIds = (etapasData || []).map(e => e.id);
@@ -84,9 +92,9 @@ const PaginaCRM = () => {
       }
     } catch (error) {
       console.error("Ocorreu um erro ao buscar dados do funil:", error);
-      setNegocios([]); // Limpa os negócios em caso de erro
+      setNegocios([]);
     } finally {
-      setLoadingNegocios(false); // Garante que o loading sempre termine
+      setLoadingNegocios(false);
     }
   }, [funilSelecionadoId, filtros]);
 
