@@ -1,11 +1,10 @@
 // src/components/crm/CrmBoard.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js'; 
 import NegocioDetalhesModal from './NegocioDetalhesModal.jsx';
 import NegocioCard from './NegocioCard.jsx';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { Loader2 } from 'lucide-react';
 
 const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   // ... (Componente EtapaColuna continua o mesmo)
@@ -20,97 +19,37 @@ const EtapaColuna = ({ etapa, negocios, totalValor, totalNegocios }) => {
   );
 };
 
-// 1. Recebemos 'filtros' como uma nova propriedade
-const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, listaDeUsers, filtros }) => {
-  const [etapas, setEtapas] = useState([]);
-  const [negocios, setNegocios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// --- MUDANÇA 1: O COMPONENTE AGORA É MUITO MAIS SIMPLES ---
+// Ele recebe as listas de 'etapas', 'negocios' e 'listaDeUsers' prontas.
+// E recebe funções 'onDragEnd' e 'onDataChange' para avisar o pai de qualquer mudança.
+const CrmBoard = ({ etapas, negocios, listaDeUsers, onDragEnd, onDataChange }) => {
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
 
-  const fetchEtapasENegocios = useCallback(async () => {
-      if (!funilSelecionadoId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
-        if (etapasError) throw etapasError;
-        setEtapas(etapasData);
-        onEtapasCarregadas(etapasData);
+  // --- MUDANÇA 2: TODA A LÓGICA DE BUSCA DE DADOS FOI REMOVIDA DAQUI ---
 
-        const etapaIds = etapasData.map(e => e.id);
-        if (etapaIds.length > 0) {
-
-          // --- DOCUMENTAÇÃO DA MUDANÇA ---
-          // 2. A busca no banco de dados agora é dinâmica!
-          // Começamos com a base da nossa busca
-          let query = supabase
-            .from('crm_negocios')
-            .select('*, responsavel:profiles(full_name)')
-            .in('etapa_id', etapaIds)
-            .eq('status', 'Ativo');
-
-          // 3. Verificamos cada filtro e adicionamos à busca se ele estiver preenchido
-          if (filtros.responsavelId && filtros.responsavelId !== 'todos') {
-            query = query.eq('responsavel_id', filtros.responsavelId);
-          }
-          if (filtros.dataInicio) {
-            // gte = Greater Than or Equal (maior ou igual a)
-            query = query.gte('created_at', filtros.dataInicio);
-          }
-          if (filtros.dataFim) {
-            // lte = Less Than or Equal (menor ou igual a)
-            query = query.lte('created_at', filtros.dataFim);
-          }
-          // --- FIM DA MUDANÇA ---
-
-          // Executamos a busca já com os filtros aplicados
-          const { data: negociosData, error: negociosError } = await query;
-          if (negociosError) throw negociosError;
-          setNegocios(negociosData);
-
-        } else {
-          setNegocios([]);
-        }
-      } catch (err) {
-        setError(`Não foi possível carregar os dados do funil: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-  // 4. Adicionamos 'filtros' na lista de dependências.
-  // Isso garante que a busca será executada novamente sempre que os filtros mudarem.
-  }, [funilSelecionadoId, onEtapasCarregadas, filtros]);
-
-  useEffect(() => {
-    fetchEtapasENegocios();
-  }, [fetchEtapasENegocios]);
-  
   const handleOnDragEnd = async (result) => {
-    // ... (lógica de arrastar e soltar continua a mesma)
     const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-    const novosNegocios = negocios.map(n => String(n.id) === draggableId ? { ...n, etapa_id: destination.droppableId } : n);
-    setNegocios(novosNegocios);
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+      return;
+    }
+    // Otimismo: Atualiza a UI imediatamente (esta parte é opcional mas melhora a experiência)
+    // A lógica principal de atualização está no pai.
+    
+    // Atualiza o negócio no banco de dados
     const { error } = await supabase.from('crm_negocios').update({ etapa_id: destination.droppableId }).eq('id', draggableId);
     if (error) {
       alert("Erro ao mover o negócio.");
-      fetchEtapasENegocios();
     }
+    // Avisa o componente pai para recarregar todos os dados.
+    onDragEnd(); 
   };
     
-  const handleNegocioDataChange = (negocioAtualizado) => {
-    if (negocioAtualizado.status === 'Excluido') {
-        setNegocios(current => current.filter(n => n.id !== negocioAtualizado.id));
-    } else {
-        setNegocios(current => current.map(n => n.id === negocioAtualizado.id ? negocioAtualizado : n));
-        if (negocioSelecionado && negocioSelecionado.id === negocioAtualizado.id) {
-            setNegocioSelecionado(negocioAtualizado);
-        }
-    }
-    // A função onDataChange foi removida pois não era mais necessária para a atualização
+  const handleNegocioDataChange = () => {
+    // Apenas avisa o componente pai que algo mudou (ex: um negócio foi editado ou excluído)
+    onDataChange();
+    setNegocioSelecionado(null);
   };
 
   return (
@@ -118,15 +57,42 @@ const CrmBoard = ({ funilSelecionadoId, onEtapasCarregadas, listaDeUsers, filtro
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-            {error && <div className="text-red-500 mb-4">{error}</div>}
             <div className="flex space-x-6 overflow-x-auto pb-4 justify-center">
-              {loading ? <div className="flex justify-center w-full"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div> : etapas.length > 0 ? (etapas.map(etapa => { const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id)); const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0); return (<EtapaColuna key={etapa.id} etapa={etapa} negocios={negociosDaEtapa.map((negocio, index) => (<NegocioCard key={negocio.id} negocio={negocio} index={index} onCardClick={setNegocioSelecionado} etapasDoFunil={etapas} />))} totalValor={valorDaEtapa} totalNegocios={negociosDaEtapa.length} />); })) : (<div className="w-full text-center py-10"><p className="text-gray-500 dark:text-gray-400">Nenhum negócio encontrado com os filtros atuais.</p></div>)}
+              {etapas.length > 0 ? (
+                etapas.map(etapa => {
+                  const negociosDaEtapa = negocios.filter(n => String(n.etapa_id) === String(etapa.id));
+                  const valorDaEtapa = negociosDaEtapa.reduce((sum, n) => sum + (n.valor || 0), 0);
+                  return (
+                    <EtapaColuna 
+                      key={etapa.id} 
+                      etapa={etapa} 
+                      negocios={negociosDaEtapa.map((negocio, index) => (
+                        <NegocioCard key={negocio.id} negocio={negocio} index={index} onCardClick={setNegocioSelecionado} etapasDoFunil={etapas} />
+                      ))}
+                      totalValor={valorDaEtapa}
+                      totalNegocios={negociosDaEtapa.length}
+                    />
+                  );
+                })
+              ) : (
+                <div className="w-full text-center py-10">
+                  <p className="text-gray-500 dark:text-gray-400">Nenhum negócio encontrado com os filtros atuais.</p>
+                </div>
+              )}
             </div>
           </div>
         </DragDropContext>
       )}
 
-      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleNegocioDataChange} etapasDoFunil={etapas} listaDeUsers={listaDeUsers} />}
+      {negocioSelecionado && 
+        <NegocioDetalhesModal 
+          isOpen={!!negocioSelecionado} 
+          negocio={negocioSelecionado} 
+          onClose={() => setNegocioSelecionado(null)} 
+          onDataChange={handleNegocioDataChange} // O modal agora chama esta função simplificada
+          etapasDoFunil={etapas} 
+          listaDeUsers={listaDeUsers}
+        />}
     </>
   );
 };
