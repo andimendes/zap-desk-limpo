@@ -64,6 +64,9 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
 };
   
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil, listaDeUsers }) => {
+  // --- ALTERAÇÃO PARA DEBUG ---
+  console.log("DEBUG: Props recebidas em NegocioDetalhesModal", { negocioInicial, etapasDoFunil, listaDeUsers });
+
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -101,11 +104,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
       if (error) throw error;
-      
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Se 'data' for null (nenhum contato encontrado), tratamos como um array vazio antes do .map()
       const contatos = (data || []).map(item => item.crm_contatos).filter(Boolean);
-      
       setContatosAssociados(contatos || []);
     } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
     finally { setIsLoadingContatos(false); }

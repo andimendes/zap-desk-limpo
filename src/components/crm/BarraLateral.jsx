@@ -15,8 +15,10 @@ const DetalheItem = ({ icon, label, value, children }) => (
   </div>
 );
 
-// --- AJUSTE APLICADO AQUI ---
 const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataChange }) => {
+  // --- ALTERAÇÃO PARA DEBUG ---
+  console.log("DEBUG: Props recebidas em BarraLateral", { negocio, etapasDoFunil, listaDeUsers });
+
   const [empresa, setEmpresa] = useState(null);
   const [contatos, setContatos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
     const fetchRelatedData = async () => {
       setLoading(true);
       
-      // 1. Buscar a empresa associada
       if (negocio.empresa_id) {
         const { data: empresaData, error: empresaError } = await supabase
           .from('crm_empresas')
@@ -39,7 +40,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
         setEmpresa(null);
       }
 
-      // 2. Buscar os contatos associados
       const { data: contatosData, error: contatosError } = await supabase
         .from('crm_negocio_contatos')
         .select('crm_contatos(id, nome, email, telefone)')
@@ -90,7 +90,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
         {loading ? <p>Carregando...</p> : (
             <>
               <DetalheItem icon={<Building size={14} />} label="Empresa" value={empresa?.nome_fantasia || 'Nenhuma empresa vinculada'} />
-              
               <DetalheItem icon={<User size={14} />} label="Contatos">
                 {contatos.length > 0 ? (
                     <div className="space-y-2 mt-1">

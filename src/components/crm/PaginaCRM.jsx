@@ -68,7 +68,11 @@ const PaginaCRM = () => {
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
-        if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%,empresa_contato.ilike.%${termoPesquisaDebounced}%`);
+        
+        // --- CORREÇÃO DE BUG NA PESQUISA ---
+        // Removida a busca pela coluna 'empresa_contato' que não existe mais.
+        if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%`);
+        
         const { data: negociosData, error: negociosError } = await query;
         if (negociosError) throw negociosError;
         const negociosIds = (negociosData || []).map(n => n.id);
@@ -141,7 +145,25 @@ const PaginaCRM = () => {
         </main>
       </div>
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
-      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleDataChange} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} />}
+      
+      {/* --- ALTERAÇÃO PARA DEBUG --- */}
+      {negocioSelecionado && (() => {
+        console.log("DEBUG: Props enviadas para NegocioDetalhesModal", { 
+            negocio: negocioSelecionado, 
+            etapasDoFunil: etapasDoFunil, 
+            listaDeUsers: listaDeUsers 
+        });
+        return (
+            <NegocioDetalhesModal
+                isOpen={!!negocioSelecionado}
+                negocio={negocioSelecionado}
+                onClose={() => setNegocioSelecionado(null)}
+                onDataChange={handleDataChange}
+                etapasDoFunil={etapasDoFunil}
+                listaDeUsers={listaDeUsers}
+            />
+        );
+      })()}
     </>
   );
 };
