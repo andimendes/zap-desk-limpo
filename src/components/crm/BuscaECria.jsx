@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce.js'; // Assumindo que você pode criar este hook (código abaixo)
+import { useDebounce } from '@/hooks/useDebounce.js';
 
-// Crie este hook em um arquivo como src/hooks/useDebounce.js
+// Certifique-se de ter este hook no seu projeto, por exemplo em src/hooks/useDebounce.js
 /*
 import { useState, useEffect } from 'react';
 
@@ -32,56 +32,62 @@ const BuscaECria = ({ tabela, coluna, placeholder, onSelecao, valorInicial = '' 
   const debouncedBusca = useDebounce(termoBusca, 300);
 
   useEffect(() => {
-    const buscarRegistros = async () => {
-      if (debouncedBusca.length < 2) {
-        setResultados([]);
-        return;
-      }
-      setLoading(true);
-      const { data, error } = await supabase
-        .from(tabela)
-        .select(`id, ${coluna}`)
-        .ilike(coluna, `%${debouncedBusca}%`)
-        .limit(5);
-      
-      setLoading(false);
-      if (error) {
-        console.error('Erro na busca:', error);
-      } else {
-        setResultados(data);
-      }
-    };
-    
-    buscarRegistros();
-  }, [debouncedBusca, tabela, coluna]);
+    setTermoBusca(valorInicial);
+  }, [valorInicial]);
 
-  const handleSelecao = (valor) => {
-    setTermoBusca(valor);
-    onSelecao(valor); // Informa o componente pai sobre a seleção
+  const buscarRegistros = useCallback(async () => {
+    if (debouncedBusca.length < 2) {
+      setResultados([]);
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from(tabela)
+      .select(`id, ${coluna}`)
+      .ilike(coluna, `%${debouncedBusca}%`)
+      .limit(5);
+    
+    setLoading(false);
+    if (error) {
+      console.error('Erro na busca:', error);
+    } else {
+      setResultados(data);
+    }
+  }, [debouncedBusca, tabela, coluna]);
+  
+  useEffect(() => {
+    buscarRegistros();
+  }, [buscarRegistros]);
+
+  const handleSelecao = (item) => {
+    setTermoBusca(item[coluna]);
+    onSelecao(item.id, item[coluna]);
     setIsDropdownOpen(false);
   };
   
+  const handleCriarNovo = () => {
+    onSelecao(null, termoBusca);
+    setIsDropdownOpen(false);
+  };
+
   return (
     <div className="relative">
       <input 
         type="text" 
         value={termoBusca}
-        onChange={(e) => {
-            setTermoBusca(e.target.value);
-            onSelecao(e.target.value); // Atualiza o estado no pai em tempo real
-        }}
+        onChange={(e) => setTermoBusca(e.target.value)}
         onFocus={() => setIsDropdownOpen(true)}
-        onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)} // Delay para permitir o clique
+        onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
         placeholder={placeholder}
         className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
       />
       {isDropdownOpen && (termoBusca.length > 1) && (
-        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg">
+        <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg">
           {loading && <div className="p-2 text-sm text-gray-500 flex items-center gap-2"><Loader2 className="animate-spin h-4 w-4" /> Buscando...</div>}
           
           {!loading && resultados.length === 0 && (
             <div 
-              onClick={() => handleSelecao(termoBusca)}
+              onClick={handleCriarNovo}
               className="p-3 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <PlusCircle className="h-4 w-4 text-green-500" />
@@ -93,7 +99,7 @@ const BuscaECria = ({ tabela, coluna, placeholder, onSelecao, valorInicial = '' 
             {resultados.map((item) => (
               <li 
                 key={item.id}
-                onClick={() => handleSelecao(item[coluna])}
+                onClick={() => handleSelecao(item)}
                 className="p-3 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 {item[coluna]}

@@ -17,6 +17,7 @@ const ProspeccaoPage = () => {
   const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
   const [isDetalhesOpen, setIsDetalhesOpen] = useState(false);
 
+  // A função fetchData permanece a mesma
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -90,6 +91,24 @@ const ProspeccaoPage = () => {
     setIsDetalhesOpen(false);
     setEmpresaSelecionada(null);
   };
+  
+  // ==================================================================
+  // PASSO 1: Adicionar a função que atualiza os dados da empresa na página
+  // ==================================================================
+  const handleEmpresaUpdate = (empresaAtualizada) => {
+    const updateList = (list) => 
+      list.map(item => item.id === empresaAtualizada.id ? empresaAtualizada : item);
+
+    setPotenciais(updateList);
+    setProspects(updateList);
+    setEmpresas(updateList);
+
+    // Também atualiza a empresa que está selecionada no modal, se for a mesma
+    if (empresaSelecionada?.id === empresaAtualizada.id) {
+        setEmpresaSelecionada(empresaAtualizada);
+    }
+  };
+
 
   return (
     <>
@@ -180,6 +199,10 @@ const ProspeccaoPage = () => {
           isOpen={isDetalhesOpen}
           onClose={handleFecharDetalhes}
           empresa={empresaSelecionada}
+          // ==================================================================
+          // PASSO 2: Passar a função para o modal através da prop 'onEmpresaUpdate'
+          // ==================================================================
+          onEmpresaUpdate={handleEmpresaUpdate}
         />
       )}
     </>

@@ -67,7 +67,6 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     );
 };
   
-// --- 1. RECEBEMOS A PROP 'onEmpresaClick' DA PÁGINA PRINCIPAL ---
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil = [], listaDeUsers = [], onEmpresaClick }) => {
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
@@ -113,7 +112,14 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data: updatedNegocio, error: negocioError } = await supabase.from('crm_negocios').select('*, responsavel:profiles(full_name)').eq('id', negocioInicial.id).single();
+      // ===== PONTO FOCAL DA ALTERAÇÃO =====
+      const { data: updatedNegocio, error: negocioError } = await supabase
+        .from('crm_negocios')
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*)')
+        .eq('id', negocioInicial.id)
+        .single();
+      // =====================================
+
       if (negocioError) {
         if (negocioError.code === 'PGRST116') { alert('Este negócio não foi encontrado.'); onClose(); return; } 
         else { throw negocioError; }
@@ -165,6 +171,12 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         carregarDadosDetalhados();
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
+  
+  // ... (o resto do ficheiro permanece inalterado)
+
+  // O restante do seu componente continua aqui...
+  // Apenas a função carregarDadosDetalhados foi modificada.
+  // Cole o restante do seu arquivo original a partir daqui.
   
   useEffect(() => {
     const buscarContatosParaVincular = async () => {
@@ -453,7 +465,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
               
               <div className="flex flex-grow overflow-hidden">
                 <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                  {/* --- 2. PASSAMOS A PROP 'onEmpresaClick' PARA A BARRA LATERAL --- */}
                   <BarraLateral 
                     negocio={negocio} 
                     etapasDoFunil={etapasDoFunil} 
