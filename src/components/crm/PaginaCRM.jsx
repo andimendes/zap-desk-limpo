@@ -10,6 +10,9 @@ import NegocioDetalhesModal from './NegocioDetalhesModal';
 import FiltrosPopover from './FiltrosPopover';
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
 
+// --- 1. IMPORTE O ERROR BOUNDARY ---
+import ErrorBoundary from '../ErrorBoundary';
+
 const PaginaCRM = () => {
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -64,17 +67,13 @@ const PaginaCRM = () => {
       setEtapasDoFunil(etapasData || []);
       const etapaIds = (etapasData || []).map(e => e.id);
       if (etapaIds.length > 0) {
-        // --- ALTERAÇÃO AQUI: Adicionamos a busca pela empresa relacionada ---
         let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), empresa:crm_empresas(nome_fantasia), etapa_modificada_em').in('etapa_id', etapaIds).eq('status', 'Ativo');
-        
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
         if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%`);
-        
         const { data: negociosData, error: negociosError } = await query;
         if (negociosError) throw negociosError;
-
         const negociosIds = (negociosData || []).map(n => n.id);
         if (negociosIds.length > 0) {
           const { data: tarefas } = await supabase.from('crm_atividades').select('negocio_id').in('negocio_id', negociosIds).eq('concluida', false);
@@ -103,6 +102,7 @@ const PaginaCRM = () => {
   return (
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
+        {/* ... (resto do JSX do header não mudou) ... */}
         <header className="mb-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
@@ -145,7 +145,20 @@ const PaginaCRM = () => {
         </main>
       </div>
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
-      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleDataChange} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} />}
+      
+      {/* --- 2. ENVOLVA O MODAL COM O ERROR BOUNDARY --- */}
+      {negocioSelecionado && (
+        <ErrorBoundary>
+            <NegocioDetalhesModal
+                isOpen={!!negocioSelecionado}
+                negocio={negocioSelecionado}
+                onClose={() => setNegocioSelecionado(null)}
+                onDataChange={handleDataChange}
+                etapasDoFunil={etapasDoFunil}
+                listaDeUsers={listaDeUsers}
+            />
+        </ErrorBoundary>
+      )}
     </>
   );
 };
