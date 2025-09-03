@@ -46,7 +46,7 @@ const PaginaCRM = () => {
           } else { setLoadingNegocios(false); }
         } else { setLoadingNegocios(false); }
       }
-      if (usersRes.data) setListaDeUsers(usersRes.data);
+      if (usersRes.data) setListaDeUsers(usersRes.data || []);
     };
     fetchData();
   }, []);
@@ -64,17 +64,17 @@ const PaginaCRM = () => {
       setEtapasDoFunil(etapasData || []);
       const etapaIds = (etapasData || []).map(e => e.id);
       if (etapaIds.length > 0) {
-        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), etapa_modificada_em').in('etapa_id', etapaIds).eq('status', 'Ativo');
+        // --- ALTERAÇÃO AQUI: Adicionamos a busca pela empresa relacionada ---
+        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), empresa:crm_empresas(nome_fantasia), etapa_modificada_em').in('etapa_id', etapaIds).eq('status', 'Ativo');
+        
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
-        
-        // --- CORREÇÃO DE BUG NA PESQUISA ---
-        // Removida a busca pela coluna 'empresa_contato' que não existe mais.
         if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%`);
         
         const { data: negociosData, error: negociosError } = await query;
         if (negociosError) throw negociosError;
+
         const negociosIds = (negociosData || []).map(n => n.id);
         if (negociosIds.length > 0) {
           const { data: tarefas } = await supabase.from('crm_atividades').select('negocio_id').in('negocio_id', negociosIds).eq('concluida', false);
@@ -145,25 +145,7 @@ const PaginaCRM = () => {
         </main>
       </div>
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
-      
-      {/* --- ALTERAÇÃO PARA DEBUG --- */}
-      {negocioSelecionado && (() => {
-        console.log("DEBUG: Props enviadas para NegocioDetalhesModal", { 
-            negocio: negocioSelecionado, 
-            etapasDoFunil: etapasDoFunil, 
-            listaDeUsers: listaDeUsers 
-        });
-        return (
-            <NegocioDetalhesModal
-                isOpen={!!negocioSelecionado}
-                negocio={negocioSelecionado}
-                onClose={() => setNegocioSelecionado(null)}
-                onDataChange={handleDataChange}
-                etapasDoFunil={etapasDoFunil}
-                listaDeUsers={listaDeUsers}
-            />
-        );
-      })()}
+      {negocioSelecionado && <NegocioDetalhesModal isOpen={!!negocioSelecionado} negocio={negocioSelecionado} onClose={() => setNegocioSelecionado(null)} onDataChange={handleDataChange} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} />}
     </>
   );
 };

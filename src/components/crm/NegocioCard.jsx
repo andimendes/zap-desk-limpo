@@ -28,7 +28,8 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
         >
           <div>
             <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa_contato}</p>
+            {/* --- ALTERAÇÃO AQUI: Exibimos o nome da empresa vindo do objeto relacionado --- */}
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa?.nome_fantasia || 'Sem empresa'}</p>
           </div>
           
           <div className="flex justify-between items-end">
