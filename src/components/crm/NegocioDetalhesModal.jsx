@@ -64,9 +64,6 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
 };
   
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil, listaDeUsers }) => {
-  // --- ALTERAÇÃO PARA DEBUG ---
-  console.log("DEBUG: Props recebidas em NegocioDetalhesModal", { negocioInicial, etapasDoFunil, listaDeUsers });
-
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -93,6 +90,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data, error } = await supabase.from('crm_arquivos').select('*').eq('negocio_id', negocioId).order('created_at', { ascending: false });
       if (error) throw error;
+      console.log("DEBUG: Dados retornados para ARQUIVOS:", data);
       setArquivos(data || []);
     } catch (error) { console.error("Erro ao carregar arquivos:", error); } 
     finally { setIsLoadingArquivos(false); }
@@ -104,6 +102,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
       if (error) throw error;
+      console.log("DEBUG: Dados retornados para CONTATOS ASSOCIADOS:", data);
       const contatos = (data || []).map(item => item.crm_contatos).filter(Boolean);
       setContatosAssociados(contatos || []);
     } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
@@ -128,6 +127,11 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         supabase.from('crm_notas').select('*').eq('negocio_id', negocioInicial.id).order('created_at', { ascending: false })
       ]);
       if (focoRes.error || atividadesRes.error || notasRes.error) throw new Error('Erro ao buscar dados relacionados.');
+
+      console.log("DEBUG: Dados retornados para ATIVIDADE FOCO:", focoRes.data);
+      console.log("DEBUG: Dados retornados para ATIVIDADES:", atividadesRes.data);
+      console.log("DEBUG: Dados retornados para NOTAS:", notasRes.data);
+
       setProximaAtividade(focoRes.data);
       const atividadesHistorico = (atividadesRes.data || []).filter(at => at.id !== focoRes.data?.id);
       const atividadesFormatadas = atividadesHistorico.map(item => ({ tipo: 'atividade', data: new Date(item.data_atividade), conteudo: item.descricao, concluida: item.concluida, original: item }));
@@ -173,7 +177,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         if (idsAssociados.length > 0) { query.not('id', 'in', `(${idsAssociados.join(',')})`); }
         const { data, error } = await query;
         if (error) throw error;
-        setResultadosBusca(data);
+        setResultadosBusca(data || []);
       } catch (error) { console.error("Erro ao buscar contatos:", error); } finally { setIsSearching(false); }
     };
     const debounce = setTimeout(() => { buscarContatos(); }, 300);
