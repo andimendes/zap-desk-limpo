@@ -14,7 +14,8 @@ import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 import ChamadosPage from '@/pages/ChamadosPage';
 import ClientesPage from '@/pages/ClientesPage';
 import CrmPage from '@/pages/CrmPage';
-import ProspeccaoPage from '@/pages/ProspeccaoPage'; // <-- 1. IMPORTAMOS A NOVA PÁGINA
+// --- IMPORTAMOS A NOSSA NOVA PÁGINA ---
+import ProspeccaoPage from '@/pages/ProspeccaoPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
 import DashboardPage from '@/pages/DashboardPage';
@@ -23,9 +24,6 @@ import DashboardPage from '@/pages/DashboardPage';
 import MainLayout from '@/components/layout/MainLayout.jsx';
 import SettingsModal from '@/components/layout/SettingsModal';
 
-/**
- * Componente que gere o conteúdo principal da aplicação (quando o utilizador está logado).
- */
 const AppContent = () => {
   const { session, loading, profile } = useAuth();
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
@@ -51,7 +49,7 @@ const AppContent = () => {
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/crm" element={<CrmPage />} />
           
-          {/* --- 2. ADICIONAMOS A NOVA ROTA AQUI --- */}
+          {/* --- ADICIONAMOS A ROTA PARA A NOVA PÁGINA AQUI --- */}
           <Route path="/prospeccao" element={<ProspeccaoPage />} />
 
           <Route path="/admin/*" element={<AdminPage />} />
@@ -73,9 +71,6 @@ const AppContent = () => {
   );
 };
 
-/**
- * Componente raiz da aplicação.
- */
 function App() {
   React.useEffect(() => {
     document.title = 'Zap Desk';
