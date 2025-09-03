@@ -73,8 +73,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
               
               <div className="flex flex-grow overflow-hidden">
                 <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                  {/* --- SUSPEITO 1 --- */}
-                  {/* <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} /> */}
+                  <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} />
                 </div>
 
                 <div className="w-2/3 flex flex-col overflow-hidden">
