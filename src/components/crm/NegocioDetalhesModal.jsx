@@ -47,7 +47,8 @@ const differenceInDays = (dateLeft, dateRight) => {
     return Math.round(diff / (1000 * 60 * 60 * 24));
 };
 
-const FunilProgressBar = ({ etapas, etapaAtualId, onEtapaClick }) => {
+// --- AJUSTE APLICADO AQUI ---
+const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     const etapaAtualIndex = etapas.findIndex(e => e.id === etapaAtualId);
     return (
       <div className="flex w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700 h-8 mt-2">
