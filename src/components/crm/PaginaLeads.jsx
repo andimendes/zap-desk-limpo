@@ -19,11 +19,13 @@ const PaginaLeads = () => {
   const [leadParaConverter, setLeadParaConverter] = useState(null);
   const [leadParaEditar, setLeadParaEditar] = useState(null);
   const [etapasDoFunil, setEtapasDoFunil] = useState([]);
+  // --- NOVO ESTADO ---
+  // Criamos um estado para saber quando as etapas terminaram de carregar
+  const [etapasReady, setEtapasReady] = useState(false);
 
   // Função centralizada para buscar os leads
   const fetchLeads = async () => {
     setLoading(true);
-    // Buscamos o lead e os dados do contato associado
     const { data, error } = await supabase.from('crm_leads').select('*, crm_contatos(*)').order('created_at', { ascending: false });
     if (error) {
       console.error('Erro ao buscar leads:', error);
@@ -35,15 +37,18 @@ const PaginaLeads = () => {
   };
 
   useEffect(() => {
-    fetchLeads(); // Chama a função na montagem do componente
+    fetchLeads();
 
-    // Busca as etapas do primeiro funil para usar na conversão
     const fetchEtapas = async () => {
+      // Começamos a busca, então ainda não está pronto
+      setEtapasReady(false); 
       const { data: funis } = await supabase.from('crm_funis').select('id').limit(1).single();
       if(funis) {
           const { data: etapas } = await supabase.from('crm_etapas').select('*').eq('funil_id', funis.id).order('ordem');
           setEtapasDoFunil(etapas || []);
       }
+      // A busca terminou, agora está pronto!
+      setEtapasReady(true); 
     };
     fetchEtapas();
   }, []);
@@ -57,9 +62,6 @@ const PaginaLeads = () => {
         const { error: leadError } = await supabase.from('crm_leads').delete().eq('id', lead.id);
         if(leadError) return alert('Erro ao apagar o lead.');
         
-        // Opcional: Lógica para deletar o contato se ele ficar órfão
-        // const { error: contactError } = await supabase.from('crm_contatos').delete().eq('id', lead.contato_id);
-
         setLeads(leads.filter(l => l.id !== lead.id));
     }
   };
@@ -83,7 +85,6 @@ const PaginaLeads = () => {
   }
   
   const handleNegocioAdicionadoDaConversao = () => {
-      // A melhor abordagem é simplesmente recarregar os leads
       fetchLeads();
   }
 
@@ -112,7 +113,6 @@ const PaginaLeads = () => {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y dark:divide-gray-700">
                 {leads.map(lead => (
-                  // Adicionamos uma verificação para garantir que lead.crm_contatos existe
                   lead.crm_contatos && (
                     <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
                       <td className="px-6 py-4">
@@ -152,7 +152,9 @@ const PaginaLeads = () => {
       
       <AddLeadModal isOpen={isAddLeadModalOpen} onClose={() => setIsAddLeadModalOpen(false)} onLeadAdicionado={handleLeadAdicionado} />
       
-      {isConvertModalOpen && (
+      {/* --- CORREÇÃO APLICADA AQUI --- */}
+      {/* O modal só é renderizado se estiver aberto E se as etapas estiverem prontas */}
+      {isConvertModalOpen && etapasReady && (
         <AddNegocioModal 
             isOpen={isConvertModalOpen}
             onClose={() => setIsConvertModalOpen(false)}

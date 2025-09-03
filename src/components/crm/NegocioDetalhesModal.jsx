@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, AlertTriangle, CalendarPlus, Pencil, Check, X, Users as UsersIcon, Trash2, UserPlus, Search, Upload, Download, Paperclip } from 'lucide-react';
+import { Loader2, AlertTriangle, CalendarPlus, Pencil, Check, X, Users as UsersIcon, Trash2, UserPlus, Search, Upload, Download, Paperclip, PlusCircle } from 'lucide-react';
 
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
+import EditContactModal from './EditContactModal'; 
 
+// (Componente EditComposer não foi alterado)
 const EditComposer = ({ item, onSave, onCancel }) => {
     const [editedContent, setEditedContent] = useState(item.conteudo);
     const [isSaving, setIsSaving] = useState(false);
@@ -41,6 +43,7 @@ const EditComposer = ({ item, onSave, onCancel }) => {
     );
 };
 
+
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
     const diff = new Date(dateLeft).getTime() - new Date(dateRight).getTime();
@@ -64,7 +67,8 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     );
 };
   
-const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil, listaDeUsers }) => {
+// --- 1. RECEBEMOS A PROP 'onEmpresaClick' DA PÁGINA PRINCIPAL ---
+const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil = [], listaDeUsers = [], onEmpresaClick }) => {
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -75,15 +79,19 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('atividades');
-  const [contatosAssociados, setContatosAssociados] = useState([]);
-  const [isLoadingContatos, setIsLoadingContatos] = useState(false);
-  const [termoBusca, setTermoBusca] = useState('');
-  const [resultadosBusca, setResultadosBusca] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [arquivos, setArquivos] = useState([]);
   const [isLoadingArquivos, setIsLoadingArquivos] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  
+  const [isVincularContatoOpen, setIsVincularContatoOpen] = useState(false);
+  const [termoBuscaContato, setTermoBuscaContato] = useState('');
+  const [resultadosBuscaContato, setResultadosBuscaContato] = useState([]);
+  const [isBuscandoContato, setIsBuscandoContato] = useState(false);
+
+  const [isEditarContatoOpen, setIsEditarContatoOpen] = useState(false);
+  const [contatoParaEditar, setContatoParaEditar] = useState(null);
+
 
   const carregarArquivos = useCallback(async (negocioId) => {
     if (!negocioId) return;
@@ -96,17 +104,10 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     finally { setIsLoadingArquivos(false); }
   }, []);
 
-  const carregarContatosAssociados = useCallback(async (negocioId) => {
-    if(!negocioId) return;
-    setIsLoadingContatos(true);
-    try {
-      const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
-      if (error) throw error;
-      const contatos = (data || []).map(item => item.crm_contatos).filter(Boolean);
-      setContatosAssociados(contatos);
-    } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
-    finally { setIsLoadingContatos(false); }
-  }, []);
+  const forcarRecargaDeDados = useCallback(async () => {
+    if (!negocioInicial?.id) return;
+    await carregarDadosDetalhados();
+  }, [negocioInicial]);
 
   const carregarDadosDetalhados = useCallback(async () => {
     if (!negocioInicial?.id) { setLoading(false); return; }
@@ -148,7 +149,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         setAlertaEstagnacao(`Negócio novo, sem atividades há ${dias} dias.`);
       }
 
-      await carregarContatosAssociados(negocioInicial.id);
       await carregarArquivos(negocioInicial.id);
     } catch (error) {
       console.error("Erro ao carregar detalhes do negócio:", error);
@@ -156,34 +156,57 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     } finally {
       setLoading(false);
     }
-  }, [negocioInicial, onClose, carregarContatosAssociados, carregarArquivos]);
+  }, [negocioInicial, onClose, carregarArquivos]);
 
   useEffect(() => {
     if (isOpen) {
         setActiveTab('atividades');
-        setTermoBusca('');
-        setResultadosBusca([]);
         setEditingItem(null);
         carregarDadosDetalhados();
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
   useEffect(() => {
-    const buscarContatos = async () => {
-      if (termoBusca.length < 2) { setResultadosBusca([]); return; }
-      setIsSearching(true);
+    const buscarContatosParaVincular = async () => {
+      if (termoBuscaContato.length < 2) {
+        setResultadosBuscaContato([]);
+        return;
+      }
+      setIsBuscandoContato(true);
       try {
-        const idsAssociados = contatosAssociados.map(c => c.id);
-        const query = supabase.from('crm_contatos').select('*').ilike('nome', `%${termoBusca}%`).limit(5);
-        if (idsAssociados.length > 0) { query.not('id', 'in', `(${idsAssociados.join(',')})`); }
+        const { data: associadosData, error: associadosError } = await supabase
+            .from('crm_negocio_contatos')
+            .select('contato_id')
+            .eq('negocio_id', negocio.id);
+        if (associadosError) throw associadosError;
+        const idsAssociados = (associadosData || []).map(item => item.contato_id);
+
+        let query = supabase
+          .from('crm_contatos')
+          .select('id, nome, email')
+          .or(`nome.ilike.%${termoBuscaContato}%,email.ilike.%${termoBuscaContato}%`)
+          .limit(5);
+        
+        if (idsAssociados.length > 0) {
+          query = query.not('id', 'in', `(${idsAssociados.join(',')})`);
+        }
+        
         const { data, error } = await query;
         if (error) throw error;
-        setResultadosBusca(data || []);
-      } catch (error) { console.error("Erro ao buscar contatos:", error); } finally { setIsSearching(false); }
+        setResultadosBuscaContato(data || []);
+      } catch (error) {
+        console.error("Erro ao buscar contatos para vincular:", error);
+      } finally {
+        setIsBuscandoContato(false);
+      }
     };
-    const debounce = setTimeout(() => { buscarContatos(); }, 300);
+
+    const debounce = setTimeout(() => {
+      buscarContatosParaVincular();
+    }, 300);
+
     return () => clearTimeout(debounce);
-  }, [termoBusca, contatosAssociados]);
+  }, [termoBuscaContato, negocio]);
   
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -221,24 +244,58 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     } catch (error) { console.error("Erro ao excluir:", error); alert("Não foi possível excluir o arquivo."); }
   };
   
-  const handleAssociarContato = async (contatoParaAdicionar) => {
-    try {
-      const { error } = await supabase.from('crm_negocio_contatos').insert({ negocio_id: negocio.id, contato_id: contatoParaAdicionar.id });
-      if (error) throw error;
-      await carregarContatosAssociados(negocio.id);
-      setTermoBusca('');
-      setResultadosBusca([]);
-    } catch (error) { console.error("Erro ao associar contato:", error); alert('Não foi possível associar o contato.'); }
+  const handleAbrirVincularContato = () => setIsVincularContatoOpen(true);
+  
+  const handleFecharVincularContato = () => {
+    setIsVincularContatoOpen(false);
+    setTermoBuscaContato('');
+    setResultadosBuscaContato([]);
   };
 
-  const handleDesvincularContato = async (contatoIdParaRemover) => {
-    if (!window.confirm("Desvincular este contato?")) return;
+  const handleVincularContatoExistente = async (contatoId) => {
     try {
-      const { error } = await supabase.from('crm_negocio_contatos').delete().match({ negocio_id: negocio.id, contato_id: contatoIdParaRemover });
+      const { error } = await supabase.from('crm_negocio_contatos').insert({ negocio_id: negocio.id, contato_id: contatoId });
       if (error) throw error;
-      setContatosAssociados(contatosAssociados.filter(c => c.id !== contatoIdParaRemover));
-    } catch(error) { console.error("Erro ao desvincular contato:", error); alert('Não foi possível desvincular o contato.'); }
+      await forcarRecargaDeDados();
+      handleFecharVincularContato();
+    } catch (error) {
+      console.error("Erro ao vincular contato:", error);
+      alert('Não foi possível vincular o contato.');
+    }
   };
+
+  const handleCriarEVincularContato = async () => {
+    if (!termoBuscaContato.trim()) return;
+    try {
+      const { data: novoContato, error: createError } = await supabase
+        .from('crm_contatos')
+        .insert({ nome: termoBuscaContato.trim() })
+        .select('id')
+        .single();
+      if (createError) throw createError;
+      
+      await handleVincularContatoExistente(novoContato.id);
+
+    } catch (error) {
+        console.error("Erro ao criar e vincular contato:", error);
+        alert('Não foi possível criar e vincular o novo contato.');
+    }
+  };
+
+  const handleAbrirEditarContato = (contato) => {
+    setContatoParaEditar(contato);
+    setIsEditarContatoOpen(true);
+  };
+
+  const handleFecharEditarContato = () => {
+    setIsEditarContatoOpen(false);
+    setContatoParaEditar(null);
+  };
+
+  const handleContatoAtualizado = () => {
+    forcarRecargaDeDados();
+  };
+
 
   const handleSaveTitulo = async () => {
     if (!novoTitulo.trim() || novoTitulo === negocio.titulo) { setIsTituloEditing(false); return; }
@@ -299,7 +356,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       
       if(error) throw error;
       
-      // --- NOVO CÓDIGO PARA REGISTRAR EVENTO ---
       try {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -322,7 +378,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       } catch (eventError) {
         console.error("Erro ao registrar evento de mudança de etapa:", eventError);
       }
-      // --- FIM DO NOVO CÓDIGO ---
       
       setNegocio(data);
       onDataChange(data);
@@ -398,7 +453,17 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
               
               <div className="flex flex-grow overflow-hidden">
                 <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                  <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} />
+                  {/* --- 2. PASSAMOS A PROP 'onEmpresaClick' PARA A BARRA LATERAL --- */}
+                  <BarraLateral 
+                    negocio={negocio} 
+                    etapasDoFunil={etapasDoFunil} 
+                    listaDeUsers={listaDeUsers} 
+                    onDataChange={onDataChange}
+                    onAdicionarContato={handleAbrirVincularContato}
+                    onForcarRecarga={forcarRecargaDeDados}
+                    onEditarContato={handleAbrirEditarContato}
+                    onEmpresaClick={onEmpresaClick}
+                  />
                 </div>
                 <div className="w-2/3 flex flex-col overflow-hidden">
                   <div className="border-b border-gray-200 dark:border-gray-700">
@@ -469,6 +534,56 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             </div>
           </div>
         </div>
+      )}
+      {isVincularContatoOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-start pt-16">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Vincular Contato</h3>
+                <div className="relative mt-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nome ou e-mail..."
+                        value={termoBuscaContato}
+                        onChange={(e) => setTermoBuscaContato(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+                <div className="mt-4 max-h-64 overflow-y-auto">
+                    {isBuscandoContato ? (
+                        <div className="text-center p-4 text-gray-500">Buscando...</div>
+                    ) : (
+                        <ul className="divide-y dark:divide-gray-700">
+                            {resultadosBuscaContato.map(contato => (
+                                <li key={contato.id} onClick={() => handleVincularContatoExistente(contato.id)} className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                                    <p className="font-semibold text-gray-800 dark:text-gray-100">{contato.nome}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">{contato.email}</p>
+                                </li>
+                            ))}
+                            {termoBuscaContato.length >= 2 && resultadosBuscaContato.length === 0 && (
+                                <li onClick={handleCriarEVincularContato} className="p-3 flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/50 cursor-pointer">
+                                    <PlusCircle size={18} />
+                                    <span>Criar e vincular novo contato: "{termoBuscaContato}"</span>
+                                </li>
+                            )}
+                        </ul>
+                    )}
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button onClick={handleFecharVincularContato} className="py-2 px-4 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+      {isEditarContatoOpen && (
+        <EditContactModal
+          isOpen={isEditarContatoOpen}
+          onClose={handleFecharEditarContato}
+          contato={contatoParaEditar}
+          onContatoAtualizado={handleContatoAtualizado}
+        />
       )}
     </>
   );

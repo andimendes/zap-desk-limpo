@@ -7,10 +7,9 @@ import CrmDashboard from './CrmDashboard';
 import CrmListView from './CrmListView';
 import AddNegocioModal from './AddNegocioModal';
 import NegocioDetalhesModal from './NegocioDetalhesModal';
+import EmpresaDetalhesModal from './EmpresaDetalhesModal'; // --- 1. IMPORTAMOS O NOVO MODAL ---
 import FiltrosPopover from './FiltrosPopover';
 import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
-
-// --- 1. IMPORTE O ERROR BOUNDARY ---
 import ErrorBoundary from '../ErrorBoundary';
 
 const PaginaCRM = () => {
@@ -28,6 +27,9 @@ const PaginaCRM = () => {
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const [termoPesquisaDebounced, setTermoPesquisaDebounced] = useState('');
+
+  // --- 2. NOVOS ESTADOS PARA GERIR O MODAL DA EMPRESA ---
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
 
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
@@ -99,10 +101,16 @@ const PaginaCRM = () => {
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   const handleDataChange = () => { fetchDadosDoFunil(); setNegocioSelecionado(null); };
 
+  // --- 3. FUNÇÃO PARA ABRIR O MODAL DA EMPRESA ---
+  const handleAbrirDetalhesEmpresa = (empresa) => {
+    setEmpresaSelecionada(empresa);
+    // Fechamos o modal do negócio para evitar sobreposição
+    setNegocioSelecionado(null);
+  };
+
   return (
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
-        {/* ... (resto do JSX do header não mudou) ... */}
         <header className="mb-6">
           <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-baseline gap-4">
@@ -146,7 +154,6 @@ const PaginaCRM = () => {
       </div>
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
       
-      {/* --- 2. ENVOLVA O MODAL COM O ERROR BOUNDARY --- */}
       {negocioSelecionado && (
         <ErrorBoundary>
             <NegocioDetalhesModal
@@ -156,8 +163,19 @@ const PaginaCRM = () => {
                 onDataChange={handleDataChange}
                 etapasDoFunil={etapasDoFunil}
                 listaDeUsers={listaDeUsers}
+                // --- 4. PASSAMOS A NOVA FUNÇÃO PARA O MODAL DE NEGÓCIO ---
+                onEmpresaClick={handleAbrirDetalhesEmpresa}
             />
         </ErrorBoundary>
+      )}
+
+      {/* --- 5. RENDERIZAMOS O NOVO MODAL DA EMPRESA --- */}
+      {empresaSelecionada && (
+        <EmpresaDetalhesModal
+          isOpen={!!empresaSelecionada}
+          onClose={() => setEmpresaSelecionada(null)}
+          empresa={empresaSelecionada}
+        />
       )}
     </>
   );

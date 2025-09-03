@@ -5,7 +5,9 @@ import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import BuscaECria from './BuscaECria';
 
-// Adicionamos valores padrão para as props para evitar erros
+// --- CORREÇÃO APLICADA AQUI ---
+// Adicionamos 'etapas = []' para criar uma "rede de segurança".
+// Se a lista de etapas não for enviada, o componente usará uma lista vazia por padrão, evitando o erro.
 const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, leadData }) => {
   const { session } = useAuth();
   
@@ -32,7 +34,11 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
       // Resetar a etapa inicial caso as etapas mudem (ex: funil diferente)
       if (etapas.length > 0 && !etapaId) {
         setEtapaId(etapas[0].id);
+      } else if (etapas.length === 0) {
+        // Garante que o ID da etapa seja limpo se não houver etapas
+        setEtapaId('');
       }
+      
       const fetchUsers = async () => {
         const { data, error } = await supabase.from('profiles').select('id, full_name').order('full_name', { ascending: true });
         if (error) {
