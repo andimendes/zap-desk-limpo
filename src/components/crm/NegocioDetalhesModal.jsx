@@ -1,4 +1,4 @@
-// src/components/crm/NegocioDetalhesModal.jsx (VERSÃO FINAL CORRIGIDA)
+// src/components/crm/NegocioDetalhesModal.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
@@ -8,7 +8,6 @@ import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
-import AddLeadModal from './AddLeadModal';
 
 const EditComposer = ({ item, onSave, onCancel }) => {
     const [editedContent, setEditedContent] = useState(item.conteudo);
@@ -122,15 +121,22 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       setNovoTitulo(updatedNegocio.titulo);
       
       const [focoRes, atividadesRes, notasRes] = await Promise.all([
-        supabase.from('crm_atividades').select('*').eq('negocio_id', negocioInicial.id).eq('concluida', false).gte('data_atividade', new Date().toISOString()).order('data_atividade', { ascending: true }).limit(1).maybeSingle(),
-        supabase.from('crm_atividades').select('*').eq('negocio_id', negocioInicial.id).order('data_atividade', { ascending: false }),
-        supabase.from('crm_notas').select('*').eq('negocio_id', negocioInicial.id).order('created_at', { ascending: false })
+        supabase.from('crm_atividades').select('*, profiles(full_name, avatar_url)').eq('negocio_id', negocioInicial.id).eq('concluida', false).gte('data_atividade', new Date().toISOString()).order('data_atividade', { ascending: true }).limit(1).maybeSingle(),
+        supabase.from('crm_atividades').select('*, profiles(full_name, avatar_url)').eq('negocio_id', negocioInicial.id).order('data_atividade', { ascending: false }),
+        supabase.from('crm_notas').select('*, profiles(full_name, avatar_url)').eq('negocio_id', negocioInicial.id).order('created_at', { ascending: false })
       ]);
-      if (focoRes.error || atividadesRes.error || notasRes.error) throw new Error('Erro ao buscar dados relacionados.');
+      
+      if (focoRes.error || atividadesRes.error || notasRes.error) {
+        console.error("Erro do Supabase:", focoRes.error || atividadesRes.error || notasRes.error);
+        throw new Error('Erro ao buscar dados relacionados.');
+      }
+      
       setProximaAtividade(focoRes.data);
       const atividadesHistorico = (atividadesRes.data || []).filter(at => at.id !== focoRes.data?.id);
-      const atividadesFormatadas = atividadesHistorico.map(item => ({ tipo: 'atividade', data: new Date(item.data_atividade), conteudo: item.descricao, concluida: item.concluida, original: item }));
-      const notasFormatadas = (notasRes.data || []).map(item => ({ tipo: 'nota', data: new Date(item.created_at), conteudo: item.conteudo, original: item }));
+      
+      const atividadesFormatadas = atividadesHistorico.map(item => ({ tipo: 'atividade', data: new Date(item.data_atividade), conteudo: item.descricao, concluida: item.concluida, autor: item.profiles, original: item }));
+      const notasFormatadas = (notasRes.data || []).map(item => ({ tipo: 'nota', data: new Date(item.created_at), conteudo: item.conteudo, autor: item.profiles, original: item }));
+      
       const historicoUnificado = [...atividadesFormatadas, ...notasFormatadas].sort((a, b) => b.data - a.data);
       setHistorico(historicoUnificado);
       
@@ -282,11 +288,49 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   
   const handleMudarEtapa = async (novaEtapaId) => {
     try {
-      const { data, error } = await supabase.from('crm_negocios').update({ etapa_id: novaEtapaId }).eq('id', negocio.id).select('*, responsavel:profiles(full_name)').single();
+      const etapaAnteriorId = negocio.etapa_id;
+
+      const { data, error } = await supabase
+        .from('crm_negocios')
+        .update({ etapa_id: novaEtapaId })
+        .eq('id', negocio.id)
+        .select('*, responsavel:profiles(full_name)')
+        .single();
+      
       if(error) throw error;
+      
+      // --- NOVO CÓDIGO PARA REGISTRAR EVENTO ---
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const etapaAnterior = etapasDoFunil.find(e => e.id === etapaAnteriorId);
+        const etapaNova = etapasDoFunil.find(e => e.id === novaEtapaId);
+
+        if (user && etapaAnterior && etapaNova) {
+          await supabase
+            .from('crm_eventos_negocio')
+            .insert({
+              negocio_id: negocio.id,
+              user_id: user.id,
+              tipo_evento: 'MUDANCA_ETAPA',
+              detalhes: {
+                de: etapaAnterior.nome_etapa,
+                para: etapaNova.nome_etapa,
+              }
+            });
+        }
+      } catch (eventError) {
+        console.error("Erro ao registrar evento de mudança de etapa:", eventError);
+      }
+      // --- FIM DO NOVO CÓDIGO ---
+      
       setNegocio(data);
       onDataChange(data);
-    } catch (error) { console.error("Erro ao mudar etapa:", error); alert("Não foi possível alterar a etapa."); }
+
+    } catch (error) { 
+      console.error("Erro ao mudar etapa:", error); 
+      alert("Não foi possível alterar a etapa."); 
+    }
   };
   
   const handleMarcarStatus = async (status) => {
