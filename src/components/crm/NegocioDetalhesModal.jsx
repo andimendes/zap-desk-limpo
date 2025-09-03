@@ -93,9 +93,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                         <div className="flex-grow overflow-y-auto pr-2">
                           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Histórico</h3>
                           <ul className="-ml-2">
-                            {/* --- SUSPEITO 2 --- */}
-                            {/* {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))} */}
-                            {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
+                            {historico.map((item, index) => (<ItemLinhaDoTempo key={`${item.tipo}-${item.original.id}-${index}`} item={item} onAction={handleAcaoHistorico} />))}                          {historico.length === 0 && <p className="text-sm text-gray-500">Nenhuma atividade ou nota no histórico.</p>}
                           </ul>
                         </div>
                       </div>
