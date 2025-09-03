@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 
-const AddNegocioModal = ({ isOpen, onClose, etapas, onNegocioAdicionado, leadData }) => {
+const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, leadData }) => {
   const { session } = useAuth();
   
   const [titulo, setTitulo] = useState('');
