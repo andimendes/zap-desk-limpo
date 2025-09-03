@@ -47,7 +47,6 @@ const differenceInDays = (dateLeft, dateRight) => {
     return Math.round(diff / (1000 * 60 * 60 * 24));
 };
 
-// --- AJUSTE APLICADO AQUI ---
 const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     const etapaAtualIndex = etapas.findIndex(e => e.id === etapaAtualId);
     return (
@@ -102,7 +101,11 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data, error } = await supabase.from('crm_negocio_contatos').select('crm_contatos(*)').eq('negocio_id', negocioId);
       if (error) throw error;
-      const contatos = data.map(item => item.crm_contatos).filter(Boolean);
+      
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Se 'data' for null (nenhum contato encontrado), tratamos como um array vazio antes do .map()
+      const contatos = (data || []).map(item => item.crm_contatos).filter(Boolean);
+      
       setContatosAssociados(contatos || []);
     } catch (error) { console.error("Erro ao carregar contatos associados:", error); } 
     finally { setIsLoadingContatos(false); }
