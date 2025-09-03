@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce'; // Assumindo que você pode criar este hook (código abaixo)
+import { useDebounce } from '@/hooks/useDebounce.js'; // Assumindo que você pode criar este hook (código abaixo)
 
 // Crie este hook em um arquivo como src/hooks/useDebounce.js
 /*
