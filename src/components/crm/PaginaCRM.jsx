@@ -7,9 +7,10 @@ import CrmDashboard from './CrmDashboard';
 import CrmListView from './CrmListView';
 import AddNegocioModal from './AddNegocioModal';
 import NegocioDetalhesModal from './NegocioDetalhesModal';
-import EmpresaDetalhesModal from './EmpresaDetalhesModal'; // --- 1. IMPORTAMOS O NOVO MODAL ---
+import EmpresaDetalhesModal from './EmpresaDetalhesModal';
 import FiltrosPopover from './FiltrosPopover';
-import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2 } from 'lucide-react';
+// --- 1. IMPORTAMOS NOVOS ÍCONES PARA OS FILTROS ---
+import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import ErrorBoundary from '../ErrorBoundary';
 
 const PaginaCRM = () => {
@@ -27,9 +28,10 @@ const PaginaCRM = () => {
   const [negocioSelecionado, setNegocioSelecionado] = useState(null);
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const [termoPesquisaDebounced, setTermoPesquisaDebounced] = useState('');
-
-  // --- 2. NOVOS ESTADOS PARA GERIR O MODAL DA EMPRESA ---
   const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
+
+  // --- 2. NOVO ESTADO PARA CONTROLAR O FILTRO DE STATUS (A NOSSA LÓGICA PRINCIPAL) ---
+  const [filtroStatus, setFiltroStatus] = useState('Ativo'); // 'Ativo', 'Ganho', 'Perdido'
 
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
@@ -56,6 +58,7 @@ const PaginaCRM = () => {
     fetchData();
   }, []);
 
+  // --- 3. ATUALIZAMOS A FUNÇÃO DE BUSCA PARA INCLUIR O NOVO FILTRO DE STATUS ---
   const fetchDadosDoFunil = useCallback(async () => {
     if (typeof funilSelecionadoId !== 'string' || funilSelecionadoId.length < 30) {
       setNegocios([]);
@@ -67,25 +70,29 @@ const PaginaCRM = () => {
       const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
       if (etapasError) throw etapasError;
       setEtapasDoFunil(etapasData || []);
+      
+      // A busca por etapas só faz sentido para negócios 'Ativos'
       const etapaIds = (etapasData || []).map(e => e.id);
-      if (etapaIds.length > 0) {
-        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), empresa:crm_empresas(nome_fantasia), etapa_modificada_em').in('etapa_id', etapaIds).eq('status', 'Ativo');
+      
+      if (etapaIds.length > 0 || filtroStatus !== 'Ativo') {
+        let query = supabase.from('crm_negocios').select('*, responsavel:profiles(full_name, avatar_url), empresa:crm_empresas(nome_fantasia), etapa_modificada_em');
+        
+        // AQUI ESTÁ A MUDANÇA PRINCIPAL: Usamos o estado 'filtroStatus' na query
+        query = query.eq('status', filtroStatus);
+
+        // Se o status for 'Ativo', filtramos pelas etapas do funil selecionado
+        if (filtroStatus === 'Ativo') {
+            query = query.in('etapa_id', etapaIds);
+        }
+
         if (filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
         if (termoPesquisaDebounced) query = query.or(`titulo.ilike.%${termoPesquisaDebounced}%`);
+
         const { data: negociosData, error: negociosError } = await query;
         if (negociosError) throw negociosError;
-        const negociosIds = (negociosData || []).map(n => n.id);
-        if (negociosIds.length > 0) {
-          const { data: tarefas } = await supabase.from('crm_atividades').select('negocio_id').in('negocio_id', negociosIds).eq('concluida', false);
-          const tarefasValidas = Array.isArray(tarefas) ? tarefas : [];
-          const negociosComTarefas = new Set(tarefasValidas.map(t => t.negocio_id));
-          const negociosEnriquecidos = negociosData.map(negocio => ({ ...negocio, tem_tarefa_futura: negociosComTarefas.has(negocio.id) }));
-          setNegocios(negociosEnriquecidos);
-        } else {
-          setNegocios([]);
-        }
+        setNegocios(negociosData || []);
       } else {
         setNegocios([]);
       }
@@ -95,16 +102,14 @@ const PaginaCRM = () => {
     } finally {
       setLoadingNegocios(false);
     }
-  }, [funilSelecionadoId, filtros, termoPesquisaDebounced]);
+  }, [funilSelecionadoId, filtros, termoPesquisaDebounced, filtroStatus]); // Adicionamos filtroStatus como dependência
 
   useEffect(() => { fetchDadosDoFunil(); }, [fetchDadosDoFunil]);
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   const handleDataChange = () => { fetchDadosDoFunil(); setNegocioSelecionado(null); };
 
-  // --- 3. FUNÇÃO PARA ABRIR O MODAL DA EMPRESA ---
   const handleAbrirDetalhesEmpresa = (empresa) => {
     setEmpresaSelecionada(empresa);
-    // Fechamos o modal do negócio para evitar sobreposição
     setNegocioSelecionado(null);
   };
 
@@ -127,10 +132,15 @@ const PaginaCRM = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input type="text" placeholder="Pesquisar negócios..." className="pl-10 pr-4 py-2 w-64 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700" value={termoPesquisa} onChange={(e) => setTermoPesquisa(e.target.value)} />
               </div>
-              <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
-                <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button>
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button>
-              </div>
+              
+              {/* --- 4. RENDERIZAMOS OS BOTÕES DE MODO DE VISUALIZAÇÃO APENAS PARA NEGÓCIOS 'ATIVOS' --- */}
+              {filtroStatus === 'Ativo' && (
+                <div className="bg-gray-200 dark:bg-gray-700 p-1 rounded-lg flex items-center">
+                  <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Kanban"><LayoutGrid size={20} /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow' : 'text-gray-500 dark:text-gray-400'}`} title="Visualização em Lista"><List size={20} /></button>
+                </div>
+              )}
+
               <div className="relative">
                 <button ref={filtrosButtonRef} onClick={() => setIsFiltrosOpen(!isFiltrosOpen)} className="flex items-center gap-2 py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
                   <SlidersHorizontal size={16} /> Filtros
@@ -141,6 +151,20 @@ const PaginaCRM = () => {
             </div>
           </div>
         </header>
+        
+        {/* --- 5. ADICIONAMOS A BARRA DE FILTROS DE STATUS --- */}
+        <div className="flex items-center gap-2 mb-6 border-b dark:border-gray-700">
+            <button onClick={() => setFiltroStatus('Ativo')} className={`flex items-center gap-2 py-3 px-4 text-sm font-medium ${filtroStatus === 'Ativo' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                <LayoutGrid size={16} /> Em Andamento
+            </button>
+            <button onClick={() => setFiltroStatus('Ganho')} className={`flex items-center gap-2 py-3 px-4 text-sm font-medium ${filtroStatus === 'Ganho' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                <CheckCircle2 size={16} /> Ganhos
+            </button>
+            <button onClick={() => setFiltroStatus('Perdido')} className={`flex items-center gap-2 py-3 px-4 text-sm font-medium ${filtroStatus === 'Perdido' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                <XCircle size={16} /> Perdidos
+            </button>
+        </div>
+
         <section className="mb-6">
           <CrmDashboard 
             filtros={filtros}
@@ -148,8 +172,22 @@ const PaginaCRM = () => {
             funilId={funilSelecionadoId}
           />
         </section>
+        
+        {/* --- 6. AJUSTAMOS A LÓGICA DE RENDERIZAÇÃO DO CONTEÚDO PRINCIPAL --- */}
         <main>
-          {loadingNegocios ? <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div> : viewMode === 'kanban' ? <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} /> : <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />}
+          {loadingNegocios ? (
+            <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div>
+          ) : filtroStatus === 'Ativo' ? (
+            // Se o filtro for 'Ativo', respeitamos a escolha do utilizador entre Kanban e Lista
+            viewMode === 'kanban' ? (
+              <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} />
+            ) : (
+              <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />
+            )
+          ) : (
+            // Para 'Ganhos' e 'Perdidos', forçamos a visualização em lista
+            <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />
+          )}
         </main>
       </div>
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
@@ -163,13 +201,11 @@ const PaginaCRM = () => {
                 onDataChange={handleDataChange}
                 etapasDoFunil={etapasDoFunil}
                 listaDeUsers={listaDeUsers}
-                // --- 4. PASSAMOS A NOVA FUNÇÃO PARA O MODAL DE NEGÓCIO ---
                 onEmpresaClick={handleAbrirDetalhesEmpresa}
             />
         </ErrorBoundary>
       )}
 
-      {/* --- 5. RENDERIZAMOS O NOVO MODAL DA EMPRESA --- */}
       {empresaSelecionada && (
         <EmpresaDetalhesModal
           isOpen={!!empresaSelecionada}

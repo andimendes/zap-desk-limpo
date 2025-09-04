@@ -2,16 +2,33 @@ import React from 'react';
 import { User, AlertTriangle, Paperclip, Ticket } from 'lucide-react';
 import { getSlaStatus } from '../../utils/sla';
 
-const DashboardStats = ({ chamados, tarefas }) => {
+// O componente agora não precisa mais da lista de 'tarefas'
+const DashboardStats = ({ chamados }) => {
+    // A propriedade 'chamados' que recebemos agora é um array vazio no início,
+    // então adicionamos uma verificação para evitar erros.
+    if (!chamados) {
+        return null; // Não renderiza nada se os chamados ainda não foram carregados
+    }
+
     const atrasados = chamados.filter(c => c.status !== 'Resolvido' && c.status !== 'Cancelado' && getSlaStatus(c.created_at, c.sla_resolucao_horas).isAtrasado).length;
     const aguardandoCliente = chamados.filter(c => c.status === 'Aguardando Cliente').length;
-    const chamadosIdsComTarefas = new Set(tarefas.map(t => t.chamado_id));
-    const semTarefas = chamados.filter(c => !chamadosIdsComTarefas.has(c.id) && c.status !== 'Resolvido' && c.status !== 'Cancelado').length;
+    
+    // --- LÓGICA CORRIGIDA ---
+    // Agora, para saber os chamados "Sem Tarefas", apenas verificamos se o campo 
+    // `total_tarefas` (que vem da nossa View) é nulo ou zero.
+    const semTarefas = chamados.filter(c => 
+        (c.total_tarefas === null || c.total_tarefas === 0) && 
+        c.status !== 'Resolvido' && 
+        c.status !== 'Cancelado'
+    ).length;
     
     const StatCard = ({ title, value, icon }) => (
         <div className="bg-white p-4 rounded-lg shadow-sm flex items-center gap-4">
             {icon}
-            <div><p className="text-2xl font-bold text-gray-800">{value}</p><p className="text-sm text-gray-500">{title}</p></div>
+            <div>
+                <p className="text-2xl font-bold text-gray-800">{value}</p>
+                <p className="text-sm text-gray-500">{title}</p>
+            </div>
         </div>
     );
 
