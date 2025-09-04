@@ -12,10 +12,8 @@ import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
 // Páginas Principais
 import ChamadosPage from '@/pages/ChamadosPage';
-import ClientesPage from '@/pages/ClientesPage';
-import CrmPage from '@/pages/CrmPage';
-// --- IMPORTAMOS A NOSSA NOVA PÁGINA ---
-import ProspeccaoPage from '@/pages/ProspeccaoPage';
+import CrmPage from '@/pages/CrmPage'; // RE-ADICIONADO
+import EmpresasPage from '@/pages/EmpresasPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
 import DashboardPage from '@/pages/DashboardPage';
@@ -46,11 +44,10 @@ const AppContent = () => {
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chamados" element={<ChamadosPage />} />
-          <Route path="/clientes" element={<ClientesPage />} />
-          <Route path="/crm" element={<CrmPage />} />
           
-          {/* --- ADICIONAMOS A ROTA PARA A NOVA PÁGINA AQUI --- */}
-          <Route path="/prospeccao" element={<ProspeccaoPage />} />
+          {/* --- ROTAS CORRIGIDAS --- */}
+          <Route path="/crm" element={<CrmPage />} />
+          <Route path="/empresas" element={<EmpresasPage />} />
 
           <Route path="/admin/*" element={<AdminPage />} />
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />

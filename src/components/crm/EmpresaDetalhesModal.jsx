@@ -1,150 +1,143 @@
-// src/components/crm/EmpresaFormModal.jsx
+// src/components/crm/EmpresaDetalhesModal.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2 } from 'lucide-react';
+import { 
+    Loader2, X, Building, User, Briefcase, Pencil, 
+    Globe, MapPin, FileText, Fingerprint, Phone 
+} from 'lucide-react';
+import EmpresaFormModal from './EmpresaFormModal';
 
-// Função para buscar endereço (pode ser movida para um arquivo de 'utils' no futuro)
-const buscarEndereco = async (tipo, valor) => {
-    try {
-        let url;
-        if (tipo === 'cnpj') {
-            // Usaremos um proxy CORS para acessar a API da ReceitaWS
-            url = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.receitaws.com.br/v1/cnpj/${valor.replace(/\D/g, '')}`)}`;
-        } else if (tipo === 'cep') {
-            url = `https://viacep.com.br/ws/${valor.replace(/\D/g, '')}/json/`;
-        } else {
-            return null;
-        }
-
-        const response = await fetch(url);
-        let data = await response.json();
-
-        // Tratamento para o proxy CORS
-        if (tipo === 'cnpj') {
-            data = JSON.parse(data.contents);
-            if (data.status === "ERROR") throw new Error(data.message);
-            return {
-                razao_social: data.nome,
-                nome_fantasia: data.fantasia || data.nome,
-                cnpj: data.cnpj,
-                telefone: data.telefone,
-                endereco: `${data.logradouro}, ${data.numero} - ${data.bairro}, ${data.municipio} - ${data.uf}, ${data.cep}`
-            };
-        }
-        
-        // Tratamento para ViaCEP
-        if (data.erro) throw new Error('CEP não encontrado');
-        return {
-            endereco: `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}, ${data.cep}`
-        };
-
-    } catch (error) {
-        console.error(`Erro ao buscar ${tipo}:`, error);
-        return null;
-    }
-};
+// Componente auxiliar para exibir os detalhes de forma padronizada
+const DetalheItem = ({ icon, label, children }) => (
+    <div>
+        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            {icon}
+            {label}
+        </label>
+        <div className="text-gray-800 dark:text-gray-200 text-base break-words">
+            {children || <span className="text-gray-400 italic">Não informado</span>}
+        </div>
+    </div>
+);
 
 
-const EmpresaFormModal = ({ isOpen, onClose, onSave, empresa }) => {
-  const [formData, setFormData] = useState({ nome_fantasia: '', razao_social: '', cnpj: '', telefone: '', site: '', endereco: '', segmento: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [buscando, setBuscando] = useState(false);
+const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => {
+  const [contatos, setContatos] = useState([]);
+  const [negocios, setNegocios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
-    if (empresa) setFormData({ nome_fantasia: empresa.nome_fantasia || '', razao_social: empresa.razao_social || '', cnpj: empresa.cnpj || '', telefone: empresa.telefone || '', site: empresa.site || '', endereco: empresa.endereco || '', segmento: empresa.segmento || '' });
-    else setFormData({ nome_fantasia: '', razao_social: '', cnpj: '', telefone: '', site: '', endereco: '', segmento: '' });
+    const carregarDetalhes = async () => {
+      if (!empresa?.id) return;
+      setLoading(true);
+      try {
+        const [contatosRes, negociosRes] = await Promise.all([
+          supabase.from('crm_contatos').select('*').eq('empresa_id', empresa.id),
+          supabase.from('crm_negocios').select('*').eq('empresa_id', empresa.id).eq('status', 'Ativo')
+        ]);
+        if (contatosRes.error) throw contatosRes.error;
+        if (negociosRes.error) throw negociosRes.error;
+        setContatos(contatosRes.data || []);
+        setNegocios(negociosRes.data || []);
+      } catch (error) {
+        console.error("Erro ao carregar detalhes da empresa:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (isOpen) carregarDetalhes();
   }, [empresa, isOpen]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleBuscaAutomatica = useCallback(async () => {
-      const { cnpj, endereco } = formData;
-      let dadosEncontrados = null;
-      setBuscando(true);
-
-      if (cnpj && cnpj.replace(/\D/g, '').length === 14) {
-          dadosEncontrados = await buscarEndereco('cnpj', cnpj);
-      } else if (!dadosEncontrados && endereco && endereco.replace(/\D/g, '').length === 8) {
-          dadosEncontrados = await buscarEndereco('cep', endereco);
-      }
-
-      if (dadosEncontrados) {
-          setFormData(prev => ({ ...prev, ...dadosEncontrados }));
-      }
-      setBuscando(false);
-  }, [formData.cnpj, formData.endereco]);
-
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.nome_fantasia) { setError('O nome da empresa é obrigatório.'); return; }
-    setLoading(true); setError('');
-    try {
-      let result;
-      if (empresa?.id) {
-        const { data, error: updateError } = await supabase.from('crm_empresas').update(formData).eq('id', empresa.id).select().single();
-        if (updateError) throw updateError;
-        result = data;
-      } else {
-        const { data, error: insertError } = await supabase.from('crm_empresas').insert(formData).select().single();
-        if (insertError) throw insertError;
-        result = data;
-      }
-      onSave(result);
-      onClose();
-    } catch (error) { console.error('Erro ao salvar empresa:', error); setError('Não foi possível salvar as alterações.'); } 
-    finally { setLoading(false); }
+  const handleSaveEmpresa = (empresaAtualizada) => {
+    onEmpresaUpdate(empresaAtualizada);
+    setIsEditModalOpen(false);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">{empresa ? 'Editar Empresa' : 'Nova Empresa'}</h2>
-        {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label htmlFor="nome_fantasia" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Nome Fantasia*</label><input id="nome_fantasia" name="nome_fantasia" type="text" value={formData.nome_fantasia} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" required /></div>
-            <div><label htmlFor="razao_social" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Razão Social</label><input id="razao_social" name="razao_social" type="text" value={formData.razao_social} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" /></div>
-          </div>
-          
-          <div>
-            <label htmlFor="cnpj" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">CNPJ</label>
-            <div className="flex gap-2">
-                <input id="cnpj" name="cnpj" type="text" value={formData.cnpj} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
-                <button type="button" onClick={handleBuscaAutomatica} disabled={buscando} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center font-semibold disabled:opacity-50">{buscando ? <Loader2 className="animate-spin" /> : 'Buscar'}</button>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl min-h-[500px] flex flex-col" onClick={e => e.stopPropagation()}>
+          <header className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
+            <div className='flex items-center gap-2'>
+              <Building className="text-gray-500" />
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{empresa?.nome_fantasia || "Detalhes da Empresa"}</h2>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label htmlFor="telefone" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Telefone</label><input id="telefone" name="telefone" type="tel" value={formData.telefone} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" /></div>
-            <div><label htmlFor="site" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Site</label><input id="site" name="site" type="url" placeholder="https://exemplo.com" value={formData.site} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" /></div>
-          </div>
-          
-          <div>
-            <label htmlFor="endereco" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">CEP ou Endereço Completo</label>
-             <div className="flex gap-2">
-                <input id="endereco" name="endereco" type="text" placeholder="Digite o CEP para buscar" value={formData.endereco} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
-                 <button type="button" onClick={handleBuscaAutomatica} disabled={buscando} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center font-semibold disabled:opacity-50">{buscando ? <Loader2 className="animate-spin" /> : 'Buscar'}</button>
+            <div>
+              <button onClick={() => setIsEditModalOpen(true)} className="text-gray-500 hover:text-blue-600 p-1" title="Editar Empresa"><Pencil size={18} /></button>
+              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ml-2"><X size={24} /></button>
             </div>
-          </div>
+          </header>
+          
+          <div className="p-6 flex-grow overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
+            ) : (
+              <div className="space-y-6">
+                {/* =================================== */}
+                {/* === NOVA SECÇÃO: DADOS DA EMPRESA === */}
+                {/* =================================== */}
+                <div>
+                    <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-4">Dados da Empresa</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+                        <DetalheItem icon={<Fingerprint size={14}/>} label="CNPJ">{empresa.cnpj}</DetalheItem>
+                        <DetalheItem icon={<FileText size={14}/>} label="Razão Social">{empresa.razao_social}</DetalheItem>
+                        <DetalheItem icon={<Phone size={14}/>} label="Telefone">{empresa.telefone}</DetalheItem>
+                        <DetalheItem icon={<Globe size={14}/>} label="Site">
+                            {empresa.site ? <a href={empresa.site.startsWith('http') ? empresa.site : `https://${empresa.site}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all">{empresa.site}</a> : null}
+                        </DetalheItem>
+                        <DetalheItem icon={<Briefcase size={14}/>} label="Segmento">{empresa.segmento}</DetalheItem>
+                        <DetalheItem icon={<MapPin size={14}/>} label="Endereço">{empresa.endereco}</DetalheItem>
+                    </div>
+                </div>
 
-          <div><label htmlFor="segmento" className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Segmento</label><input id="segmento" name="segmento" type="text" placeholder="Ex: Tecnologia, Varejo" value={formData.segmento} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" /></div>
+                <hr className="dark:border-gray-700" />
 
-          <div className="flex justify-end space-x-4 pt-4">
-            <button type="button" onClick={onClose} className="px-6 py-2 rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 font-semibold dark:bg-gray-600" disabled={loading}>Cancelar</button>
-            <button type="submit" className="px-6 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-semibold disabled:bg-blue-300" disabled={loading}>{loading && <Loader2 className="animate-spin mr-2" size={16} />}{loading ? 'A Salvar...' : 'Salvar'}</button>
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Coluna de Contatos */}
+                  <div>
+                    <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><User size={20} /> Contatos ({contatos.length})</h3>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                      {contatos.length > 0 ? (
+                        contatos.map(contato => (
+                          <div key={contato.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{contato.nome}</p>
+                            {contato.cargo && <p className="text-sm text-gray-500 dark:text-gray-300">{contato.cargo}</p>}
+                            {contato.email && <p className="text-sm text-gray-600 dark:text-gray-400">{contato.email}</p>}
+                            {contato.telefone && <p className="text-sm text-gray-600 dark:text-gray-400">{contato.telefone}</p>}
+                          </div>
+                        ))
+                      ) : <p className="text-sm text-gray-500 italic">Nenhum contato encontrado.</p>}
+                    </div>
+                  </div>
+
+                  {/* Coluna de Negócios */}
+                  <div>
+                     <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><Briefcase size={20} /> Negócios Ativos ({negocios.length})</h3>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                      {negocios.length > 0 ? (
+                        negocios.map(negocio => (
+                          <div key={negocio.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{negocio.titulo}</p>
+                            <p className="text-sm text-green-600 dark:text-green-400 font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</p>
+                          </div>
+                        ))
+                      ) : <p className="text-sm text-gray-500 italic">Nenhum negócio ativo.</p>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+
+      <EmpresaFormModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} empresa={empresa} onSave={handleSaveEmpresa} />
+    </>
   );
 };
 
-export default EmpresaFormModal;
+export default EmpresaDetalhesModal;
