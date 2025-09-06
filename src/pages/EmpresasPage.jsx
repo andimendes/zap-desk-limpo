@@ -1,8 +1,8 @@
 import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-// !! ATENÇÃO: VERIFIQUE E CORRIJA O CAMINHO NESTA LINHA ABAIXO !!
-import EmpresaFormUnificado from '../components/empresas/EmpresaFormUnificado'; 
+// --- CORREÇÃO FINAL: O caminho agora aponta para a pasta "clientes" (plural) ---
+import EmpresaFormUnificado from '../components/clientes/EmpresaFormUnificado'; 
 import { PlusCircle, Search, Building, Edit, Trash2 } from 'lucide-react';
 
 // Componente para exibir cada empresa na lista
