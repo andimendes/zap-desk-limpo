@@ -7,13 +7,12 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Páginas Públicas
 import AuthPage from '@/pages/AuthPage';
-import ConfirmacaoPage from '@/pages/ConfirmacaoPage';
-import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
 // Páginas Principais
 import ChamadosPage from '@/pages/ChamadosPage';
-import CrmPage from '@/pages/CrmPage'; // RE-ADICIONADO
 import EmpresasPage from '@/pages/EmpresasPage';
+import ContatosPage from '@/pages/ContatosPage.jsx'; 
+import CrmPage from '@/pages/CrmPage'; // RE-ADICIONADO
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage'; 
 import DashboardPage from '@/pages/DashboardPage';
@@ -45,9 +44,10 @@ const AppContent = () => {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chamados" element={<ChamadosPage />} />
           
-          {/* --- ROTAS CORRIGIDAS --- */}
-          <Route path="/crm" element={<CrmPage />} />
+          {/* --- ROTAS CORRIGIDAS E RE-ADICIONADAS --- */}
           <Route path="/empresas" element={<EmpresasPage />} />
+          <Route path="/contatos" element={<ContatosPage />} /> 
+          <Route path="/crm" element={<CrmPage />} /> {/* ROTA CRM DE VOLTA */}
 
           <Route path="/admin/*" element={<AdminPage />} />
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
@@ -71,14 +71,6 @@ const AppContent = () => {
 function App() {
   React.useEffect(() => {
     document.title = 'Zap Desk';
-    let favicon = document.querySelector("link[rel*='icon']");
-    if (!favicon) {
-      favicon = document.createElement('link');
-      favicon.rel = 'icon';
-      document.getElementsByTagName('head')[0].appendChild(favicon);
-    }
-    favicon.type = 'image/png';
-    favicon.href = 'https://f005.backblazeb2.com/file/Zap-Contabilidade/%C3%8Dcone+-+Colorido.png';
   }, []);
 
   return (
@@ -86,8 +78,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<AuthPage />} />
-          <Route path="/confirmacao" element={<ConfirmacaoPage />} />
-          <Route path="/update-password" element={<UpdatePasswordPage />} />
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>

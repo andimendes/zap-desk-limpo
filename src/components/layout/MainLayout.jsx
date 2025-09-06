@@ -4,9 +4,9 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Can from '../../contexts/Can';
 import { 
-    MessageSquare, Target, PhoneForwarded, BookOpen, 
+    MessageSquare, PhoneForwarded, BookOpen, 
     DollarSign, BarChart2, User as UserIcon, LogOut,
-    Settings, LayoutDashboard, Building 
+    Settings, LayoutDashboard, Building, Users, Target // Ícone Target importado
 } from 'lucide-react';
 
 const NavLink = ({ icon, children, to }) => {
@@ -48,8 +48,9 @@ export default function MainLayout({ children, onOpenSettings }) {
                     <NavLink icon={<MessageSquare size={20} />} to="/chamados">Chamados</NavLink>
                     
                     {/* === ESTRUTURA DE NAVEGAÇÃO CORRIGIDA === */}
-                    <NavLink icon={<Building size={20} />} to="/empresas">Clientes</NavLink>
-                    <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink>
+                    <NavLink icon={<Building size={20} />} to="/empresas">Empresas</NavLink>
+                    <NavLink icon={<Users size={20} />} to="/contatos">Contatos</NavLink>
+                    <NavLink icon={<Target size={20} />} to="/crm">CRM</NavLink> {/* LINK CRM DE VOLTA */}
                     
                     <p className="px-4 pt-4 pb-2 text-xs text-gray-400 uppercase font-semibold dark:text-gray-500">Futuros Módulos</p>
                     <NavLink icon={<PhoneForwarded size={20} />} to="/atendimento">Atendimento</NavLink>
