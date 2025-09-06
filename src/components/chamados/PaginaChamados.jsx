@@ -28,12 +28,8 @@ function PaginaChamados() {
 
     const fetchDados = useCallback(async (isSilent = false) => {
         if (!profile) return;
-        
-        if (!isSilent) {
-            setLoading(true);
-        }
+        if (!isSilent) setLoading(true);
         setError(null);
-        
         try {
             const { data: chamadosData, error: chamadosError } = await supabase.from('chamados_com_detalhes').select('*').order('created_at', { ascending: false });
             if (chamadosError) throw chamadosError;
@@ -49,7 +45,6 @@ function PaginaChamados() {
             
             setChamados(chamadosData || []);
             setTarefas(tarefasData || []);
-
         } catch (err) {
             setError(err.message);
         } finally {
@@ -67,6 +62,23 @@ function PaginaChamados() {
             return () => { supabase.removeChannel(channel); };
         }
     }, [fetchDados, profile]);
+
+    // --- NOVA CORREÇÃO ADICIONADA AQUI ---
+    // Este useEffect sincroniza o modal aberto com os dados mais recentes.
+    useEffect(() => {
+        // Se houver um chamado selecionado (modal aberto)
+        if (selectedChamado) {
+            // Procura a versão mais recente desse chamado na lista principal
+            const updatedChamado = chamados.find(c => c.id === selectedChamado.id);
+            // Se encontrar, atualiza o estado do modal.
+            // Se não encontrar (ex: foi excluído), fecha o modal.
+            if (updatedChamado) {
+                setSelectedChamado(updatedChamado);
+            } else {
+                setSelectedChamado(null);
+            }
+        }
+    }, [chamados]); // Esta função executa sempre que a lista 'chamados' é alterada.
     
     const handleChamadoDeleted = async (chamadoId) => {
         try {
@@ -137,7 +149,6 @@ function PaginaChamados() {
                     {colunas.map(status => (
                         <Droppable key={status} droppableId={status}>
                             {(provided) => (
-                                // --- CORREÇÃO APLICADA AQUI de "flex_col" para "flex-col" ---
                                 <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-200/50 dark:bg-gray-800/50 rounded-lg p-3 flex flex-col">
                                     <div className={`p-2 mb-3 border-l-4 ${colunaCores[status]}`}>
                                         <h3 className="font-bold text-lg text-gray-700 dark:text-gray-300 flex items-center justify-between">
