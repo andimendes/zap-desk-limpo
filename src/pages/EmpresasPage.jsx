@@ -1,16 +1,15 @@
-import React, 'react';
+import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { PlusCircle, Search, Building, User, Mail, Loader2, Edit, Trash2 } from 'lucide-react';
-import EmpresaFormUnificado from '../components/empresas/EmpresaFormUnificado'; // Verifique se este caminho está correto
-import { Link } from 'react-router-dom'; // Se aplicável para navegação
+import { PlusCircle, Search, Building, Edit, Trash2 } from 'lucide-react';
+import EmpresaFormUnificado from '../components/empresas/EmpresaFormUnificado';
 
 // Componente para exibir cada empresa na lista
 const EmpresaCard = ({ empresa, onEdit, onDelete }) => {
     const statusCores = {
-        'Potencial': 'bg-blue-100 text-blue-800',
-        'Cliente Ativo': 'bg-green-100 text-green-800',
-        'Inativo': 'bg-gray-100 text-gray-800'
+        'Potencial': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
+        'Cliente Ativo': 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+        'Inativo': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
     };
 
     return (
@@ -74,21 +73,22 @@ function EmpresasPage() {
     // --- Lógica de Filtro ---
     const filteredEmpresas = useMemo(() => {
         if (!searchTerm) return empresas;
+        const lowercasedTerm = searchTerm.toLowerCase();
         return empresas.filter(emp =>
-            (emp.nome_fantasia && emp.nome_fantasia.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (emp.razao_social && emp.razao_social.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (emp.nome_fantasia && emp.nome_fantasia.toLowerCase().includes(lowercasedTerm)) ||
+            (emp.razao_social && emp.razao_social.toLowerCase().includes(lowercasedTerm)) ||
             (emp.cnpj && emp.cnpj.includes(searchTerm))
         );
     }, [empresas, searchTerm]);
 
     // --- Funções de Ação (Handlers) ---
     const handleOpenCreateModal = () => {
-        setSelectedEmpresa({}); // <-- Passa um objeto vazio para o modo de criação
+        setSelectedEmpresa({});
         setIsModalOpen(true);
     };
     
     const handleOpenEditModal = (empresa) => {
-        setSelectedEmpresa(empresa); // <-- Passa os dados da empresa para o modo de edição
+        setSelectedEmpresa(empresa);
         setIsModalOpen(true);
     };
 
@@ -99,7 +99,7 @@ function EmpresasPage() {
 
     const handleSaveSuccess = () => {
         handleCloseModal();
-        fetchEmpresas(); // Recarrega a lista para mostrar as alterações
+        fetchEmpresas();
     };
     
     const handleDelete = async (empresaId) => {
@@ -108,7 +108,7 @@ function EmpresasPage() {
             if (error) {
                 alert('Erro ao excluir empresa: ' + error.message);
             } else {
-                fetchEmpresas(); // Recarrega a lista
+                fetchEmpresas();
             }
         }
     };
@@ -138,8 +138,8 @@ function EmpresasPage() {
                     />
                 </div>
 
-                {loading && <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
-                {error && <div className="text-center p-10 text-red-500">{error}</div>}
+                {loading && <div className="text-center p-8"><span className="text-lg">A carregar empresas...</span></div>}
+                {error && <div className="text-center p-8 text-red-500">{error}</div>}
 
                 {!loading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
