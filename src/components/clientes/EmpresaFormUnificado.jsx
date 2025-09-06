@@ -7,13 +7,9 @@ const InputField = ({ icon, ...props }) => (
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
             {icon}
         </div>
-        <input 
-            {...props} 
-            className="w-full p-2 pl-10 border rounded-lg transition bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:bg-gray-600 dark:focus:ring-blue-400 dark:focus:border-blue-400"
-        />
+        <input {...props} className="w-full p-2 pl-10 border rounded-lg transition bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:bg-gray-600 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
     </div>
 );
-
 
 const PLANOS = ['Plano Essencial', 'Plano Estratégico'];
 const MODULOS_ESTRATEGICO = [
@@ -26,12 +22,10 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     const [contatosVinculados, setContatosVinculados] = useState([]);
     const [loading, setLoading] = useState(false);
     const [cnpjError, setCnpjError] = useState('');
-
     const [searchTerm, setSearchTerm] = useState('');
     const [todosContatos, setTodosContatos] = useState([]);
     const [showContactList, setShowContactList] = useState(false);
 
-    // --- CORREÇÃO APLICADA AQUI ---
     useEffect(() => {
         const defaultData = {
             razao_social: '', nome_fantasia: '', cnpj: '', status: 'Potencial',
@@ -40,36 +34,26 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             email_principal: '', telefone_principal: '',
             rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '', cep: ''
         };
-
-        // Garante que initialData nunca é nulo, tratando-o como um objeto vazio se necessário.
-        const validInitialData = initialData || {}; 
+        const validInitialData = initialData || {};
         const mergedData = { ...defaultData, ...validInitialData };
         setFormData(mergedData);
-
-        // Esta verificação agora é segura, pois validInitialData é sempre um objeto.
         if (validInitialData.id) {
             const fetchContatosVinculados = async () => {
-                const { data, error } = await supabase
-                    .from('empresa_contato_junction')
-                    .select('*, crm_contatos(*)')
-                    .eq('empresa_id', validInitialData.id);
+                const { data, error } = await supabase.from('empresa_contato_junction').select('*, crm_contatos(*)').eq('empresa_id', validInitialData.id);
                 if (!error) {
-                    const contatosFormatados = data.map(item => ({
-                        ...item.crm_contatos,
-                        is_principal: item.is_principal
-                    }));
+                    const contatosFormatados = data.map(item => ({...item.crm_contatos, is_principal: item.is_principal}));
                     setContatosVinculados(contatosFormatados);
                 }
             };
             fetchContatosVinculados();
+        } else {
+            setContatosVinculados([]); // Limpa contatos ao criar nova empresa
         }
-
         const fetchTodosContatos = async () => {
             const { data, error } = await supabase.from('crm_contatos').select('*');
             if (!error) setTodosContatos(data);
         };
         fetchTodosContatos();
-
     }, [initialData]);
     
     const handleCnpjBlur = async (e) => {
@@ -81,14 +65,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
             if (response.ok) {
                 const data = await response.json();
-                setFormData(prev => ({
-                    ...prev,
-                    razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || '',
-                    cep: data.cep || '', rua: data.logradouro || '', numero: data.numero || '',
-                    complemento: data.complemento || '', bairro: data.bairro || '',
-                    cidade: data.municipio || '', estado: data.uf || '',
-                    email_principal: data.email || '', telefone_principal: `${data.ddd_telefone_1}` || '',
-                }));
+                setFormData(prev => ({ ...prev, razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || '', cep: data.cep || '', rua: data.logradouro || '', numero: data.numero || '', complemento: data.complemento || '', bairro: data.bairro || '', cidade: data.municipio || '', estado: data.uf || '', email_principal: data.email || '', telefone_principal: `${data.ddd_telefone_1}` || '' }));
             } else { setCnpjError('CNPJ inválido ou não encontrado.'); }
         } catch (error) { console.error("Erro ao buscar CNPJ:", error); setCnpjError('Erro ao buscar CNPJ.'); }
         setLoading(false);
@@ -105,9 +82,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
 
     const handleModuleChange = (modulo) => {
         setFormData(prev => {
-            const newModules = (prev.modulos_contratados || []).includes(modulo)
-                ? (prev.modulos_contratados || []).filter(m => m !== modulo)
-                : [...(prev.modulos_contratados || []), modulo];
+            const newModules = (prev.modulos_contratados || []).includes(modulo) ? (prev.modulos_contratados || []).filter(m => m !== modulo) : [...(prev.modulos_contratados || []), modulo];
             return { ...prev, modulos_contratados: newModules };
         });
     };
@@ -130,38 +105,13 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     };
 
     const handleSetPrincipal = (contatoId) => {
-        setContatosVinculados(contatosVinculados.map(c => ({
-            ...c,
-            is_principal: c.id === contatoId
-        })));
+        setContatosVinculados(contatosVinculados.map(c => ({...c, is_principal: c.id === contatoId })));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        
-        const dadosParaSalvar = {
-            id: formData.id,
-            razao_social: formData.razao_social,
-            nome_fantasia: formData.nome_fantasia,
-            cnpj: formData.cnpj,
-            status: formData.status,
-            inscricao_estadual: formData.inscricao_estadual,
-            inscricao_municipal: formData.inscricao_municipal,
-            enquadramento_fiscal: formData.enquadramento_fiscal,
-            plano: formData.plano,
-            modulos_contratados: formData.modulos_contratados,
-            email_principal: formData.email_principal,
-            telefone_principal: formData.telefone_principal,
-            rua: formData.rua,
-            numero: formData.numero,
-            complemento: formData.complemento,
-            bairro: formData.bairro,
-            cidade: formData.cidade,
-            estado: formData.estado,
-            cep: formData.cep
-        };
-
+        const dadosParaSalvar = { id: formData.id, razao_social: formData.razao_social, nome_fantasia: formData.nome_fantasia, cnpj: formData.cnpj, status: formData.status, inscricao_estadual: formData.inscricao_estadual, inscricao_municipal: formData.inscricao_municipal, enquadramento_fiscal: formData.enquadramento_fiscal, plano: formData.plano, modulos_contratados: formData.modulos_contratados, email_principal: formData.email_principal, telefone_principal: formData.telefone_principal, rua: formData.rua, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado, cep: formData.cep };
         let empresaSalva;
         if (dadosParaSalvar.id) {
             const { data, error } = await supabase.from(tabelaAlvo).update(dadosParaSalvar).eq('id', dadosParaSalvar.id).select().single();
@@ -173,37 +123,24 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             if (error) { console.error('Erro ao criar empresa:', error); alert('Erro ao criar empresa: ' + error.message); setLoading(false); return; }
             empresaSalva = data;
         }
-        
         await supabase.from('empresa_contato_junction').delete().eq('empresa_id', empresaSalva.id);
-        
-        const junctionData = contatosVinculados.map(contato => ({
-            empresa_id: empresaSalva.id,
-            contato_id: contato.id,
-            is_principal: !!contato.is_principal
-        }));
-
+        const junctionData = contatosVinculados.map(contato => ({ empresa_id: empresaSalva.id, contato_id: contato.id, is_principal: !!contato.is_principal }));
         if (junctionData.length > 0) {
             const { error: junctionError } = await supabase.from('empresa_contato_junction').insert(junctionData);
-            if (junctionError) {
-                alert('Erro ao vincular contatos: ' + junctionError.message);
-            }
+            if (junctionError) { alert('Erro ao vincular contatos: ' + junctionError.message); }
         }
-
         onSave();
         setLoading(false);
     };
     
-    const filteredContacts = searchTerm
-        ? todosContatos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()))
-        : [];
+    const filteredContacts = searchTerm ? todosContatos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())) : [];
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6 text-sm p-8 rounded-lg max-h-[90vh] overflow-y-auto w-full max-w-4xl relative bg-white dark:bg-gray-800 border dark:border-gray-700">
             <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{formData.id ? 'Editar Empresa' : 'Nova Empresa'}</h2>
-                <button type="button" onClick={onClose} className="p-2 rounded-full transition-colors text-gray-500 hover:bg-gray-100"><X size={24} /></button>
+                <button type="button" onClick={onClose} className="p-2 rounded-full transition-colors text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"><X size={24} /></button>
             </div>
-
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Dados Principais</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -217,7 +154,6 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     <InputField icon={<Phone size={16} />} name="telefone_principal" value={formData.telefone_principal || ''} onChange={handleChange} placeholder="Telefone Principal" />
                 </div>
             </div>
-
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Endereço</h3>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -230,7 +166,6 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     <div className="md:col-span-3"><InputField icon={<MapPin size={16} />} name="estado" value={formData.estado || ''} onChange={handleChange} placeholder="Estado" /></div>
                 </div>
             </div>
-
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Planos e Serviços</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -248,12 +183,11 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     </div>
                 )}
             </div>
-
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Contatos Vinculados</h3>
                 <div className="space-y-3">
                     {contatosVinculados.map(contato => (
-                        <div key={contato.id} className="p-3 border rounded-lg flex items-center justify-between bg-gray-50/50">
+                        <div key={contato.id} className="p-3 border rounded-lg flex items-center justify-between bg-gray-50/50 dark:bg-gray-700/50">
                            <div>
                                 <p className="font-semibold">{contato.nome}</p>
                                 <p className="text-xs text-gray-500">{contato.cargo || 'Sem cargo'}</p>
@@ -268,18 +202,11 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     ))}
                 </div>
                 <div className="relative mt-4">
-                    <InputField 
-                        icon={<Search size={16} />} 
-                        type="text"
-                        placeholder="Pesquisar e adicionar um contato existente..."
-                        value={searchTerm}
-                        onChange={(e) => { setSearchTerm(e.target.value); setShowContactList(true); }}
-                        onFocus={() => setShowContactList(true)}
-                    />
+                    <InputField icon={<Search size={16} />} type="text" placeholder="Pesquisar e adicionar um contato existente..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setShowContactList(true); }} onFocus={() => setShowContactList(true)} />
                     {showContactList && filteredContacts.length > 0 && (
-                        <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
+                        <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg dark:bg-gray-900 dark:border-gray-700">
                             {filteredContacts.map(contato => (
-                                <li key={contato.id} onClick={() => addContatoVinculado(contato)} className="p-2 hover:bg-gray-100 cursor-pointer">
+                                <li key={contato.id} onClick={() => addContatoVinculado(contato)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
                                     {contato.nome}
                                 </li>
                             ))}
@@ -287,7 +214,6 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     )}
                 </div>
             </div>
-
             <div className="flex justify-between items-center pt-6 border-t dark:border-gray-700">
                  <div>
                     <label className="font-semibold text-gray-700 dark:text-gray-300">Status da Empresa:</label>
