@@ -32,7 +32,7 @@ const InfoPanel = ({ chamado }) => {
                 </div>
             </div>
             <div className="border-t pt-6">
-                <h4 className="font-semibold text-gray-700 mb-3">Cliente</h4>
+                <h4 className="font-semibold text-gray-700 mb-3">Empresa</h4>
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Building className="text-blue-600" /></div>
                     <div>
@@ -55,18 +55,27 @@ const InfoPanel = ({ chamado }) => {
     );
 };
 
+// --- COMPONENTE CORRIGIDO ---
 const ActionPanel = ({ chamado }) => {
-    const email = null; 
-    const telefone = null;
+    // Agora buscamos os dados do contato principal que vêm da nossa VIEW
+    const email = chamado.contato_principal_email;
+    const telefone = chamado.contato_principal_telefone;
+    
     const telefoneNumeros = telefone?.replace(/\D/g, '');
-    const ActionButton = ({ icon, label, href, disabled }) => (<a href={href} target="_blank" rel="noopener noreferrer" className={`w-full flex items-center gap-3 p-3 text-sm font-medium rounded-lg transition-colors ${disabled ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-200'}`}>{icon}<span>{label}</span></a>);
+    const ActionButton = ({ icon, label, href, disabled }) => (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={`w-full flex items-center gap-3 p-3 text-sm font-medium rounded-lg transition-colors ${disabled ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'}`}>
+            {icon}
+            <span>{label}</span>
+        </a>
+    );
     const WhatsAppIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-green-500"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.269.655 4.505 1.905 6.344l-1.225 4.429 4.57-1.202z" /></svg>);
+    
     return (
         <div className="border-t pt-6 mt-6">
-            <h4 className="font-semibold text-gray-700 mb-3">Ações Rápidas</h4>
+            <h4 className="font-semibold text-gray-700 mb-3">Ações Rápidas (Contato Principal)</h4>
             <div className="space-y-2">
                 <ActionButton icon={<Mail size={18} className="text-blue-500" />} label="Enviar E-mail" href={`mailto:${email}`} disabled={!email} />
-                <ActionButton icon={<WhatsAppIcon />} label="Chamar no WhatsApp" href={`https://wa.me/${telefoneNumeros}`} disabled={!telefoneNumeros} />
+                <ActionButton icon={<WhatsAppIcon />} label="Chamar no WhatsApp" href={`https://wa.me/55${telefoneNumeros}`} disabled={!telefoneNumeros} />
                 <ActionButton icon={<Phone size={18} className="text-purple-500" />} label="Iniciar Chamada" href={`tel:${telefoneNumeros}`} disabled={!telefoneNumeros} />
                 <ActionButton icon={<Calendar size={18} className="text-red-500" />} label="Agendar Reunião" href="#" disabled />
             </div>
@@ -83,8 +92,8 @@ const AbaGeral = ({ chamado, onUpdate, onDelete }) => {
     useEffect(() => { setEditData(chamado); }, [chamado]);
     useEffect(() => { supabase.from('profiles').select('id, full_name').then(({ data }) => setAgentes(data || [])); }, []);
     const handleChange = (e) => setEditData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleStatusUpdate = async (newStatus) => { setLoading(true); setEditData(prev => ({ ...prev, status: newStatus })); const { error: updateError } = await supabase.from('chamados').update({ status: newStatus }).eq('id', chamado.id); if (updateError) { setError(updateError.message); setEditData(chamado); } else { onUpdate(); } setLoading(false); };
-    const handleSaveChanges = async () => { setLoading(true); setError(null); try { await supabase.from('chamados').update({ titulo: editData.titulo, descricao: editData.descricao, prioridade: editData.prioridade, atendente_id: editData.atendente_id || null }).eq('id', chamado.id); onUpdate(true); } catch (err) { setError(err.message); } finally { setLoading(false); } };
+    const handleStatusUpdate = async (newStatus) => { setLoading(true); setEditData(prev => ({ ...prev, status: newStatus })); const { error: updateError } = await supabase.from('chamados').update({ status: newStatus }).eq('id', chamado.id); if (updateError) { setError(updateError.message); setEditData(chamado); } else { onUpdate(false); } setLoading(false); };
+    const handleSaveChanges = async () => { setLoading(true); setError(null); try { await supabase.from('chamados').update({ titulo: editData.titulo, descricao: editData.descricao, prioridade: editData.prioridade, atendente_id: editData.atendente_id || null }).eq('id', chamado.id); onUpdate(false); } catch (err) { setError(err.message); } finally { setLoading(false); } };
     const handleDelete = async () => { if (window.confirm(`Tem a certeza de que quer excluir o chamado #${chamado.id.substring(0, 8)}?`)) { setIsDeleting(true); await onDelete(chamado.id); } };
     return (<div><StatusPipeline statusAtual={editData.status} onStatusChange={handleStatusUpdate} /><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-500">Título</label><input type="text" name="titulo" value={editData.titulo} onChange={handleChange} className="mt-1 w-full p-2 border rounded-md" /></div><div><label className="block text-sm font-medium text-gray-500">Descrição</label><textarea name="descricao" rows="5" value={editData.descricao} onChange={handleChange} className="mt-1 w-full p-2 border rounded-md"></textarea></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-500">Prioridade</label><select name="prioridade" value={editData.prioridade} onChange={handleChange} className="mt-1 w-full p-2 border rounded-md bg-white"><option>Baixa</option><option>Normal</option><option>Alta</option><option>Urgente</option></select></div><div><label className="block text-sm font-medium text-gray-500">Atribuído a</label><select name="atendente_id" value={editData.atendente_id || ''} onChange={handleChange} className="mt-1 w-full p-2 border rounded-md bg-white"><option value="">Ninguém</option>{agentes.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}</select></div></div>{error && <p className="text-red-500 text-sm">{error}</p>}<div className="flex justify-between items-center gap-4 pt-4 border-t mt-6"><button type="button" onClick={handleDelete} disabled={loading || isDeleting} className="py-2 px-4 text-sm text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 flex items-center gap-2">{isDeleting ? 'A Excluir...' : <><Trash2 size={14} /> Excluir</>}</button><div className="flex items-center gap-2"><button type="button" onClick={() => handleStatusUpdate('Cancelado')} disabled={loading || isDeleting} className="py-2 px-4 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center gap-2"><XCircle size={16} /> Cancelar</button><button type="button" onClick={() => handleStatusUpdate('Resolvido')} disabled={loading || isDeleting} className="py-2 px-4 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"><CheckCircle size={16} /> Concluir</button><button type="button" onClick={handleSaveChanges} disabled={loading || isDeleting} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{loading ? 'A Salvar...' : 'Salvar Alterações'}</button></div></div></div></div>);
 };
@@ -96,7 +105,7 @@ const AbaHistorico = ({ chamado }) => { const [historico, setHistorico] = useSta
 function ChamadoDetailModal({ chamado, onClose, onChamadoUpdated, onChamadoDeleted }) {
     const [activeTab, setActiveTab] = useState('geral');
     const { profile } = useAuth();
-    const handleInternalUpdate = (fechar = true) => { onChamadoUpdated(fechar); };
+    const handleInternalUpdate = (fechar = false) => { onChamadoUpdated(); if(fechar) onClose(); };
     const TabButton = ({ id, label, icon }) => ( <button onClick={() => setActiveTab(id)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === id ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>{icon} {label}</button> );
     const renderContent = () => { switch (activeTab) { case 'geral': return <AbaGeral chamado={chamado} onUpdate={handleInternalUpdate} onDelete={onChamadoDeleted} />; case 'anotacoes': return <AbaAnotacoes chamado={chamado} profile={profile} />; case 'tarefas': return <AbaTarefas chamado={chamado} profile={profile} onUpdate={handleInternalUpdate} />; case 'historico': return <AbaHistorico chamado={chamado} />; default: return null; } };
     

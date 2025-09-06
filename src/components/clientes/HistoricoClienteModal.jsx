@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-// 1. IMPORTAMOS O NOSSO NOVO SERVIÇO
-import { getNegocios } from '../../services/negocioService'; 
+import { getNegocios } from '../../services/negocioService';
 import { X, Building, Mail, Phone, Loader2, User, FileText, DollarSign, Briefcase } from 'lucide-react';
 
 const TabButton = ({ active, onClick, children }) => (
@@ -113,7 +112,6 @@ const ChamadosTab = ({ chamados, loading, error }) => {
     );
 };
 
-// 2. CRIAMOS A NOVA ABA DE NEGÓCIOS
 const NegociosTab = ({ negocios, loading, error }) => {
     if (loading) return <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
@@ -140,17 +138,14 @@ const NegociosTab = ({ negocios, loading, error }) => {
     );
 };
 
-
 const PlaceholderTab = ({ title }) => (
     <div className="p-10 text-center text-gray-500">
         <p>A funcionalidade de **{title}** será implementada em breve.</p>
     </div>
 );
 
-
 export default function HistoricoClienteModal({ empresa, onClose }) {
     const [activeTab, setActiveTab] = useState('info');
-    // 3. ADICIONAMOS O ESTADO PARA OS NEGÓCIOS
     const [data, setData] = useState({ contatos: [], chamados: [], negocios: [] });
     const [loading, setLoading] = useState({ contatos: true, chamados: true, negocios: true });
     const [errors, setErrors] = useState({ contatos: null, chamados: null, negocios: null });
@@ -161,7 +156,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
         if (!empresa?.id) return;
 
         const fetchData = async () => {
-            // Reset dos estados ao carregar
             setLoading({ contatos: true, chamados: true, negocios: true });
             setErrors({ contatos: null, chamados: null, negocios: null });
 
@@ -179,11 +173,12 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
             }
             setLoading(prev => ({...prev, contatos: false}));
             
-            // Fetch Chamados
+            // --- CORREÇÃO APLICADA AQUI ---
+            // Alterado de 'cliente_cnpj' para 'cliente_id' e de 'empresa.cnpj' para 'empresa.id'
             const { data: chamadosData, error: chamadosError } = await supabase
                 .from('chamados_com_detalhes')
                 .select('*')
-                .eq('cliente_cnpj', empresa.cnpj);
+                .eq('cliente_id', empresa.id);
 
             if (chamadosError) {
                 console.error("Erro ao buscar chamados:", chamadosError);
@@ -193,7 +188,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
             }
             setLoading(prev => ({...prev, chamados: false}));
 
-            // 4. USAMOS O NOSSO SERVIÇO PARA BUSCAR OS NEGÓCIOS
             const { data: negociosData, error: negociosError } = await getNegocios({ empresaId: empresa.id });
              if (negociosError) {
                 console.error("Erro ao buscar negócios:", negociosError);
@@ -215,7 +209,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
                 return <ContatosTab contatos={data.contatos} loading={loading.contatos} error={errors.contatos} />;
             case 'chamados':
                  return <ChamadosTab chamados={data.chamados} loading={loading.chamados} error={errors.chamados} />;
-            // 5. RENDERIZAMOS A NOSSA NOVA ABA DE NEGÓCIOS
             case 'negocios':
                  return <NegociosTab negocios={data.negocios} loading={loading.negocios} error={errors.negocios} />;
             case 'faturas':
