@@ -1,18 +1,15 @@
 import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-// --- CORREÇÃO FINAL: O caminho agora aponta para a pasta "clientes" (plural) ---
-import EmpresaFormUnificado from '../components/clientes/EmpresaFormUnificado'; 
 import { PlusCircle, Search, Building, Edit, Trash2 } from 'lucide-react';
+import EmpresaFormUnificado from '../components/clientes/EmpresaFormUnificado';
 
-// Componente para exibir cada empresa na lista
 const EmpresaCard = ({ empresa, onEdit, onDelete }) => {
     const statusCores = {
         'Potencial': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
         'Cliente Ativo': 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
         'Inativo': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
     };
-
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col justify-between">
             <div>
@@ -37,27 +34,17 @@ const EmpresaCard = ({ empresa, onEdit, onDelete }) => {
     );
 };
 
-
-// Componente principal da página
 function EmpresasPage() {
-    // --- Gestão de Estado ---
     const [empresas, setEmpresas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // Controlo do Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
 
-    // --- Busca de Dados ---
     const fetchEmpresas = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('crm_empresas')
-            .select('*')
-            .order('nome_fantasia', { ascending: true });
-
+        const { data, error } = await supabase.from('crm_empresas').select('*').order('nome_fantasia', { ascending: true });
         if (error) {
             console.error('Erro ao buscar empresas:', error);
             setError('Não foi possível carregar as empresas.');
@@ -67,11 +54,8 @@ function EmpresasPage() {
         setLoading(false);
     };
 
-    useEffect(() => {
-        fetchEmpresas();
-    }, []);
+    useEffect(() => { fetchEmpresas(); }, []);
     
-    // --- Lógica de Filtro ---
     const filteredEmpresas = useMemo(() => {
         if (!searchTerm) return empresas;
         const lowercasedTerm = searchTerm.toLowerCase();
@@ -82,7 +66,6 @@ function EmpresasPage() {
         );
     }, [empresas, searchTerm]);
 
-    // --- Funções de Ação (Handlers) ---
     const handleOpenCreateModal = () => {
         setSelectedEmpresa({});
         setIsModalOpen(true);
@@ -114,7 +97,6 @@ function EmpresasPage() {
         }
     };
     
-    // --- Renderização ---
     return (
         <div className="p-4 md:p-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
             <div className="max-w-full mx-auto">
@@ -127,16 +109,9 @@ function EmpresasPage() {
                         <PlusCircle size={20} /> Nova Empresa
                     </button>
                 </header>
-
                 <div className="mb-6 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nome, razão social ou CNPJ..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full p-3 pl-10 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
-                    />
+                    <input type="text" placeholder="Buscar por nome, razão social ou CNPJ..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 pl-10 border rounded-lg dark:bg-gray-800 dark:border-gray-700" />
                 </div>
 
                 {loading && <div className="text-center p-8"><span className="text-lg">A carregar empresas...</span></div>}
@@ -155,7 +130,9 @@ function EmpresasPage() {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
                     <EmpresaFormUnificado
-                        initialData={selectedEmpresa}
+                        // --- CORREÇÃO PRINCIPAL AQUI ---
+                        // Garante que, mesmo que selectedEmpresa seja null, o formulário recebe um objeto vazio {}.
+                        initialData={selectedEmpresa || {}}
                         tabelaAlvo="crm_empresas"
                         onClose={handleCloseModal}
                         onSave={handleSaveSuccess}
