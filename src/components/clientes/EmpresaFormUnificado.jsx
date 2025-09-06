@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Building, Landmark, MapPin, User, FileText, Briefcase, PlusCircle, Trash2, Mail, Phone, Star, X, Search } from 'lucide-react';
 
-// ... (componente InputField não modificado)
 const InputField = ({ icon, ...props }) => (
     <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
@@ -32,6 +31,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     const [todosContatos, setTodosContatos] = useState([]);
     const [showContactList, setShowContactList] = useState(false);
 
+    // --- CORREÇÃO APLICADA AQUI ---
     useEffect(() => {
         const defaultData = {
             razao_social: '', nome_fantasia: '', cnpj: '', status: 'Potencial',
@@ -40,15 +40,19 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             email_principal: '', telefone_principal: '',
             rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '', cep: ''
         };
-        const mergedData = { ...defaultData, ...initialData };
+
+        // Garante que initialData nunca é nulo, tratando-o como um objeto vazio se necessário.
+        const validInitialData = initialData || {}; 
+        const mergedData = { ...defaultData, ...validInitialData };
         setFormData(mergedData);
 
-        if (initialData.id) {
+        // Esta verificação agora é segura, pois validInitialData é sempre um objeto.
+        if (validInitialData.id) {
             const fetchContatosVinculados = async () => {
                 const { data, error } = await supabase
                     .from('empresa_contato_junction')
                     .select('*, crm_contatos(*)')
-                    .eq('empresa_id', initialData.id);
+                    .eq('empresa_id', validInitialData.id);
                 if (!error) {
                     const contatosFormatados = data.map(item => ({
                         ...item.crm_contatos,
@@ -136,8 +140,6 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
         e.preventDefault();
         setLoading(true);
         
-        // **CORREÇÃO PRINCIPAL**: Criamos um objeto limpo 'dadosParaSalvar'
-        // que contém apenas as colunas da tabela 'crm_empresas'.
         const dadosParaSalvar = {
             id: formData.id,
             razao_social: formData.razao_social,
@@ -166,14 +168,12 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             if (error) { console.error('Erro ao atualizar empresa:', error); alert('Erro ao atualizar empresa: ' + error.message); setLoading(false); return; }
             empresaSalva = data;
         } else {
-            // Se for uma nova empresa, não enviamos o ID
             const { id, ...dadosInserir } = dadosParaSalvar;
             const { data, error } = await supabase.from(tabelaAlvo).insert(dadosInserir).select().single();
             if (error) { console.error('Erro ao criar empresa:', error); alert('Erro ao criar empresa: ' + error.message); setLoading(false); return; }
             empresaSalva = data;
         }
         
-        // Esta parte (sincronizar contatos) permanece a mesma e está correta
         await supabase.from('empresa_contato_junction').delete().eq('empresa_id', empresaSalva.id);
         
         const junctionData = contatosVinculados.map(contato => ({
@@ -193,7 +193,6 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
         setLoading(false);
     };
     
-    // ... (resto do componente não modificado)
     const filteredContacts = searchTerm
         ? todosContatos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()))
         : [];

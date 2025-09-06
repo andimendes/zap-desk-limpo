@@ -1,172 +1,168 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import EmpresaFormUnificado from '../components/clientes/EmpresaFormUnificado';
-import HistoricoClienteModal from '../components/clientes/HistoricoClienteModal';
-import { Plus, Edit, Building, Star, ChevronDown, ChevronUp, User, List, Filter, Loader2, Mail, Phone, Upload, Download } from 'lucide-react';
-import Papa from 'papaparse';
+import { PlusCircle, Search, Building, User, Mail, Loader2, Edit, Trash2 } from 'lucide-react';
+import EmpresaFormUnificado from '../components/empresas/EmpresaFormUnificado'; // Verifique se este caminho está correto
+import { Link } from 'react-router-dom'; // Se aplicável para navegação
 
-
-const EmpresaCard = ({ empresa, onEdit, onHistory }) => {
-    if (!empresa || typeof empresa !== 'object') return null;
-    
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    const principal = empresa.empresa_contato_junction?.find(j => j.is_principal)?.crm_contatos;
-
-    const statusConfig = {
-        'Cliente Ativo': { text: 'Cliente Ativo', style: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' },
-        'Potencial': { text: 'Potencial', style: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' },
-        'Inativo': { text: 'Inativo', style: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' },
+// Componente para exibir cada empresa na lista
+const EmpresaCard = ({ empresa, onEdit, onDelete }) => {
+    const statusCores = {
+        'Potencial': 'bg-blue-100 text-blue-800',
+        'Cliente Ativo': 'bg-green-100 text-green-800',
+        'Inativo': 'bg-gray-100 text-gray-800'
     };
-    const statusInfo = statusConfig[empresa.status] || { text: empresa.status || 'Sem Status', style: 'bg-gray-100 text-gray-800' };
 
     return (
-        <div className="bg-white rounded-lg shadow-md border overflow-hidden transition-shadow duration-300 hover:shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <div className="p-4 md:p-6">
-                <div className="flex flex-col md:flex-row justify-between md:items-center">
-                    <div className="flex-1 mb-4 md:mb-0 cursor-pointer" onClick={() => onHistory(empresa)}>
-                        <div className="flex items-center mb-2"><Building className="w-5 h-5 text-gray-500 mr-3" /><h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{empresa.nome_fantasia || empresa.razao_social}</h3></div>
-                        <p className="text-sm text-gray-600 ml-8 dark:text-gray-300">{empresa.razao_social}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col justify-between">
+            <div>
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <Building className="w-6 h-6 text-gray-400" />
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">{empresa.nome_fantasia || empresa.razao_social}</h3>
                     </div>
-                    <div className="flex-1 mb-4 md:mb-0 md:mx-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                        <p className="font-semibold text-gray-700 text-sm flex items-center mb-1 dark:text-gray-200"><Star size={14} className="text-yellow-500 mr-1.5" /> Contato Principal</p>
-                        {principal ? (
-                            <>
-                                <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><User size={14} className="mr-2" /> {principal.nome}</div>
-                                {principal.email && <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><Mail size={14} className="mr-2" /> {principal.email}</div>}
-                                {principal.telefone && <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><Phone size={14} className="mr-2" /> {principal.telefone}</div>}
-                            </>
-                        ) : <p className="text-sm text-gray-500 mt-1 italic">Nenhum contato principal.</p>}
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusInfo.style}`}>{statusInfo.text}</span>
-                        <button onClick={() => onEdit(empresa)} className="p-2 text-gray-500 rounded-full hover:bg-gray-100 hover:text-blue-600"><Edit size={18} /></button>
-                        <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 text-gray-500 rounded-full">{isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>
-                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusCores[empresa.status]}`}>{empresa.status}</span>
                 </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 pl-9">{empresa.razao_social}</p>
             </div>
-            {isExpanded && (
-                <div className="p-4 md:p-6 border-t bg-gray-50/50 dark:bg-gray-900/50">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm">
-                        <div><p className="font-medium text-gray-500">CNPJ</p><p>{empresa.cnpj || 'Não informado'}</p></div>
-                        <div><p className="font-medium text-gray-500">E-mail da Empresa</p><p>{empresa.email_principal || 'Não informado'}</p></div>
-                        <div><p className="font-medium text-gray-500">Telefone da Empresa</p><p>{empresa.telefone_principal || 'Não informado'}</p></div>
-                        {empresa.status === 'Cliente Ativo' && <>
-                            <div><p className="font-medium text-gray-500">Plano</p><p>{empresa.plano || 'Não definido'}</p></div>
-                            {empresa.plano === 'Plano Estratégico' && <div className="md:col-span-2"><p className="font-medium">Módulos</p><ul className="list-disc list-inside mt-1">{empresa.modulos_contratados?.map(m => <li key={m}>{m}</li>)}</ul></div>}
-                        </>}
-                    </div>
-                </div>
-            )}
+            <div className="mt-4 pt-4 border-t dark:border-gray-700 flex justify-end items-center gap-2">
+                 <button onClick={() => onEdit(empresa)} className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                    <Edit size={18} />
+                </button>
+                <button onClick={() => onDelete(empresa.id)} className="p-2 text-gray-500 hover:text-red-600 transition-colors">
+                    <Trash2 size={18} />
+                </button>
+            </div>
         </div>
     );
 };
 
-export default function EmpresasPage() {
-    const [view, setView] = useState('clientes');
-    const [loading, setLoading] = useState(true);
+
+// Componente principal da página
+function EmpresasPage() {
+    // --- Gestão de Estado ---
     const [empresas, setEmpresas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isModalEmpresaOpen, setIsModalEmpresaOpen] = useState(false);
+    
+    // Controlo do Modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-
-    const fetchData = useCallback(async () => {
+    // --- Busca de Dados ---
+    const fetchEmpresas = async () => {
         setLoading(true);
-        const statusQuery = view === 'clientes' ? 'Cliente Ativo' : 'Potencial';
-        
         const { data, error } = await supabase
             .from('crm_empresas')
-            .select('*, empresa_contato_junction(*, crm_contatos(*))')
-            .eq('status', statusQuery);
+            .select('*')
+            .order('nome_fantasia', { ascending: true });
 
         if (error) {
-            console.error("Erro ao buscar dados:", error);
-            setEmpresas([]);
+            console.error('Erro ao buscar empresas:', error);
+            setError('Não foi possível carregar as empresas.');
         } else {
-            setEmpresas(data || []);
+            setEmpresas(data);
         }
         setLoading(false);
-    }, [view]);
+    };
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    const handleOpenEmpresaModal = (empresa = null) => { setSelectedEmpresa(empresa); setIsModalEmpresaOpen(true); };
-    const handleCloseEmpresaModal = () => setIsModalEmpresaOpen(false);
-    const handleSaveEmpresa = () => { handleCloseEmpresaModal(); fetchData(); };
-    const handleOpenHistory = (empresa) => { setSelectedEmpresa(empresa); setIsHistoryOpen(true); };
-
-    const filteredEmpresas = empresas.filter(e =>
-        (e.nome_fantasia && e.nome_fantasia.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (e.razao_social && e.razao_social.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (e.cnpj && e.cnpj.includes(searchTerm))
-    );
+        fetchEmpresas();
+    }, []);
     
-    // Funções de importação/exportação (ainda como placeholders)
-    const handleExport = () => { 
-        const csv = Papa.unparse(empresas);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", "empresas.csv");
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    const handleImport = () => alert('Funcionalidade de importação a ser implementada.');
+    // --- Lógica de Filtro ---
+    const filteredEmpresas = useMemo(() => {
+        if (!searchTerm) return empresas;
+        return empresas.filter(emp =>
+            (emp.nome_fantasia && emp.nome_fantasia.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (emp.razao_social && emp.razao_social.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (emp.cnpj && emp.cnpj.includes(searchTerm))
+        );
+    }, [empresas, searchTerm]);
 
+    // --- Funções de Ação (Handlers) ---
+    const handleOpenCreateModal = () => {
+        setSelectedEmpresa({}); // <-- Passa um objeto vazio para o modo de criação
+        setIsModalOpen(true);
+    };
+    
+    const handleOpenEditModal = (empresa) => {
+        setSelectedEmpresa(empresa); // <-- Passa os dados da empresa para o modo de edição
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedEmpresa(null);
+    };
+
+    const handleSaveSuccess = () => {
+        handleCloseModal();
+        fetchEmpresas(); // Recarrega a lista para mostrar as alterações
+    };
+    
+    const handleDelete = async (empresaId) => {
+        if (window.confirm('Tem a certeza de que quer excluir esta empresa?')) {
+            const { error } = await supabase.from('crm_empresas').delete().eq('id', empresaId);
+            if (error) {
+                alert('Erro ao excluir empresa: ' + error.message);
+            } else {
+                fetchEmpresas(); // Recarrega a lista
+            }
+        }
+    };
+    
+    // --- Renderização ---
     return (
-        <div className="p-4 md:p-8 bg-gray-100 min-h-full dark:bg-gray-900">
-            <div className="max-w-7xl mx-auto">
-                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="p-4 md:p-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
+            <div className="max-w-full mx-auto">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Central de Empresas</h1>
-                        <p className="text-gray-500">Gira os seus clientes e contatos num só lugar.</p>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Gira os seus clientes e contatos num só lugar.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setView('clientes')} className={`px-3 py-1 rounded-md text-sm font-semibold ${view === 'clientes' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Clientes</button>
-                        <button onClick={() => setView('potenciais')} className={`px-3 py-1 rounded-md text-sm font-semibold ${view === 'potenciais' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Potenciais</button>
-                        <button onClick={handleImport} className="p-2 bg-white rounded-md"><Upload size={16}/></button>
-                        <button onClick={handleExport} className="p-2 bg-white rounded-md"><Download size={16}/></button>
-                        <button onClick={() => handleOpenEmpresaModal()} className="flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm hover:bg-blue-700"><Plus size={20} className="mr-2" /> Nova Empresa</button>
-                    </div>
+                    <button onClick={handleOpenCreateModal} className="mt-4 md:mt-0 flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm">
+                        <PlusCircle size={20} /> Nova Empresa
+                    </button>
                 </header>
 
-                <div className="mb-4">
-                    <input type="text" placeholder="Buscar por nome, razão social ou CNPJ..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border rounded-lg"/>
+                <div className="mb-6 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nome, razão social ou CNPJ..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full p-3 pl-10 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                    />
                 </div>
 
-                {loading ? <div className="text-center py-20"><Loader2 className="h-10 w-10 animate-spin inline-block text-blue-500" /></div>
-                 : <div className="space-y-4">
-                    {filteredEmpresas.length > 0 ? filteredEmpresas.map(empresa => (
-                        empresa && <EmpresaCard key={empresa.id} empresa={empresa} onEdit={handleOpenEmpresaModal} onHistory={handleOpenHistory} />
-                    )) : (
-                        <div className="text-center py-10 text-gray-500">
-                            <p>Nenhuma empresa encontrada.</p>
-                            <p className="text-sm mt-1">Tente ajustar a sua busca ou o filtro selecionado.</p>
-                        </div>
-                    )}
-                </div>}
+                {loading && <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
+                {error && <div className="text-center p-10 text-red-500">{error}</div>}
+
+                {!loading && !error && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredEmpresas.map(empresa => (
+                            <EmpresaCard key={empresa.id} empresa={empresa} onEdit={handleOpenEditModal} onDelete={handleDelete} />
+                        ))}
+                    </div>
+                )}
+                 {filteredEmpresas.length === 0 && !loading && <p className="text-center text-gray-500 py-8">Nenhuma empresa encontrada.</p>}
             </div>
 
-            {isModalEmpresaOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-                    {/* **CORREÇÃO**: Passando a prop 'tabelaAlvo' explicitamente */}
-                    <EmpresaFormUnificado 
-                        onSave={handleSaveEmpresa} 
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+                    <EmpresaFormUnificado
                         initialData={selectedEmpresa}
-                        onClose={handleCloseEmpresaModal}
-                        tabelaAlvo="crm_empresas" 
+                        tabelaAlvo="crm_empresas"
+                        onClose={handleCloseModal}
+                        onSave={handleSaveSuccess}
                     />
                 </div>
             )}
-            
-            {isHistoryOpen && <HistoricoClienteModal empresa={selectedEmpresa} onClose={() => setIsHistoryOpen(false)} />}
         </div>
     );
 }
+
+export default EmpresasPage;
