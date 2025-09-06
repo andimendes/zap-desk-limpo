@@ -1,15 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Building, Landmark, MapPin, User, FileText, Briefcase, PlusCircle, Trash2, Mail, Phone, Star, X, Search } from 'lucide-react';
+// --- ALTERAÇÃO 1: Importar a nova biblioteca de máscara ---
+import InputMask from 'react-input-mask';
 
-const InputField = ({ icon, ...props }) => (
-    <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
-            {icon}
+
+// --- ALTERAÇÃO 2: Tornar o InputField capaz de usar uma máscara ---
+const InputField = ({ icon, mask, ...props }) => {
+    // Renderiza o InputMask se a prop 'mask' for fornecida, caso contrário, renderiza um input normal.
+    const inputComponent = mask ? (
+        <InputMask mask={mask} {...props}>
+            {(inputProps) => <input {...inputProps} />}
+        </InputMask>
+    ) : (
+        <input {...props} />
+    );
+
+    return (
+        <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                {icon}
+            </div>
+            {/* Usamos a div para manter o estilo da borda e padding consistentes */}
+            <div className="w-full pl-10 border rounded-lg transition bg-gray-50 border-gray-300 text-gray-900 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus-within:bg-gray-600 dark:focus-within:ring-blue-400 dark:focus-within:border-blue-400">
+                {/* O input (com ou sem máscara) é renderizado aqui, sem as classes de estilo que agora estão na div pai */}
+                {React.cloneElement(inputComponent, { className: "w-full p-2 bg-transparent border-none focus:ring-0" })}
+            </div>
         </div>
-        <input {...props} className="w-full p-2 pl-10 border rounded-lg transition bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:bg-gray-600 dark:focus:ring-blue-400 dark:focus:border-blue-400" />
-    </div>
-);
+    );
+};
+
 
 const PLANOS = ['Plano Essencial', 'Plano Estratégico'];
 const MODULOS_ESTRATEGICO = [
@@ -59,13 +79,17 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     const handleCnpjBlur = async (e) => {
         const cnpj = e.target.value.replace(/\D/g, '');
         setCnpjError('');
-        if (cnpj.length !== 14) return;
+        if (cnpj.length !== 14) {
+            // Adiciona uma verificação para não mostrar erro se o campo estiver vazio
+            if (e.target.value.length > 0) setCnpjError('O CNPJ deve ter 14 dígitos.');
+            return;
+        }
         setLoading(true);
         try {
             const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
             if (response.ok) {
                 const data = await response.json();
-                setFormData(prev => ({ ...prev, razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || '', cep: data.cep || '', rua: data.logradouro || '', numero: data.numero || '', complemento: data.complemento || '', bairro: data.bairro || '', cidade: data.municipio || '', estado: data.uf || '', email_principal: data.email || '', telefone_principal: `${data.ddd_telefone_1}` || '' }));
+                setFormData(prev => ({ ...prev, razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || '', cep: data.cep || '', rua: data.logradouro || '', numero: data.numero || '', complemento: data.complemento || '', bairro: data.bairro || '', cidade: data.municipio || '', estado: data.uf || '', email_principal: data.email || '', telefone_principal: `${data.ddd_telefone_1 || ''}` }));
             } else { setCnpjError('CNPJ inválido ou não encontrado.'); }
         } catch (error) { console.error("Erro ao buscar CNPJ:", error); setCnpjError('Erro ao buscar CNPJ.'); }
         setLoading(false);
@@ -111,7 +135,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const dadosParaSalvar = { id: formData.id, razao_social: formData.razao_social, nome_fantasia: formData.nome_fantasia, cnpj: formData.cnpj, status: formData.status, inscricao_estadual: formData.inscricao_estadual, inscricao_municipal: formData.inscricao_municipal, enquadramento_fiscal: formData.enquadramento_fiscal, plano: formData.plano, modulos_contratados: formData.modulos_contratados, email_principal: formData.email_principal, telefone_principal: formData.telefone_principal, rua: formData.rua, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado, cep: formData.cep };
+        const dadosParaSalvar = { id: formData.id, razao_social: formData.razao_social, nome_fantasia: formData.nome_fantasia, cnpj: formData.cnpj.replace(/\D/g, ''), status: formData.status, inscricao_estadual: formData.inscricao_estadual, inscricao_municipal: formData.inscricao_municipal, enquadramento_fiscal: formData.enquadramento_fiscal, plano: formData.plano, modulos_contratados: formData.modulos_contratados, email_principal: formData.email_principal, telefone_principal: formData.telefone_principal, rua: formData.rua, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado, cep: formData.cep };
         let empresaSalva;
         if (dadosParaSalvar.id) {
             const { data, error } = await supabase.from(tabelaAlvo).update(dadosParaSalvar).eq('id', dadosParaSalvar.id).select().single();
@@ -144,7 +168,20 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Dados Principais</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField icon={<Landmark size={16} />} name="cnpj" value={formData.cnpj || ''} onChange={handleChange} onBlur={handleCnpjBlur} placeholder="CNPJ (preenche dados)" />
+                    <div>
+                        <InputField 
+                            icon={<Landmark size={16} />} 
+                            name="cnpj" 
+                            value={formData.cnpj || ''} 
+                            onChange={handleChange} 
+                            onBlur={handleCnpjBlur} 
+                            placeholder="CNPJ (preenche dados)"
+                            // --- ALTERAÇÃO 3: Adicionar a máscara ao campo ---
+                            mask="99.999.999/9999-99"
+                        />
+                        {/* --- ALTERAÇÃO 4: Adicionar o feedback de erro --- */}
+                        {cnpjError && <p className="text-xs text-red-500 mt-1">{cnpjError}</p>}
+                    </div>
                     <InputField icon={<Building size={16} />} name="nome_fantasia" value={formData.nome_fantasia || ''} onChange={handleChange} placeholder="Nome Fantasia" required />
                     <InputField icon={<User size={16} />} name="razao_social" value={formData.razao_social || ''} onChange={handleChange} placeholder="Razão Social" />
                     <InputField icon={<FileText size={16} />} name="inscricao_estadual" value={formData.inscricao_estadual || ''} onChange={handleChange} placeholder="Inscrição Estadual" />
