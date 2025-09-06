@@ -33,14 +33,19 @@ const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => 
       if (!empresa?.id) return;
       setLoading(true);
       try {
+        // CORREÇÃO: Buscamos contatos e negócios usando as tabelas e relações corretas.
         const [contatosRes, negociosRes] = await Promise.all([
-          supabase.from('crm_contatos').select('*').eq('empresa_id', empresa.id),
-          supabase.from('crm_negocios').select('*').eq('empresa_id', empresa.id).eq('status', 'Ativo')
+          supabase.from('empresa_contato_junction').select('crm_contatos(*)').eq('empresa_id', empresa.id),
+          supabase.from('crm_negocios').select('*').eq('empresa_id', empresa.id)
         ]);
+        
         if (contatosRes.error) throw contatosRes.error;
         if (negociosRes.error) throw negociosRes.error;
-        setContatos(contatosRes.data || []);
+
+        const contatosExtraidos = contatosRes.data.map(item => item.crm_contatos).filter(Boolean);
+        setContatos(contatosExtraidos || []);
         setNegocios(negociosRes.data || []);
+
       } catch (error) {
         console.error("Erro ao carregar detalhes da empresa:", error);
       } finally {
@@ -77,9 +82,6 @@ const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => 
               <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
             ) : (
               <div className="space-y-6">
-                {/* =================================== */}
-                {/* === NOVA SECÇÃO: DADOS DA EMPRESA === */}
-                {/* =================================== */}
                 <div>
                     <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-4">Dados da Empresa</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
@@ -97,7 +99,6 @@ const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => 
                 <hr className="dark:border-gray-700" />
 
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* Coluna de Contatos */}
                   <div>
                     <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><User size={20} /> Contatos ({contatos.length})</h3>
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
@@ -114,9 +115,8 @@ const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => 
                     </div>
                   </div>
 
-                  {/* Coluna de Negócios */}
                   <div>
-                     <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><Briefcase size={20} /> Negócios Ativos ({negocios.length})</h3>
+                     <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><Briefcase size={20} /> Negócios ({negocios.length})</h3>
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                       {negocios.length > 0 ? (
                         negocios.map(negocio => (
@@ -125,7 +125,7 @@ const EmpresaDetalhesModal = ({ isOpen, onClose, empresa, onEmpresaUpdate }) => 
                             <p className="text-sm text-green-600 dark:text-green-400 font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</p>
                           </div>
                         ))
-                      ) : <p className="text-sm text-gray-500 italic">Nenhum negócio ativo.</p>}
+                      ) : <p className="text-sm text-gray-500 italic">Nenhum negócio encontrado.</p>}
                     </div>
                   </div>
                 </div>

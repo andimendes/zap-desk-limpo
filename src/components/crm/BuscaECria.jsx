@@ -1,115 +1,92 @@
-// src/components/crm/BuscaECria.jsx
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-import { PlusCircle, Loader2 } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce.js';
+import { Loader2, PlusCircle } from 'lucide-react';
 
-// Certifique-se de ter este hook no seu projeto, por exemplo em src/hooks/useDebounce.js
-/*
-import { useState, useEffect } from 'react';
+export default function BuscaECria({ tabela, coluna, placeholder, valorInicial = '', onSelecao }) {
+    const [termo, setTermo] = useState(valorInicial);
+    const [sugestoes, setSugestoes] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [isFocado, setIsFocado] = useState(false);
+    const wrapperRef = useRef(null);
 
-export function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
-*/
+    const buscarSugestoes = useCallback(async (termoBusca) => {
+        if (!termoBusca || termoBusca.length < 2) {
+            setSugestoes([]);
+            return;
+        }
+        setLoading(true);
+        const { data } = await supabase
+            .from(tabela)
+            .select(`id, ${coluna}`)
+            .ilike(coluna, `%${termoBusca}%`)
+            .limit(5);
+        setSugestoes(data || []);
+        setLoading(false);
+    }, [tabela, coluna]);
 
-const BuscaECria = ({ tabela, coluna, placeholder, onSelecao, valorInicial = '' }) => {
-  const [termoBusca, setTermoBusca] = useState(valorInicial);
-  const [resultados, setResultados] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  const debouncedBusca = useDebounce(termoBusca, 300);
-
-  useEffect(() => {
-    setTermoBusca(valorInicial);
-  }, [valorInicial]);
-
-  const buscarRegistros = useCallback(async () => {
-    if (debouncedBusca.length < 2) {
-      setResultados([]);
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabase
-      .from(tabela)
-      .select(`id, ${coluna}`)
-      .ilike(coluna, `%${debouncedBusca}%`)
-      .limit(5);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (isFocado) buscarSugestoes(termo);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [termo, isFocado, buscarSugestoes]);
     
-    setLoading(false);
-    if (error) {
-      console.error('Erro na busca:', error);
-    } else {
-      setResultados(data);
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsFocado(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+
+    const handleSelecao = (sugestao) => {
+        setTermo(sugestao[coluna]);
+        onSelecao(sugestao[coluna]);
+        setIsFocado(false);
+    };
+
+    const handleCriarNovo = () => {
+        onSelecao(termo);
+        setIsFocado(false);
     }
-  }, [debouncedBusca, tabela, coluna]);
-  
-  useEffect(() => {
-    buscarRegistros();
-  }, [buscarRegistros]);
+    
+    const handleInputChange = (e) => {
+        setTermo(e.target.value);
+        onSelecao(e.target.value);
+    }
 
-  const handleSelecao = (item) => {
-    setTermoBusca(item[coluna]);
-    onSelecao(item.id, item[coluna]);
-    setIsDropdownOpen(false);
-  };
-  
-  const handleCriarNovo = () => {
-    onSelecao(null, termoBusca);
-    setIsDropdownOpen(false);
-  };
-
-  return (
-    <div className="relative">
-      <input 
-        type="text" 
-        value={termoBusca}
-        onChange={(e) => setTermoBusca(e.target.value)}
-        onFocus={() => setIsDropdownOpen(true)}
-        onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-        placeholder={placeholder}
-        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-      />
-      {isDropdownOpen && (termoBusca.length > 1) && (
-        <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg">
-          {loading && <div className="p-2 text-sm text-gray-500 flex items-center gap-2"><Loader2 className="animate-spin h-4 w-4" /> Buscando...</div>}
-          
-          {!loading && resultados.length === 0 && (
-            <div 
-              onClick={handleCriarNovo}
-              className="p-3 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <PlusCircle className="h-4 w-4 text-green-500" />
-              <span>Criar nova: "{termoBusca}"</span>
-            </div>
-          )}
-          
-          <ul className="max-h-48 overflow-y-auto">
-            {resultados.map((item) => (
-              <li 
-                key={item.id}
-                onClick={() => handleSelecao(item)}
-                className="p-3 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                {item[coluna]}
-              </li>
-            ))}
-          </ul>
+    return (
+        <div className="relative w-full" ref={wrapperRef}>
+            <input
+                type="text"
+                value={termo}
+                onChange={handleInputChange}
+                onFocus={() => setIsFocado(true)}
+                placeholder={placeholder}
+                className="w-full p-2 border rounded-lg"
+            />
+            {isFocado && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg">
+                    {loading && <div className="p-2"><Loader2 className="animate-spin" /></div>}
+                    {!loading && sugestoes.length > 0 && (
+                        <ul>
+                            {sugestoes.map((sugestao) => (
+                                <li key={sugestao.id} onClick={() => handleSelecao(sugestao)} className="p-2 hover:bg-gray-100 cursor-pointer">
+                                    {sugestao[coluna]}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                     {!loading && termo.length > 1 && (
+                        <div onClick={handleCriarNovo} className="p-2 flex items-center gap-2 text-sm text-blue-600 hover:bg-gray-100 cursor-pointer">
+                            <PlusCircle size={16}/> Criar "{termo}"
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
-};
-
-export default BuscaECria;
+    );
+}

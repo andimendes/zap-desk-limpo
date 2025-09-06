@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
+// 1. IMPORTAMOS O NOSSO NOVO SERVIÇO
+import { getNegocios } from '../../services/negocioService'; 
 import { X, Building, Mail, Phone, Loader2, User, FileText, DollarSign, Briefcase } from 'lucide-react';
 
 const TabButton = ({ active, onClick, children }) => (
@@ -111,6 +113,34 @@ const ChamadosTab = ({ chamados, loading, error }) => {
     );
 };
 
+// 2. CRIAMOS A NOVA ABA DE NEGÓCIOS
+const NegociosTab = ({ negocios, loading, error }) => {
+    if (loading) return <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
+    if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
+
+    return (
+        <div className="p-6 space-y-3">
+            {negocios.length > 0 ? negocios.map(negocio => (
+                 <div key={negocio.id} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                     <div className="flex justify-between items-center">
+                         <p className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</p>
+                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                             negocio.status === 'Ganho' ? 'bg-green-100 text-green-800' :
+                             negocio.status === 'Perdido' ? 'bg-red-100 text-red-800' :
+                             'bg-blue-100 text-blue-800'
+                         }`}>{negocio.status}</span>
+                     </div>
+                     <div className="mt-3 pt-3 border-t text-sm space-y-2">
+                         <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-semibold"><DollarSign size={14}/> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}</p>
+                         <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><User size={14}/> Responsável: {negocio.responsavel?.full_name || 'Não definido'}</p>
+                     </div>
+                 </div>
+            )) : <p className="text-center text-gray-500 py-4">Nenhum negócio encontrado para esta empresa.</p>}
+        </div>
+    );
+};
+
+
 const PlaceholderTab = ({ title }) => (
     <div className="p-10 text-center text-gray-500">
         <p>A funcionalidade de **{title}** será implementada em breve.</p>
@@ -120,9 +150,10 @@ const PlaceholderTab = ({ title }) => (
 
 export default function HistoricoClienteModal({ empresa, onClose }) {
     const [activeTab, setActiveTab] = useState('info');
-    const [data, setData] = useState({ contatos: [], chamados: [] });
-    const [loading, setLoading] = useState({ contatos: true, chamados: true });
-    const [errors, setErrors] = useState({ contatos: null, chamados: null });
+    // 3. ADICIONAMOS O ESTADO PARA OS NEGÓCIOS
+    const [data, setData] = useState({ contatos: [], chamados: [], negocios: [] });
+    const [loading, setLoading] = useState({ contatos: true, chamados: true, negocios: true });
+    const [errors, setErrors] = useState({ contatos: null, chamados: null, negocios: null });
 
     if (!empresa) return null;
 
@@ -130,8 +161,9 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
         if (!empresa?.id) return;
 
         const fetchData = async () => {
-            setLoading({ contatos: true, chamados: true });
-            setErrors({ contatos: null, chamados: null });
+            // Reset dos estados ao carregar
+            setLoading({ contatos: true, chamados: true, negocios: true });
+            setErrors({ contatos: null, chamados: null, negocios: null });
 
             // Fetch Contatos
             const { data: contatosData, error: contatosError } = await supabase
@@ -160,6 +192,16 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
                 setData(prev => ({...prev, chamados: chamadosData || []}));
             }
             setLoading(prev => ({...prev, chamados: false}));
+
+            // 4. USAMOS O NOSSO SERVIÇO PARA BUSCAR OS NEGÓCIOS
+            const { data: negociosData, error: negociosError } = await getNegocios({ empresaId: empresa.id });
+             if (negociosError) {
+                console.error("Erro ao buscar negócios:", negociosError);
+                setErrors(prev => ({ ...prev, negocios: 'Não foi possível carregar os negócios.'}));
+            } else {
+                setData(prev => ({...prev, negocios: negociosData || []}));
+            }
+            setLoading(prev => ({...prev, negocios: false}));
         };
 
         fetchData();
@@ -173,8 +215,9 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
                 return <ContatosTab contatos={data.contatos} loading={loading.contatos} error={errors.contatos} />;
             case 'chamados':
                  return <ChamadosTab chamados={data.chamados} loading={loading.chamados} error={errors.chamados} />;
+            // 5. RENDERIZAMOS A NOSSA NOVA ABA DE NEGÓCIOS
             case 'negocios':
-                 return <PlaceholderTab title="Negócios" />;
+                 return <NegociosTab negocios={data.negocios} loading={loading.negocios} error={errors.negocios} />;
             case 'faturas':
                  return <PlaceholderTab title="Faturas" />;
             default:

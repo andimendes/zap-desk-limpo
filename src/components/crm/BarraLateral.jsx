@@ -1,9 +1,15 @@
 // src/components/crm/BarraLateral.jsx
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { supabase } from '@/supabaseClient';
-import { Building, User, DollarSign, Tag, Users as UsersIcon, Pencil, Check, X, PlusCircle, Trash2, Globe, MapPin, Briefcase } from 'lucide-react';
+import { 
+    Building, User, DollarSign, Tag, Users as UsersIcon, Pencil, Check, X, 
+    Globe, MapPin, Briefcase, PlusCircle, Trash2, Loader2 
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 
+
+// Componente reutilizável para exibir e editar detalhes
 const DetalheEditavel = ({ icon, label, valor, onSave, tipoInput = 'text', onClick, isEditable = true }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [valorAtual, setValorAtual] = useState(valor);
@@ -45,37 +51,43 @@ const DetalheEditavel = ({ icon, label, valor, onSave, tipoInput = 'text', onCli
 };
 
 
-const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataChange, onAdicionarContato, onForcarRecarga, onEditarContato, onEmpresaClick }) => {
-  const [contatos, setContatos] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchRelatedData = async () => {
-    if (!negocio?.id) return;
-    setLoading(true);
-    // Busca os contatos vinculados a este negócio específico
-    const { data: contatosData } = await supabase
-        .from('crm_negocio_contatos')
-        .select('crm_contatos(id, nome, email, telefone)')
-        .eq('negocio_id', negocio.id);
-    
-    if (contatosData) { 
-      setContatos(contatosData.map(item => item.crm_contatos).filter(Boolean)); 
-    } else { 
-      setContatos([]); 
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchRelatedData(); }, [negocio]);
-
+const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataChange, onForcarRecarga, onEmpresaClick, onEditarContato, onAdicionarContato }) => {
+  const [contatosDaEmpresa, setContatosDaEmpresa] = useState([]);
+  const [loadingContatos, setLoadingContatos] = useState(true);
+  
   if (!negocio) return null;
+
+  useEffect(() => {
+    const fetchContatosDaEmpresa = async () => {
+        if (!negocio.empresa?.id) {
+            setContatosDaEmpresa([]);
+            setLoadingContatos(false);
+            return;
+        }
+        setLoadingContatos(true);
+        const { data, error } = await supabase
+            .from('empresa_contato_junction')
+            .select('crm_contatos(*)') 
+            .eq('empresa_id', negocio.empresa.id);
+        
+        if (error) {
+            console.error("Erro ao buscar contatos da empresa:", error);
+            setContatosDaEmpresa([]);
+        } else {
+            const contatosExtraidos = data.map(item => item.crm_contatos).filter(Boolean);
+            setContatosDaEmpresa(contatosExtraidos);
+        }
+        setLoadingContatos(false);
+    };
+
+    fetchContatosDaEmpresa();
+  }, [negocio.empresa]);
   
   const etapaAtual = etapasDoFunil.find(e => e.id === negocio.etapa_id);
-  // A empresa agora vem diretamente do negócio, garantindo que temos os dados mais recentes
   const empresa = negocio.empresa; 
 
   const handleUpdateField = async (campo, valor) => {
-    const { data, error } = await supabase.from('crm_negocios').update({ [campo]: valor }).eq('id', negocio.id).select('*, responsavel:profiles(full_name), empresa:crm_empresas(*)').single();
+    const { data, error } = await supabase.from('crm_negocios').update({ [campo]: valor }).eq('id', negocio.id).select('*, responsavel:profiles(*), empresa:crm_empresas(*), contato:crm_contatos(*)').single();
     if (error) { 
       alert(`Não foi possível atualizar o campo: ${campo}`); 
       console.error(error); 
@@ -84,37 +96,30 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
     }
   };
   
-  // --- FUNÇÃO AJUSTADA PARA GARANTIR A COMUNICAÇÃO CORRETA ---
   const handleUpdateEmpresa = async (campo, valor) => {
-    if (!empresa?.id) {
-        alert("Não há uma empresa vinculada a este negócio para ser atualizada.");
-        return;
-    }
-    
-    // Atualiza o campo específico na tabela 'crm_empresas'
-    const { error } = await supabase
-        .from('crm_empresas')
-        .update({ [campo]: valor })
-        .eq('id', empresa.id);
-        
+    if (!empresa?.id) return;
+    const { error } = await supabase.from('crm_empresas').update({ [campo]: valor }).eq('id', empresa.id);
     if (error) { 
       alert(`Não foi possível atualizar a empresa.`); 
       console.error("Erro ao atualizar empresa:", error);
     } else { 
-      // onForcarRecarga é crucial! Ele diz ao modal pai para buscar todos os dados
-      // do negócio novamente, incluindo os novos dados da empresa que acabamos de salvar.
       onForcarRecarga(); 
     }
   };
-  
+
+  // 1. ADICIONADA FUNÇÃO PARA REMOVER/DESVINCULAR CONTATO
   const handleRemoverContato = async (contatoId) => {
-    // Esta função parece correta, mantendo-a como está.
-    if (window.confirm("Tem certeza que deseja desvincular este contato do negócio?")) {
-        const { error } = await supabase.from('crm_negocio_contatos').delete().match({ negocio_id: negocio.id, contato_id: contatoId });
-        if (error) { 
-          alert("Não foi possível desvincular o contato."); 
-        } else { 
-          onForcarRecarga(); 
+    if (window.confirm("Tem certeza que deseja desvincular este contato da empresa? A ação não remove o contato do sistema.")) {
+        const { error } = await supabase
+            .from('empresa_contato_junction')
+            .delete()
+            .match({ empresa_id: empresa.id, contato_id: contatoId });
+
+        if (error) {
+            alert("Não foi possível desvincular o contato.");
+            console.error(error);
+        } else {
+            onForcarRecarga(); // Recarrega os dados para atualizar a lista
         }
     }
   };
@@ -131,38 +136,49 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
       <div className="space-y-4">
         <div className="flex justify-between items-center">
             <h3 className="font-semibold text-gray-600 dark:text-gray-300">Pessoas e Organizações</h3>
-            {/* Futuramente, este botão pode abrir um modal para buscar/adicionar contatos */}
-            <button onClick={onAdicionarContato} className="text-blue-600 hover:text-blue-800 p-1" title="Adicionar/Vincular Contato"><PlusCircle size={16} /></button>
         </div>
-        {loading ? <p>Carregando...</p> : (
-            <>
-              {empresa ? (
-                  <div className="space-y-4">
-                    {/* O onClick agora abre um modal de detalhes/edição da empresa */}
-                    <DetalheEditavel icon={<Building size={14} />} label="Empresa" valor={empresa.nome_fantasia} onSave={(val) => handleUpdateEmpresa('nome_fantasia', val)} tipoInput="text" onClick={() => onEmpresaClick(empresa)} />
-                    <DetalheEditavel icon={<Globe size={14} />} label="Site" valor={empresa.site} onSave={(val) => handleUpdateEmpresa('site', val)} tipoInput="url" />
-                    {/* --- CAMPO CIDADE CORRIGIDO --- */}
-                    {/* Mostra a cidade da base de dados. A edição deve ser feita no modal da empresa */}
-                    <DetalheEditavel icon={<MapPin size={14} />} label="Cidade" valor={empresa.cidade} isEditable={false} />
-                    <DetalheEditavel icon={<Briefcase size={14} />} label="Segmento" valor={empresa.segmento} onSave={(val) => handleUpdateEmpresa('segmento', val)} tipoInput="text" />
-                  </div>
-              ) : ( <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhuma empresa vinculada</p> )}
-              
-              <div>
-                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-4"><User size={14} />Contatos</label>
-                  {contatos.length > 0 ? (
-                      <div className="space-y-2 mt-1">
-                          {contatos.map(contato => (
-                              <div key={contato.id} className="group flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-sm">
-                                  <div><p className="font-semibold text-gray-800 dark:text-gray-200">{contato.nome}</p>{contato.email && <p className="text-gray-500 dark:text-gray-400">{contato.email}</p>}{contato.telefone && <p className="text-gray-500 dark:text-gray-400">{contato.telefone}</p>}</div>
-                                  <div className="flex items-center"><button onClick={() => onEditarContato(contato)} className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 p-1" title="Editar Contato"><Pencil size={14} /></button><button onClick={() => handleRemoverContato(contato.id)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 p-1" title="Desvincular Contato"><Trash2 size={14} /></button></div>
-                              </div>
-                          ))}
-                      </div>
-                  ) : ( <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Nenhum contato vinculado</p> )}
-              </div>
-            </>
-        )}
+        
+        {empresa ? (
+            <div className="space-y-4">
+              <DetalheEditavel icon={<Building size={14} />} label="Empresa" valor={empresa.nome_fantasia} onSave={(val) => handleUpdateEmpresa('nome_fantasia', val)} tipoInput="text" onClick={() => onEmpresaClick(empresa)} />
+              <DetalheEditavel icon={<Globe size={14} />} label="Site" valor={empresa.site} onSave={(val) => handleUpdateEmpresa('site', val)} tipoInput="url" />
+              <DetalheEditavel icon={<MapPin size={14} />} label="Endereço" valor={empresa.endereco} onSave={(val) => handleUpdateEmpresa('endereco', val)} isEditable={true} />
+              <DetalheEditavel icon={<Briefcase size={14} />} label="Segmento" valor={empresa.segmento} onSave={(val) => handleUpdateEmpresa('segmento', val)} tipoInput="text" />
+            </div>
+        ) : ( <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhuma empresa vinculada</p> )}
+        
+        <div>
+            <div className="flex justify-between items-center mt-4">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2"><User size={14} />Contatos</label>
+                {/* 2. O BOTÃO AGORA CHAMA A FUNÇÃO onAdicionarContato */}
+                <button onClick={onAdicionarContato} className="text-blue-600 hover:text-blue-800 p-1" title="Adicionar/Vincular Contato"><PlusCircle size={16} /></button>
+            </div>
+            
+            {loadingContatos ? (
+                <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+            ) : contatosDaEmpresa.length > 0 ? (
+                <div className="space-y-2 mt-1">
+                    {contatosDaEmpresa.map(contato => (
+                        <div key={contato.id} className="group flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-sm">
+                            <div>
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">{contato.nome}</p>
+                                <p className="text-gray-500 dark:text-gray-400">{contato.email || 'sem email'}</p>
+                                <p className="text-gray-500 dark:text-gray-400">{contato.telefone || 'sem telefone'}</p>
+                            </div>
+                            <div className="flex items-center">
+                                <button onClick={() => onEditarContato(contato)} className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 p-1" title="Editar Contato">
+                                    <Pencil size={14} />
+                                </button>
+                                {/* 3. BOTÃO DE REMOVER ADICIONADO */}
+                                <button onClick={() => handleRemoverContato(contato.id)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 p-1" title="Desvincular Contato">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : ( <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Nenhum contato encontrado para esta empresa.</p> )}
+        </div>
       </div>
 
       <hr className="dark:border-gray-700" />
@@ -175,3 +191,4 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
   );
 };
 export default BarraLateral;
+

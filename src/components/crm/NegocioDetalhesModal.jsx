@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-// --- 1. IMPORTAMOS OS NOVOS ÍCONES ---
 import { Loader2, AlertTriangle, Pencil, Check, X, Undo2, Trash2 } from 'lucide-react';
 
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
+import ContatoFormModal from '../clientes/ContatoForm';
+import BuscaECriaContatoModal from './BuscaECriaContatoModal';
 
-// ... (Os seus outros componentes internos como EditComposer, FunilProgressBar, etc., permanecem aqui sem alterações) ...
+
 // Função para calcular a diferença de dias
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
@@ -36,7 +37,7 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     );
 };
 
-// --- 2. NOVO COMPONENTE INTERNO PARA CONFIRMAÇÃO DE EXCLUSÃO ---
+// Modal de confirmação de exclusão
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
   if (!isOpen) return null;
   return (
@@ -74,19 +75,21 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [novoTitulo, setNovoTitulo] = useState('');
   const [activeTab, setActiveTab] = useState('atividades');
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
-
-  // --- 3. NOVOS ESTADOS PARA A LÓGICA DE EXCLUSÃO ---
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [isEditContatoOpen, setIsEditContatoOpen] = useState(false);
+  const [isAddContatoOpen, setIsAddContatoOpen] = useState(false);
+  const [contatoEmEdicao, setContatoEmEdicao] = useState(null);
+
   const carregarDadosDetalhados = useCallback(async () => {
-    // ... (Esta função permanece inalterada)
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
+      // CORREÇÃO APLICADA: A tabela de relacionamento de contatos é 'contatos' e não 'crm_contatos'
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*)')
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:contatos(*)')
         .eq('id', negocioInicial.id)
         .single();
 
@@ -132,48 +135,44 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
+  const handleEditarContato = (contato) => {
+    setContatoEmEdicao(contato);
+    setIsEditContatoOpen(true);
+  };
+
+  const handleAdicionarContato = () => {
+    setIsAddContatoOpen(true);
+  };
+  
+  const handleSwitchToCreateContato = () => {
+    setIsAddContatoOpen(false);
+    setContatoEmEdicao(null); // Garante que o formulário abrirá para criação
+    setIsEditContatoOpen(true);
+  };
+
+  const handleCloseContactModals = () => {
+    setIsEditContatoOpen(false);
+    setIsAddContatoOpen(false);
+    setContatoEmEdicao(null);
+    carregarDadosDetalhados(); // Força a recarga dos dados para refletir as mudanças
+  };
+
   const handleMarcarStatus = async (status) => {
-    // ... (Esta função permanece inalterada)
     setIsStatusUpdating(true);
-    
     try {
       const { data: negocioAtualizado, error: negocioError } = await supabase
         .from('crm_negocios')
         .update({ status })
         .eq('id', negocio.id)
-        .select()
-        .single();
+        .select().single();
       
-      if (negocioError) {
-        throw new Error(`Erro ao atualizar o negócio: ${negocioError.message}`);
-      }
+      if (negocioError) throw negocioError;
       
       if (negocio.empresa_id) {
-        const statusAtualDaEmpresa = negocio.empresa.status;
-
-        if (status === 'Ganho') {
-          const { error: empresaError } = await supabase
-            .from('crm_empresas')
-            .update({ status: 'Cliente Ativo' })
-            .eq('id', negocio.empresa_id);
-
-          if (empresaError) {
-            alert("O negócio foi marcado como Ganho, mas houve um erro ao converter a empresa para Cliente.");
-            console.error("Erro ao promover empresa:", empresaError);
-          }
-        } 
-        else if (status === 'Perdido') {
-          if (statusAtualDaEmpresa === 'Cliente Ativo') {
-            const { error: empresaError } = await supabase
-              .from('crm_empresas')
-              .update({ status: 'Inativo' })
-              .eq('id', negocio.empresa_id);
-
-            if (empresaError) {
-              alert("O negócio foi marcado como Perdido, mas houve um erro ao inativar a empresa.");
-              console.error("Erro ao inativar empresa:", empresaError);
-            }
-          }
+        if (status === 'Ganho' && negocio.empresa.status !== 'Cliente Ativo') {
+          await supabase.from('crm_empresas').update({ status: 'Cliente Ativo' }).eq('id', negocio.empresa_id);
+        } else if (status === 'Perdido' && negocio.empresa.status === 'Cliente Ativo') {
+          await supabase.from('crm_empresas').update({ status: 'Inativo' }).eq('id', negocio.empresa_id);
         }
       }
       
@@ -183,36 +182,30 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 
     } catch (error) {
       console.error('Falha na operação de mudança de status:', error);
-      alert(error.message);
+      alert(`Erro ao atualizar o negócio: ${error.message}`);
     } finally {
       setIsStatusUpdating(false);
     }
   };
 
-  // --- 4. NOVA FUNÇÃO PARA REVERTER UM NEGÓCIO PARA "ATIVO" ---
   const handleReverterNegocio = async () => {
     if (!etapasDoFunil || etapasDoFunil.length === 0) {
       alert("Não foi possível encontrar as etapas do funil para reverter o negócio.");
       return;
     }
-    // O negócio volta para a primeira etapa do funil.
     const primeiraEtapaId = etapasDoFunil[0].id;
-
     setIsStatusUpdating(true);
     try {
       const { data: negocioAtualizado, error } = await supabase
         .from('crm_negocios')
         .update({ status: 'Ativo', etapa_id: primeiraEtapaId })
         .eq('id', negocio.id)
-        .select()
-        .single();
+        .select().single();
       
       if (error) throw error;
-      
       alert("Negócio revertido para 'Em Andamento'!");
       onDataChange(negocioAtualizado);
       onClose();
-
     } catch (error) {
       alert("Erro ao reverter o negócio.");
       console.error("Erro ao reverter negócio:", error);
@@ -221,24 +214,16 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  // --- 5. NOVA FUNÇÃO PARA DELETAR UM NEGÓCIO DE FORMA PERMANENTE ---
   const handleDeletarNegocio = async () => {
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('crm_negocios')
-        .delete()
-        .eq('id', negocio.id);
-      
+      const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
       if (error) throw error;
-      
       alert("Negócio deletado com sucesso!");
-      // Passamos um objeto simples para o onDataChange para sinalizar a remoção
       onDataChange({ id: negocio.id, status: 'Deletado' }); 
       onClose();
-
     } catch (error) {
-      alert("Erro ao deletar o negócio. Verifique se existem dados vinculados (atividades, notas) e tente novamente.");
+      alert("Erro ao deletar o negócio.");
       console.error("Erro ao deletar negócio:", error);
     } finally {
       setIsDeleting(false);
@@ -246,15 +231,14 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-
   const handleChangeEtapa = async (novaEtapaId) => {
     if (novaEtapaId === negocio.etapa_id) return;
     try {
       const { data: negocioAtualizado, error } = await supabase
         .from('crm_negocios')
-        .update({ etapa_id: novaEtapaId })
+        .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
         .eq('id', negocio.id)
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*)')
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:contatos(*)')
         .single();
 
       if (error) throw error;
@@ -267,13 +251,21 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   };
   
   const handleSaveTitulo = async () => {
-    if (!novoTitulo.trim() || novoTitulo === negocio.titulo) { setIsTituloEditing(false); return; }
+    const tituloTrimmed = novoTitulo.trim();
+    if (!tituloTrimmed || tituloTrimmed === negocio.titulo) {
+      setIsTituloEditing(false);
+      setNovoTitulo(negocio.titulo);
+      return;
+    }
     try {
-      const { data, error } = await supabase.from('crm_negocios').update({ titulo: novoTitulo.trim() }).eq('id', negocio.id).select().single();
+      const { data, error } = await supabase.from('crm_negocios').update({ titulo: tituloTrimmed }).eq('id', negocio.id).select().single();
       if (error) throw error;
       onDataChange(data);
       setIsTituloEditing(false);
-    } catch (error) { console.error("Erro ao guardar título:", error); }
+    } catch (error) {
+      console.error("Erro ao guardar título:", error);
+      alert("Não foi possível salvar o novo título.");
+    }
   };
 
   if (!isOpen) return null;
@@ -292,17 +284,16 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       {isTituloEditing ? (
                          <div className="flex items-center gap-2">
                           <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitulo(); }} className="text-2xl font-bold dark:bg-gray-700 p-1 border rounded"/>
-                          <button onClick={handleSaveTitulo}><Check size={18}/></button>
-                          <button onClick={() => setIsTituloEditing(false)}><X size={18}/></button>
+                          <button onClick={handleSaveTitulo} className="p-1 rounded hover:bg-gray-200"><Check size={18}/></button>
+                          <button onClick={() => setIsTituloEditing(false)} className="p-1 rounded hover:bg-gray-200"><X size={18}/></button>
                         </div>
                       ) : (
                         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                           {negocio.titulo}
-                          <button onClick={() => setIsTituloEditing(true)}><Pencil size={16}/></button>
+                          <button onClick={() => setIsTituloEditing(true)} className="text-gray-400 hover:text-gray-700"><Pencil size={16}/></button>
                         </h2>
                       )}
                     </div>
-                    {/* --- 6. RENDERIZAÇÃO CONDICIONAL DOS BOTÕES DE AÇÃO --- */}
                     <div className="flex items-center gap-3">
                       {negocio.status === 'Ativo' ? (
                         <>
@@ -326,13 +317,21 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       <button onClick={onClose} disabled={isStatusUpdating}><X size={24} /></button>
                     </div>
                   </div>
-                  {/* A barra de progresso só aparece para negócios ativos */}
                   {negocio.status === 'Ativo' && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleChangeEtapa} />)}
                 </div>
                 
                 <div className="flex flex-grow overflow-hidden">
                   <div className="w-1/3 border-r dark:border-gray-700 overflow-y-auto">
-                    <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} onForcarRecarga={carregarDadosDetalhados} onEmpresaClick={onEmpresaClick}/>
+                    <BarraLateral 
+                        negocio={negocio} 
+                        etapasDoFunil={etapasDoFunil} 
+                        listaDeUsers={listaDeUsers} 
+                        onDataChange={onDataChange} 
+                        onForcarRecarga={carregarDadosDetalhados} 
+                        onEmpresaClick={onEmpresaClick}
+                        onEditarContato={handleEditarContato}
+                        onAdicionarContato={handleAdicionarContato}
+                    />
                   </div>
                   <div className="w-2/3 flex flex-col overflow-hidden">
                      <div className="border-b dark:border-gray-700">
@@ -348,11 +347,11 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                               <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
                               <div>
                                 <h3 className="text-lg font-semibold mb-2">Foco</h3>
-                                <AtividadeFoco atividade={proximaAtividade} onConcluir={() => {}} />
+                                <AtividadeFoco atividade={proximaAtividade} onConcluir={carregarDadosDetalhados} />
                               </div>
                               <div>
                                 <h3 className="text-lg font-semibold mb-4">Histórico</h3>
-                                <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={() => {}} />))}</ul>
+                                <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={carregarDadosDetalhados} />))}</ul>
                               </div>
                           </>
                       )}
@@ -366,7 +365,28 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             )}
           </div>
       </div>
-      {/* --- 7. RENDERIZAMOS O NOSSO MODAL DE CONFIRMAÇÃO --- */}
+      
+      {isEditContatoOpen && (
+        <ContatoFormModal
+            isOpen={isEditContatoOpen}
+            onClose={handleCloseContactModals}
+            initialData={contatoEmEdicao} // Passa o contato para edição ou null para criação
+            empresaId={negocio.empresa?.id}
+            onSave={handleCloseContactModals} // Salva e fecha
+        />
+      )}
+
+      {isAddContatoOpen && (
+        <BuscaECriaContatoModal
+            isOpen={isAddContatoOpen}
+            onClose={handleCloseContactModals}
+            empresaId={negocio.empresa?.id}
+            negocioId={negocio.id}
+            onCriarNovo={handleSwitchToCreateContato}
+            onSave={handleCloseContactModals}
+        />
+      )}
+
       <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
         onClose={() => setIsConfirmDeleteOpen(false)}

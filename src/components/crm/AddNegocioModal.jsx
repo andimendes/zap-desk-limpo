@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+// 1. IMPORTAMOS O NOSSO SERVIÇO CENTRALIZADO
+import { createNegocio } from '@/services/negocioService';
 import BuscaECria from './BuscaECria';
 import { Loader2 } from 'lucide-react';
 
@@ -11,9 +13,8 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
   
   const [titulo, setTitulo] = useState('');
   const [valor, setValor] = useState('');
-  // --- 1. ESTADOS PARA GUARDAR OBJETOS COMPLETOS, NÃO APENAS NOMES ---
-  const [contatoSelecionado, setContatoSelecionado] = useState(null); // { id, nome }
-  const [empresaSelecionada, setEmpresaSelecionada] = useState(null); // { id, nome_fantasia }
+  const [contatoSelecionado, setContatoSelecionado] = useState(null); // { nome }
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(null); // { nome_fantasia }
 
   const [etapaId, setEtapaId] = useState(etapas.length > 0 ? etapas[0].id : '');
   const [responsavelId, setResponsavelId] = useState(session?.user?.id || '');
@@ -24,7 +25,6 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
   useEffect(() => {
     if (leadData) {
       setTitulo(`Negócio com ${leadData.nome}`);
-      // Se tivermos dados do lead, podemos pré-selecionar
       setContatoSelecionado({ nome: leadData.nome || '' });
     }
   }, [leadData]);
@@ -44,32 +44,22 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
     }
   }, [isOpen, etapas, etapaId]);
 
-  // --- 2. FUNÇÃO GENÉRICA E ROBUSTA PARA ENCONTRAR OU CRIAR REGISTOS ---
-  const findOrCreate = async (tabela, coluna, valor) => {
+  // Função auxiliar para encontrar ou criar um registo (Empresa ou Contato)
+  const findOrCreate = async (tabela, coluna, valor, extraData = {}) => {
     if (!valor || !valor.trim()) return null;
 
-    // Busca pelo valor exato (case-insensitive)
     let { data, error } = await supabase.from(tabela).select('id').ilike(coluna, valor.trim()).limit(1).single();
     
-    // Se encontrou, retorna o ID
     if (data) return data.id;
 
-    // Se não encontrou (e o erro é o esperado 'PGRST116'), cria um novo
     if (error && error.code === 'PGRST116') {
-      const insertData = { [coluna]: valor.trim() };
-      // Se for uma empresa, define o status inicial como 'Potencial'
-      if (tabela === 'crm_empresas') {
-        insertData.status = 'Potencial';
-      }
-
+      const insertData = { [coluna]: valor.trim(), ...extraData };
       const { data: novoRegistro, error: insertError } = await supabase.from(tabela).insert(insertData).select('id').single();
-      if (insertError) throw insertError; // Lança erro se a inserção falhar
+      if (insertError) throw insertError;
       return novoRegistro.id;
     }
     
-    // Se for qualquer outro erro na busca, lança-o
     if (error) throw error;
-
     return null;
   };
 
@@ -82,42 +72,39 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
     setLoading(true);
     setError('');
     try {
-      // --- 3. USA OS NOMES DOS ESTADOS PARA OBTER OS IDs ---
-      const empresaId = await findOrCreate('crm_empresas', 'nome_fantasia', empresaSelecionada?.nome_fantasia);
-      const contatoId = await findOrCreate('crm_contatos', 'nome', contatoSelecionado?.nome);
+      // Usa a função auxiliar para obter os IDs da empresa e do contato, criando-os se necessário
+      const empresaId = await findOrCreate('crm_empresas', 'nome_fantasia', empresaSelecionada?.nome_fantasia, { status: 'Potencial' });
+      // 2. CORREÇÃO: Apontamos para a tabela 'contatos' e a coluna 'name'
+      const contatoId = await findOrCreate('contatos', 'name', contatoSelecionado?.nome, { empresa_id: empresaId });
 
-      // Se um contato foi criado/encontrado, e uma empresa também, vincula o contato à empresa
+      // Se um contato foi encontrado mas não tinha empresa, e uma empresa foi selecionada, faz a ligação
       if (contatoId && empresaId) {
-        await supabase.from('crm_contatos').update({ empresa_id: empresaId }).eq('id', contatoId);
+          const { data: contactData } = await supabase.from('contatos').select('empresa_id').eq('id', contatoId).single();
+          if (contactData && !contactData.empresa_id) {
+              await supabase.from('contatos').update({ empresa_id: empresaId }).eq('id', contatoId);
+          }
       }
+
+      // Prepara o objeto do negócio com todos os dados necessários
+      const negocioData = {
+        titulo,
+        valor: valor || null,
+        etapa_id: etapaId,
+        user_id: session.user.id,
+        responsavel_id: responsavelId || null,
+        status: 'Ativo',
+        empresa_id: empresaId, // Associa a empresa
+        contato_id: contatoId,   // Associa o contato diretamente
+      };
       
-      const { data: novoNegocio, error: insertError } = await supabase
-        .from('crm_negocios')
-        .insert({
-          titulo,
-          valor: valor || null,
-          etapa_id: etapaId,
-          user_id: session.user.id,
-          responsavel_id: responsavelId || null,
-          lead_origem_id: leadData?.id || null,
-          empresa_id: empresaId, // Vincula a empresa ao negócio
-        })
-        .select('*, responsavel:profiles(full_name)')
-        .single();
+      // Chama a função centralizada do nosso serviço para criar o negócio
+      const { data: novoNegocio, error: insertError } = await createNegocio(negocioData);
+
       if (insertError) throw insertError;
       
-      // Vincula o contato ao negócio
-      if (contatoId) {
-        await supabase.from('crm_negocio_contatos').insert({ negocio_id: novoNegocio.id, contato_id: contatoId });
-      }
-      
-      // Atualiza o status do Lead, se aplicável
-      if (leadData?.id) {
-          await supabase.from('crm_leads').update({ status: 'Convertido' }).eq('id', leadData.id);
-      }
-
-      onNegocioAdicionado(novoNegocio, leadData?.id);
+      onNegocioAdicionado(novoNegocio);
       handleClose();
+
     } catch (error) {
       console.error('Erro ao adicionar negócio:', error);
       setError(`Não foi possível adicionar o negócio: ${error.message}`);
@@ -150,11 +137,11 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
               <input id="titulo" type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             
-            {/* --- 4. O BUSCAECRIA AGORA ATUALIZA OS ESTADOS DE OBJETOS --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Pessoa de Contato</label>
-                <BuscaECria tabela="crm_contatos" coluna="nome" placeholder="Busque ou crie um contato" valorInicial={contatoSelecionado?.nome} onSelecao={(valor) => setContatoSelecionado({ nome: valor })} />
+                 {/* 3. CORREÇÃO: Apontamos o BuscaECria para a tabela 'contatos' e a coluna 'name' */}
+                <BuscaECria tabela="contatos" coluna="name" placeholder="Busque ou crie um contato" valorInicial={contatoSelecionado?.nome} onSelecao={(valor) => setContatoSelecionado({ nome: valor })} />
               </div>
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Empresa</label>
