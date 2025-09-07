@@ -1,13 +1,13 @@
+// src/components/clientes/EmpresaFormUnificado.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Building, Landmark, MapPin, User, FileText, Briefcase, PlusCircle, Trash2, Mail, Phone, Star, X, Search } from 'lucide-react';
-// --- ALTERAÇÃO 1: Importar a nova biblioteca de máscara ---
 import InputMask from 'react-input-mask';
 
 
-// --- ALTERAÇÃO 2: Tornar o InputField capaz de usar uma máscara ---
 const InputField = ({ icon, mask, ...props }) => {
-    // Renderiza o InputMask se a prop 'mask' for fornecida, caso contrário, renderiza um input normal.
+    // ... (este componente não precisa de alterações)
     const inputComponent = mask ? (
         <InputMask mask={mask} {...props}>
             {(inputProps) => <input {...inputProps} />}
@@ -21,9 +21,7 @@ const InputField = ({ icon, mask, ...props }) => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
                 {icon}
             </div>
-            {/* Usamos a div para manter o estilo da borda e padding consistentes */}
             <div className="w-full pl-10 border rounded-lg transition bg-gray-50 border-gray-300 text-gray-900 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus-within:bg-gray-600 dark:focus-within:ring-blue-400 dark:focus-within:border-blue-400">
-                {/* O input (com ou sem máscara) é renderizado aqui, sem as classes de estilo que agora estão na div pai */}
                 {React.cloneElement(inputComponent, { className: "w-full p-2 bg-transparent border-none focus:ring-0" })}
             </div>
         </div>
@@ -38,6 +36,7 @@ const MODULOS_ESTRATEGICO = [
 ];
 
 const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo }) => {
+    // ... (toda a lógica inicial permanece a mesma) ...
     const [formData, setFormData] = useState({});
     const [contatosVinculados, setContatosVinculados] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -67,7 +66,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             };
             fetchContatosVinculados();
         } else {
-            setContatosVinculados([]); // Limpa contatos ao criar nova empresa
+            setContatosVinculados([]);
         }
         const fetchTodosContatos = async () => {
             const { data, error } = await supabase.from('crm_contatos').select('*');
@@ -76,11 +75,11 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
         fetchTodosContatos();
     }, [initialData]);
     
+    // ... (funções handleCnpjBlur, handleChange, etc. permanecem as mesmas) ...
     const handleCnpjBlur = async (e) => {
         const cnpj = e.target.value.replace(/\D/g, '');
         setCnpjError('');
         if (cnpj.length !== 14) {
-            // Adiciona uma verificação para não mostrar erro se o campo estiver vazio
             if (e.target.value.length > 0) setCnpjError('O CNPJ deve ter 14 dígitos.');
             return;
         }
@@ -135,7 +134,27 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const dadosParaSalvar = { id: formData.id, razao_social: formData.razao_social, nome_fantasia: formData.nome_fantasia, cnpj: formData.cnpj.replace(/\D/g, ''), status: formData.status, inscricao_estadual: formData.inscricao_estadual, inscricao_municipal: formData.inscricao_municipal, enquadramento_fiscal: formData.enquadramento_fiscal, plano: formData.plano, modulos_contratados: formData.modulos_contratados, email_principal: formData.email_principal, telefone_principal: formData.telefone_principal, rua: formData.rua, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado, cep: formData.cep };
+        const dadosParaSalvar = { 
+            id: formData.id, 
+            razao_social: formData.razao_social, 
+            nome_fantasia: formData.nome_fantasia, 
+            cnpj: formData.cnpj.replace(/\D/g, ''), 
+            status: formData.status, 
+            inscricao_estadual: formData.inscricao_estadual, 
+            inscricao_municipal: formData.inscricao_municipal, 
+            enquadramento_fiscal: formData.enquadramento_fiscal, 
+            plano: formData.plano, 
+            modulos_contratados: formData.modulos_contratados, 
+            email_principal: formData.email_principal, 
+            telefone_principal: formData.telefone_principal.replace(/\D/g, ''), // Salva apenas números
+            rua: formData.rua, 
+            numero: formData.numero, 
+            complemento: formData.complemento, 
+            bairro: formData.bairro, 
+            cidade: formData.cidade, 
+            estado: formData.estado, 
+            cep: formData.cep 
+        };
         let empresaSalva;
         if (dadosParaSalvar.id) {
             const { data, error } = await supabase.from(tabelaAlvo).update(dadosParaSalvar).eq('id', dadosParaSalvar.id).select().single();
@@ -159,9 +178,16 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
     
     const filteredContacts = searchTerm ? todosContatos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())) : [];
 
+    // Esta máscara muda dinamicamente de (99) 9999-9999 para (99) 99999-9999
+    const telefoneMask = formData.telefone_principal && formData.telefone_principal.replace(/\D/g, '').length > 10 
+        ? "(99) 99999-9999" 
+        : "(99) 9999-9999";
+
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6 text-sm p-8 rounded-lg max-h-[90vh] overflow-y-auto w-full max-w-4xl relative bg-white dark:bg-gray-800 border dark:border-gray-700">
-            <div className="flex justify-between items-start">
+            {/* ... (cabeçalho do formulário) ... */}
+             <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{formData.id ? 'Editar Empresa' : 'Nova Empresa'}</h2>
                 <button type="button" onClick={onClose} className="p-2 rounded-full transition-colors text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"><X size={24} /></button>
             </div>
@@ -176,10 +202,8 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                             onChange={handleChange} 
                             onBlur={handleCnpjBlur} 
                             placeholder="CNPJ (preenche dados)"
-                            // --- ALTERAÇÃO 3: Adicionar a máscara ao campo ---
                             mask="99.999.999/9999-99"
                         />
-                        {/* --- ALTERAÇÃO 4: Adicionar o feedback de erro --- */}
                         {cnpjError && <p className="text-xs text-red-500 mt-1">{cnpjError}</p>}
                     </div>
                     <InputField icon={<Building size={16} />} name="nome_fantasia" value={formData.nome_fantasia || ''} onChange={handleChange} placeholder="Nome Fantasia" required />
@@ -188,9 +212,19 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     <InputField icon={<FileText size={16} />} name="inscricao_municipal" value={formData.inscricao_municipal || ''} onChange={handleChange} placeholder="Inscrição Municipal" />
                     <InputField icon={<Briefcase size={16} />} name="enquadramento_fiscal" value={formData.enquadramento_fiscal || ''} onChange={handleChange} placeholder="Enquadramento Fiscal" />
                     <InputField icon={<Mail size={16} />} name="email_principal" type="email" value={formData.email_principal || ''} onChange={handleChange} placeholder="E-mail Principal" />
-                    <InputField icon={<Phone size={16} />} name="telefone_principal" value={formData.telefone_principal || ''} onChange={handleChange} placeholder="Telefone Principal" />
+                    
+                    {/* <-- ALTERAÇÃO 5: Adicionamos a prop 'mask' ao campo de telefone --> */}
+                    <InputField 
+                        icon={<Phone size={16} />} 
+                        name="telefone_principal" 
+                        value={formData.telefone_principal || ''} 
+                        onChange={handleChange} 
+                        placeholder="Telefone Principal"
+                        mask={telefoneMask} // <-- Máscara dinâmica aplicada aqui
+                    />
                 </div>
             </div>
+            {/* ... (O restante do formulário continua exatamente igual) ... */}
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Endereço</h3>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
