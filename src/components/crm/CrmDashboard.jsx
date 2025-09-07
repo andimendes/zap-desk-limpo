@@ -5,26 +5,27 @@ import { supabase } from '@/supabaseClient';
 import { Loader2, DollarSign, Target, CheckCircle, XCircle } from 'lucide-react';
 import StatCard from '@/components/dashboard/StatCard';
 
-// --- ALTERAÇÃO 1: O COMPONENTE AGORA RECEBE A PROP 'dataVersion' ---
-const CrmDashboard = ({ filtros, termoPesquisa, funilId, dataVersion }) => {
+// 1. O componente agora também recebe 'funilId'
+const CrmDashboard = ({ filtros, termoPesquisa, funilId }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
-  // --- ALTERAÇÃO 2: 'dataVersion' É ADICIONADO ÀS DEPENDÊNCIAS ---
-  // Ao incluir `dataVersion` aqui, o `useEffect` será executado novamente sempre que o
-  // valor de `dataVersion` mudar no componente pai. Isto força a busca de novos dados.
+  // 2. O useEffect agora também depende do 'funilId'.
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // Adicionamos uma verificação para não buscar dados se o funilId ainda não estiver pronto.
       if (!funilId) {
         setLoading(false);
-        setStats({ totalNegociosAtivos: 0, pipelineValue: 0, negociosGanhos: 0, negociosPerdidos: 0, winRate: 0 });
         return;
       }
 
       setLoading(true);
       setError('');
       try {
+        // 3. A busca agora é feita em duas etapas para filtrar pelo funil.
+        
+        // Etapa A: Buscar os IDs de todas as etapas que pertencem ao funil selecionado.
         const { data: etapas, error: etapasError } = await supabase
           .from('crm_etapas')
           .select('id')
@@ -32,6 +33,7 @@ const CrmDashboard = ({ filtros, termoPesquisa, funilId, dataVersion }) => {
 
         if (etapasError) throw etapasError;
 
+        // Se o funil não tiver etapas, não há negócios para calcular.
         if (!etapas || etapas.length === 0) {
           setStats({ totalNegociosAtivos: 0, pipelineValue: 0, negociosGanhos: 0, negociosPerdidos: 0, winRate: 0 });
           setLoading(false);
@@ -40,18 +42,21 @@ const CrmDashboard = ({ filtros, termoPesquisa, funilId, dataVersion }) => {
 
         const etapaIds = etapas.map(e => e.id);
 
+        // Etapa B: Buscar os negócios aplicando TODOS os filtros.
         let query = supabase.from('crm_negocios').select('*');
         
+        // Filtra para buscar apenas negócios que pertencem às etapas do funil correto.
         query = query.in('etapa_id', etapaIds);
 
         if (filtros.responsavelId && filtros.responsavelId !== 'todos') query = query.eq('responsavel_id', filtros.responsavelId);
         if (filtros.dataInicio) query = query.gte('created_at', filtros.dataInicio);
         if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim);
-        if (termoPesquisa) query = query.or(`titulo.ilike.%${termoPesquisa}%,empresa:crm_empresas(nome_fantasia).ilike.%${termoPesquisa}%`);
+        if (termoPesquisa) query = query.or(`titulo.ilike.%${termoPesquisa}%,empresa_contato.ilike.%${termoPesquisa}%`);
 
         const { data: negocios, error: negociosError } = await query;
         if (negociosError) throw negociosError;
 
+        // A lógica de cálculo permanece a mesma
         const negociosAtivos = negocios.filter(n => n.status === 'Ativo');
         const negociosGanhos = negocios.filter(n => n.status === 'Ganho');
         const negociosPerdidos = negocios.filter(n => n.status === 'Perdido');
@@ -68,24 +73,10 @@ const CrmDashboard = ({ filtros, termoPesquisa, funilId, dataVersion }) => {
       }
     };
     fetchDashboardData();
-  }, [filtros, termoPesquisa, funilId, dataVersion]); // Dependências do useEffect
+  }, [filtros, termoPesquisa, funilId]); // Dependências do useEffect
 
-  // --- ALTERAÇÃO 3: MELHORIA NA INTERFACE DE CARREGAMENTO ---
-  // Em vez de não mostrar nada durante o carregamento, exibimos um indicador.
-  if (loading) return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4 sm:p-6 lg:p-8">
-      {/* Exibe "esqueletos" dos cartões para uma melhor experiência de utilizador */}
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md animate-pulse">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
-            <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mb-2"></div>
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-        </div>
-      ))}
-    </div>
-  );
-
-  if (error) return <div className="p-4 sm:p-6 lg:p-8 text-red-500">{error}</div>;
+  if (loading) return null;
+  if (error) return <div className="p-8 text-red-500">{error}</div>;
   
   return (
     <div className="p-4 sm:p-6 lg:p-8">
