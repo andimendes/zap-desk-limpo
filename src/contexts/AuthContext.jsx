@@ -11,7 +11,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Esta função busca o perfil e as roles de um usuário
     const fetchProfileAndRoles = async (user) => {
       if (!user) {
         setProfile(null);
@@ -36,6 +35,11 @@ export function AuthProvider({ children }) {
             ...profileData,
             roles: rolesData ? rolesData.map(item => item.roles.name) : []
           };
+          
+          // --- LINHA DE DEPURAÇÃO ADICIONADA AQUI ---
+          console.log('Perfil Final Carregado no Contexto:', finalProfile);
+          // ------------------------------------------
+
           setProfile(finalProfile);
         }
       } catch (error) {
@@ -44,32 +48,27 @@ export function AuthProvider({ children }) {
       }
     };
 
-    // Função principal que é executada quando a aplicação carrega
     const initializeSession = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
         await fetchProfileAndRoles(currentSession?.user);
       } catch (error) {
-        console.error("Erro ao inicializar a sessão:", error);
+        console.error("Erro ao inicializar a autenticação:", error);
       } finally {
-        // ESSENCIAL: Garante que o loading termine, aconteça o que acontecer
         setLoading(false);
       }
     };
 
     initializeSession();
 
-    // Ouve as mudanças de autenticação (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        // Atualiza o perfil quando o usuário entra ou sai
         fetchProfileAndRoles(session?.user);
       }
     );
 
-    // Limpa o "ouvinte"
     return () => {
       subscription?.unsubscribe();
     };
