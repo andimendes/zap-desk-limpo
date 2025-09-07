@@ -11,24 +11,54 @@ serve(async (req) => {
   }
 
   try {
-    // Agora aceitamos um campo 'password' opcional
     const { userId, name, email, role, password } = await req.json();
     if (!userId || !name || !email || !role) {
       throw new Error('Faltam dados obrigatórios (userId, name, email, role).');
     }
 
+    // --- VERIFICAÇÃO DE SEGURANÇA MULTI-TENANT ---
+    // 1. Identifica o administrador que está fazendo a chamada
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    );
+    const { data: { user: adminUser } } = await supabaseClient.auth.getUser();
+    if (!adminUser) throw new Error('Administrador não autenticado.');
+
+    // 2. Cria um cliente com permissões de super-administrador para as checagens
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Objeto para guardar os dados a serem atualizados
-    const updatePayload: { email: string; user_metadata: any; password?: string } = {
-      email: email,
+    // 3. Busca os perfis (e o tenant_id) tanto do admin quanto do usuário-alvo
+    const { data: profiles, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, tenant_id')
+      .in('id', [adminUser.id, userId]);
+
+    if (profileError) throw profileError;
+
+    const adminProfile = profiles.find(p => p.id === adminUser.id);
+    const targetProfile = profiles.find(p => p.id === userId);
+
+    // 4. Se algum perfil não for encontrado ou se os tenant_ids forem diferentes, bloqueia a operação
+    if (!adminProfile || !targetProfile || adminProfile.tenant_id !== targetProfile.tenant_id) {
+      throw new Error('Permissão negada: operação não autorizada.');
+    }
+    // --- FIM DA VERIFICAÇÃO DE SEGURANÇA ---
+
+    const updatePayload: { email?: string; user_metadata?: any; password?: string } = {
       user_metadata: { full_name: name, role: role }
     };
+    
+    // Apenas atualiza o email se ele for diferente, para evitar re-confirmações desnecessárias
+    const { data: { user: currentUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (currentUser && currentUser.email !== email) {
+      updatePayload.email = email;
+    }
 
-    // ✅ NOVO: Se uma senha for enviada, adiciona-a ao payload
     if (password) {
       if (password.length < 6) {
         throw new Error('A senha deve ter pelo menos 6 caracteres.');

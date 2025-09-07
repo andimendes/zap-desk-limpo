@@ -7,14 +7,15 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Páginas Públicas
 import AuthPage from '@/pages/AuthPage';
+import CadastroEmpresa from '@/pages/CadastroEmpresa.jsx'; // <-- 1. ADICIONEI A IMPORTAÇÃO AQUI
 
 // Páginas Principais
 import ChamadosPage from '@/pages/ChamadosPage';
 import EmpresasPage from '@/pages/EmpresasPage';
-import ContatosPage from '@/pages/ContatosPage.jsx'; 
-import CrmPage from '@/pages/CrmPage'; // RE-ADICIONADO
+import ContatosPage from '@/pages/ContatosPage.jsx';
+import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
-import AdminPage from '@/pages/admin/AdminPage'; 
+import AdminPage from '@/pages/admin/AdminPage';
 import DashboardPage from '@/pages/DashboardPage';
 
 // Layouts
@@ -30,9 +31,12 @@ const AppContent = () => {
   }
 
   if (!session) {
+    // Se não há sessão, agora mostramos o AuthPage, mas a rota de cadastro continua existindo
     return (
         <Routes>
-            <Route path="*" element={<AuthPage />} />
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/cadastro" element={<CadastroEmpresa />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
     );
   }
@@ -43,12 +47,9 @@ const AppContent = () => {
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chamados" element={<ChamadosPage />} />
-          
-          {/* --- ROTAS CORRIGIDAS E RE-ADICIONADAS --- */}
           <Route path="/empresas" element={<EmpresasPage />} />
-          <Route path="/contatos" element={<ContatosPage />} /> 
-          <Route path="/crm" element={<CrmPage />} /> {/* ROTA CRM DE VOLTA */}
-
+          <Route path="/contatos" element={<ContatosPage />} />
+          <Route path="/crm" element={<CrmPage />} />
           <Route path="/admin/*" element={<AdminPage />} />
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
@@ -78,6 +79,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<AuthPage />} />
+          <Route path="/cadastro" element={<CadastroEmpresa />} /> {/* <-- 2. ADICIONEI A ROTA AQUI */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom'; // <-- 1. ADICIONEI A IMPORTAÇÃO AQUI
 import { supabase } from '../supabaseClient';
 
 export default function AuthPage() {
@@ -6,7 +7,7 @@ export default function AuthPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', content: '' });
-    const [isForgotPassword, setIsForgotPassword] = useState(false); // ✅ NOVO: Estado para controlar a visão
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -18,8 +19,7 @@ export default function AuthPage() {
         }
         setLoading(false);
     };
-
-    // ✅ NOVO: Função para chamar a Edge Function de recuperar senha
+    
     const handlePasswordReset = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -49,7 +49,6 @@ export default function AuthPage() {
                 </h2>
                 
                 {isForgotPassword ? (
-                    // ✅ NOVO: Formulário de Recuperação de Senha
                     <form className="space-y-4" onSubmit={handlePasswordReset}>
                         <p className="text-sm text-gray-600 text-center">
                             Insira o seu email e enviaremos um link para redefinir a sua senha.
@@ -64,7 +63,6 @@ export default function AuthPage() {
                         </button>
                     </form>
                 ) : (
-                    // Formulário de Login Original
                     <form className="space-y-4" onSubmit={handleLogin}>
                         <div>
                             <label htmlFor="email" className="text-sm font-medium text-gray-700">E-mail</label>
@@ -81,18 +79,27 @@ export default function AuthPage() {
                     </form>
                 )}
 
-                {/* ✅ NOVO: Botão para alternar entre os formulários */}
-                <div className="text-center">
+                <div className="text-center text-sm space-y-2">
                     <button 
                         onClick={() => {
                             setIsForgotPassword(!isForgotPassword);
-                            setMessage({ type: '', content: '' }); // Limpa a mensagem ao trocar
+                            setMessage({ type: '', content: '' });
                             setEmail('');
                         }} 
-                        className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                        className="font-medium text-blue-600 hover:text-blue-500"
                     >
                         {isForgotPassword ? 'Voltar para o Login' : 'Esqueceu a senha?'}
                     </button>
+
+                    {/* --- 2. ADICIONEI O LINK DE CADASTRO AQUI --- */}
+                    {!isForgotPassword && (
+                        <p>
+                            Não tem uma conta?{' '}
+                            <Link to="/cadastro" className="font-medium text-blue-600 hover:text-blue-500">
+                                Cadastre sua empresa
+                            </Link>
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
