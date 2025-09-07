@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import ContatoForm from '../clientes/ContatoForm';
-import ImportacaoContatosModal from './ImportacaoContatosModal'; // Importa o novo modal
+// --- ALTERAÇÃO 1: Trocamos o formulário antigo pelo nosso novo modal unificado ---
+import ContatoFormModal from '../crm/ContatoFormModal'; 
+import ImportacaoContatosModal from './ImportacaoContatosModal';
 import { Plus, Edit, Trash2, Loader2, List, LayoutGrid, Upload, Download } from 'lucide-react';
 import Papa from 'papaparse';
 
-// Função para formatar o telefone para exibição
+// Função para formatar o telefone para exibição (sem alterações)
 const formatTelefone = (telefone) => {
   if (!telefone) return 'Sem telefone';
   const telefoneLimpo = String(telefone).replace(/\D/g, '');
@@ -20,6 +21,7 @@ const formatTelefone = (telefone) => {
   return telefone;
 };
 
+// Componente ContatoCard (sem alterações)
 const ContatoCard = ({ contato, onEdit, onDelete }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border dark:border-gray-700 p-4 flex flex-col justify-between">
         <div>
@@ -34,7 +36,6 @@ const ContatoCard = ({ contato, onEdit, onDelete }) => (
             </div>
             <div className="text-xs text-gray-600 space-y-1 mt-3 pt-3 border-t">
                 <p>{contato.email || 'Sem e-mail'}</p>
-                {/* Formata o telefone aqui */}
                 <p>{formatTelefone(contato.telefone)}</p>
             </div>
         </div>
@@ -45,6 +46,7 @@ const ContatoCard = ({ contato, onEdit, onDelete }) => (
     </div>
 );
 
+// Componente ContatoListItem (sem alterações)
 const ContatoListItem = ({ contato, onEdit, onDelete }) => (
      <tr className="hover:bg-gray-50">
         <td className="px-6 py-4 whitespace-nowrap">
@@ -59,7 +61,6 @@ const ContatoListItem = ({ contato, onEdit, onDelete }) => (
             </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contato.email}</td>
-        {/* Formata o telefone aqui */}
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatTelefone(contato.telefone)}</td>
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
             <button onClick={() => onEdit(contato)} className="p-2 text-gray-500 hover:text-blue-600"><Edit size={16} /></button>
@@ -69,10 +70,11 @@ const ContatoListItem = ({ contato, onEdit, onDelete }) => (
 );
 
 export default function PaginaContatos() {
+    // Todos os 'useState' e funções de lógica permanecem os mesmos
     const [contatos, setContatos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // Estado para o modal de importação
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedContato, setSelectedContato] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState('grid');
@@ -133,6 +135,7 @@ export default function PaginaContatos() {
 
     return (
         <div className="p-4 md:p-8 bg-gray-100 min-h-full dark:bg-gray-900">
+            {/* O cabeçalho e a área de visualização continuam os mesmos */}
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
@@ -181,15 +184,19 @@ export default function PaginaContatos() {
                     </div>
                 )}
             </div>
+            
+            {/* --- ALTERAÇÃO 2: Simplificamos a renderização do modal --- */}
+            {/* O 'div' que criava o fundo escuro foi removido. */}
+            {/* O nome da prop 'contatoInicial' foi atualizado para 'contato'. */}
             {isFormModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-                    <ContatoForm 
-                        onSave={handleSave}
-                        contatoInicial={selectedContato} // Propriedade corrigida
-                        onClose={handleCloseFormModal}
-                    />
-                </div>
+                <ContatoFormModal 
+                    isOpen={isFormModalOpen}
+                    onSave={handleSave}
+                    contato={selectedContato}
+                    onClose={handleCloseFormModal}
+                />
             )}
+
             {isImportModalOpen && (
                 <ImportacaoContatosModal
                     onClose={() => setIsImportModalOpen(false)}

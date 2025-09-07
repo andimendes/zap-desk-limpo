@@ -8,7 +8,8 @@ import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
 import ActivityComposer from './ActivityComposer';
-import ContatoFormModal from '../clientes/ContatoForm';
+// --- ALTERAÇÃO 1: A importação agora aponta para o nosso novo componente unificado ---
+import ContatoFormModal from './ContatoFormModal';
 import BuscaECriaContatoModal from './BuscaECriaContatoModal';
 
 
@@ -86,7 +87,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
-      // CORREÇÃO APLICADA: A tabela de relacionamento de contatos é 'contatos' e não 'crm_contatos'
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
         .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:contatos(*)')
@@ -146,7 +146,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   
   const handleSwitchToCreateContato = () => {
     setIsAddContatoOpen(false);
-    setContatoEmEdicao(null); // Garante que o formulário abrirá para criação
+    setContatoEmEdicao(null); 
     setIsEditContatoOpen(true);
   };
 
@@ -154,7 +154,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     setIsEditContatoOpen(false);
     setIsAddContatoOpen(false);
     setContatoEmEdicao(null);
-    carregarDadosDetalhados(); // Força a recarga dos dados para refletir as mudanças
+    carregarDadosDetalhados(); 
   };
 
   const handleMarcarStatus = async (status) => {
@@ -366,13 +366,14 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
           </div>
       </div>
       
+      {/* --- ALTERAÇÃO 2: As propriedades 'contato' e 'empresaIdInicial' foram atualizadas --- */}
       {isEditContatoOpen && (
         <ContatoFormModal
             isOpen={isEditContatoOpen}
             onClose={handleCloseContactModals}
-            initialData={contatoEmEdicao} // Passa o contato para edição ou null para criação
-            empresaId={negocio.empresa?.id}
-            onSave={handleCloseContactModals} // Salva e fecha
+            contato={contatoEmEdicao}
+            empresaIdInicial={negocio.empresa?.id}
+            onSave={handleCloseContactModals}
         />
       )}
 
