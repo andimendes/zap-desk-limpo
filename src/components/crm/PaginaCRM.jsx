@@ -30,6 +30,7 @@ const PaginaCRM = () => {
   const [termoPesquisaDebounced, setTermoPesquisaDebounced] = useState('');
   const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('Ativo');
+  const [dataVersion, setDataVersion] = useState(0);
 
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
@@ -94,19 +95,9 @@ const PaginaCRM = () => {
   
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   
-  const handleDataChange = (updatedData) => {
-    if (updatedData && updatedData.nome_fantasia) {
-      setNegocios(prevNegocios => 
-        prevNegocios.map(negocio => {
-          if (negocio.empresa && negocio.empresa.id === updatedData.id) {
-            return { ...negocio, empresa: updatedData };
-          }
-          return negocio;
-        })
-      );
-    } else {
-      fetchDadosDoFunil();
-    }
+  const handleDataChange = () => {
+    fetchDadosDoFunil();
+    setDataVersion(v => v + 1);
     setNegocioSelecionado(null);
     setEmpresaSelecionada(null);
   };
@@ -166,9 +157,11 @@ const PaginaCRM = () => {
             </button>
         </div>
 
-        {/* --- CORREÇÃO: SECÇÃO DO DASHBOARD REINSERIDA --- */}
         <section className="mb-6">
-          <CrmDashboard negocios={negocios} />
+          <CrmDashboard 
+            funilId={funilSelecionadoId}
+            dataVersion={dataVersion}
+          />
         </section>
         
         <main>
