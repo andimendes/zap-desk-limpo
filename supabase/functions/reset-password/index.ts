@@ -1,43 +1,52 @@
 // supabase/functions/reset-password/index.ts
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders } from '../_shared/cors.ts';
 
-Deno.serve(async (req) => {
-  // Trata a requisição preflight de CORS
+serve(async (req) => {
+  const origin = req.headers.get('origin') || '';
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(origin) });
   }
 
   try {
-    const { email } = await req.json()
+    const { email } = await req.json();
+    if (!email) { 
+      throw new Error('O e-mail é um campo obrigatório.'); 
+    }
 
-    // Crie um cliente Supabase com o service_role para ter permissões de admin
-    const supabaseAdmin = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
 
-    // Solicita a redefinição de senha
-    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: `${Deno.env.get('SITE_URL')}/update-password`, // Crie uma página para isso no seu app
-    })
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${origin}/update-password` 
+    });
 
-    if (error) {
-      throw error
+    if (error) { 
+      console.error('Erro retornado pelo Supabase:', error.message);
+      throw error; 
     }
 
     return new Response(
-      JSON.stringify({ message: 'Se o e-mail existir em nossa base, um link para redefinição de senha foi enviado.' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+      JSON.stringify({ message: 'Se um usuário com este e-mail existir, um link de recuperação será enviado.' }),
+      { 
+        headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }, 
+        status: 200 
       }
-    )
+    );
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    })
+    console.error("Erro na execução da função reset-password:", error.message);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } 
+      }
+    );
   }
-})
+});
