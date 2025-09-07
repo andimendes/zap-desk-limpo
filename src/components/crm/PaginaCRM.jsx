@@ -94,30 +94,19 @@ const PaginaCRM = () => {
   
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   
-  // --- ALTERAÇÃO PRINCIPAL: FUNÇÃO DE ATUALIZAÇÃO INTELIGENTE ---
-  // A função `handleDataChange` agora aceita um argumento com os dados atualizados.
   const handleDataChange = (updatedData) => {
-    // Se recebemos dados de uma empresa que foi atualizada...
-    // (Usamos 'nome_fantasia' como um indicador de que é um objeto de empresa)
     if (updatedData && updatedData.nome_fantasia) {
-      // Atualizamos o estado dos negócios diretamente na memória.
       setNegocios(prevNegocios => 
         prevNegocios.map(negocio => {
-          // Se encontrarmos um negócio que pertence à empresa atualizada...
           if (negocio.empresa && negocio.empresa.id === updatedData.id) {
-            // ...retornamos o negócio com os dados da empresa substituídos pelos novos.
             return { ...negocio, empresa: updatedData };
           }
-          // Caso contrário, retornamos o negócio como estava.
           return negocio;
         })
       );
     } else {
-      // Para qualquer outra atualização (como mover um card), usamos o método antigo de recarregar tudo.
       fetchDadosDoFunil();
     }
-    
-    // Fechamos os modais para garantir que o utilizador veja a atualização.
     setNegocioSelecionado(null);
     setEmpresaSelecionada(null);
   };
@@ -177,6 +166,7 @@ const PaginaCRM = () => {
             </button>
         </div>
 
+        {/* --- CORREÇÃO: SECÇÃO DO DASHBOARD REINSERIDA --- */}
         <section className="mb-6">
           <CrmDashboard negocios={negocios} />
         </section>
