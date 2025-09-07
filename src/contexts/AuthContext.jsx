@@ -1,75 +1,87 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+// src/contexts/AuthContext.jsx
+
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-
-        if (currentSession?.user) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-          if (!profileData) {
-              setProfile(null);
-              return;
-          }
-
-          // --- ESTA É A CORREÇÃO PRINCIPAL ---
-          // A lógica para buscar os 'roles' já existia, mas não estava
-          // a ser usada para o perfil principal. Agora está.
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('roles (name)')
-            .eq('user_id', currentSession.user.id);
-
-          if (rolesError) throw rolesError;
-          
-          // Combinamos o perfil com os 'roles' corretamente
-          const finalProfile = {
-            ...profileData,
-            // A propriedade 'roles' será uma lista como ['admin']
-            roles: rolesData ? rolesData.map(item => item.roles.name) : []
-          };
-          
-          setProfile(finalProfile);
-
-        } else {
-            setProfile(null);
-        }
-      } catch (error) {
-        console.error("Erro no AuthContext:", error);
-        setProfile(null);
-      } finally {
-        setLoading(false);
+  // --- LÓGICA CENTRALIZADA PARA BUSCAR O PERFIL ---
+  // Esta função busca o perfil e as roles do usuário e atualiza o estado.
+  const fetchProfileAndRoles = async (user) => {
+    try {
+      if (!user) {
+          setProfile(null);
+          return;
       }
-    };
-    
-    initializeAuth();
+      
+      // Busca o perfil principal do usuário
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        // Recarregamos tudo para garantir consistência
-        initializeAuth();
+      if (profileError) throw profileError;
+      
+      // Se encontrou o perfil, busca as roles associadas
+      if (profileData) {
+        const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles') // Supondo que a tabela de junção se chame 'user_roles'
+            .select('roles (name)')
+            .eq('user_id', user.id);
+
+        if (rolesError) throw rolesError;
+        
+        // Combina o perfil com a lista de roles
+        const finalProfile = {
+          ...profileData,
+          roles: rolesData ? rolesData.map(item => item.roles.name) : []
+        };
+        setProfile(finalProfile);
+      }
+      
+    } catch (error) {
+      console.error("Erro ao buscar perfil e roles:", error.message);
+      setProfile(null); // Garante que o perfil fique nulo em caso de erro
+    }
+  };
+
+
+  useEffect(() => {
+    setLoading(true);
+    
+    // 1. Busca a sessão inicial quando a aplicação carrega
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      // Se já houver uma sessão, busca o perfil
+      await fetchProfileAndRoles(session?.user);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // 2. Ouve as mudanças de autenticação (LOGIN, LOGOUT)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        // Busca o perfil sempre que a sessão mudar
+        await fetchProfileAndRoles(session?.user);
+        setLoading(false);
+      }
+    );
+
+    // Limpa o "ouvinte" quando o componente é desmontado
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const value = { session, profile, loading };
 
+  // Renderiza os componentes filhos apenas quando o carregamento inicial terminar
   return (
     <AuthContext.Provider value={value}>
       {!loading && children}
