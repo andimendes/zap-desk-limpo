@@ -1,7 +1,8 @@
 // src/pages/AuthPage.jsx
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'; // Adicionado useEffect
+import { Link, useNavigate } from 'react-router-dom'; // Adicionado useNavigate
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext'; // Importa o nosso hook de autenticação
 
 export default function AuthPage() {
     const [email, setEmail] = useState('');
@@ -10,26 +11,28 @@ export default function AuthPage() {
     const [message, setMessage] = useState({ type: '', content: '' });
     const [isForgotPassword, setIsForgotPassword] = useState(false);
 
+    // --- LÓGICA DE REDIRECIONAMENTO ADICIONADA ---
+    const { session } = useAuth(); // Pega a sessão atual do nosso contexto
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        // Se a sessão existir (ou seja, o login foi bem-sucedido e o estado atualizou),
+        // navega para o painel de controlo.
+        if (session) {
+            navigate('/dashboard');
+        }
+    }, [session, navigate]); // Este efeito é executado sempre que a 'session' muda
+    // ---------------------------------------------
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage({ type: '', content: '' });
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                // Se o Supabase retornar um erro, ele será lançado e capturado pelo catch
-                throw error;
-            }
-
-            // Verificação extra: se não houver erro, mas a sessão não for criada
-            if (!data.session) {
-                throw new Error("Login não retornou uma sessão. Verifique suas credenciais ou confirme seu e-mail.");
-            }
-
-            // Se o login for bem-sucedido, o AuthProvider se encarregará do redirecionamento.
-            // Não é necessário fazer nada aqui.
-
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) { throw error; }
+            // Após o sucesso, o 'onAuthStateChange' no AuthContext irá atualizar a 'session',
+            // o que ativará o useEffect acima e causará o redirecionamento.
         } catch (error) {
             console.error("Erro detalhado no login:", error);
             setMessage({ type: 'error', content: `Falha no login: ${error.message}` });
@@ -38,23 +41,15 @@ export default function AuthPage() {
         }
     };
     
-    // ... (o resto do código para handlePasswordReset continua o mesmo)
     const handlePasswordReset = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage({ type: '', content: '' });
         
         try {
-            const { data, error } = await supabase.functions.invoke('reset-password', {
-                body: { email }
-            });
-
-            if (error) {
-                throw new Error(error.message);
-            }
-            
+            const { data, error } = await supabase.functions.invoke('reset-password', { body: { email } });
+            if (error) { throw new Error(error.message); }
             setMessage({ type: 'success', content: data.message });
-
         } catch (error) {
             console.error("Erro na recuperação de senha:", error.message)
             setMessage({ type: 'error', content: `Falha ao enviar o pedido: ${error.message}` });
@@ -63,6 +58,7 @@ export default function AuthPage() {
         }
     };
 
+    // O resto do componente continua igual...
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-6">
@@ -74,8 +70,17 @@ export default function AuthPage() {
                 </h2>
                 {message.content && (<div className={`p-3 my-4 rounded-md text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message.content}</div>)}
                 {isForgotPassword ? (
-                    <form className="space-y-4" onSubmit={handlePasswordReset}>
-                        {/* ... (formulário de reset sem alterações) ... */}
+                     <form className="space-y-4" onSubmit={handlePasswordReset}>
+                        <p className="text-sm text-gray-600 text-center">
+                            Insira o seu email e enviaremos um link para redefinir a sua senha.
+                        </p>
+                        <div>
+                            <label htmlFor="email" className="text-sm font-medium text-gray-700">E-mail</label>
+                            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required className="mt-1 block w-full px-3 py-2 border rounded-md" />
+                        </div>
+                        <button type="submit" disabled={loading} className="w-full justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300">
+                            {loading ? 'Aguarde...' : 'Enviar Link'}
+                        </button>
                     </form>
                 ) : (
                     <form className="space-y-4" onSubmit={handleLogin}>
