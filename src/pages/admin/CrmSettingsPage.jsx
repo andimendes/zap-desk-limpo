@@ -16,7 +16,6 @@ const CrmSettingsPage = () => {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError('');
     try {
@@ -25,15 +24,12 @@ const CrmSettingsPage = () => {
         .select(`id, nome_funil, user_id, crm_etapas (id, nome_etapa, ordem)`)
         .eq('tenant_id', profile.tenant_id)
         .order('created_at', { ascending: true });
-
       if (error) throw error;
-      
       const funisComEtapasOrdenadas = data.map(funil => ({
         ...funil,
         crm_etapas: funil.crm_etapas.sort((a, b) => a.ordem - b.ordem),
       }));
       setFunis(funisComEtapasOrdenadas);
-
     } catch (err) {
       console.error("Erro ao buscar funis:", err);
       setError('Não foi possível carregar as configurações do CRM.');
@@ -52,7 +48,6 @@ const CrmSettingsPage = () => {
         return;
     }
     setError('');
-
     try {
       const originalFunisIds = funis.map(f => f.id);
       const editadosFunisIds = funisEditados.filter(f => f.id).map(f => f.id);
@@ -70,13 +65,7 @@ const CrmSettingsPage = () => {
             user_id: funil.user_id || profile.id,
             tenant_id: profile.tenant_id
         };
-        
-        const { data: savedFunil, error: funilError } = await supabase
-            .from('crm_funis')
-            .upsert(funilDataParaSalvar)
-            .select()
-            .single();
-
+        const { data: savedFunil, error: funilError } = await supabase.from('crm_funis').upsert(funilDataParaSalvar).select().single();
         if (funilError) throw funilError;
 
         const funilOriginal = funis.find(f => f.id === savedFunil.id);
@@ -90,22 +79,46 @@ const CrmSettingsPage = () => {
         }
 
         if (funil.crm_etapas?.length > 0) {
-          const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => {
-              // *** ESTA É A LÓGICA CORRETA E FINAL ***
-              const novaEtapa = {
-                  nome_etapa: etapa.nome_etapa,
-                  funil_id: savedFunil.id,
-                  ordem: index + 1,
-              };
-              // Apenas adiciona o 'id' se ele já existir (para atualizações)
-              if (etapa.id) {
-                  novaEtapa.id = etapa.id;
-              }
-              return novaEtapa;
-          });
+          const etapasParaAtualizar = [];
+          const etapasParaInserir = [];
 
-          const { error: etapaError } = await supabase.from('crm_etapas').upsert(etapasParaSalvar);
-          if (etapaError) throw new Error(`Erro ao salvar etapas para o funil "${savedFunil.nome_funil}": ${etapaError.message}`);
+          funil.crm_etapas.forEach((etapa, index) => {
+            const etapaData = {
+              nome_etapa: etapa.nome_etapa,
+              funil_id: savedFunil.id,
+              ordem: index + 1,
+            };
+            if (etapa.id) {
+              etapaData.id = etapa.id;
+              etapasParaAtualizar.push(etapaData);
+            } else {
+              etapasParaInserir.push(etapaData);
+            }
+          });
+          
+          // *** ESTA É A CORREÇÃO FINAL ***
+          // Atualiza cada etapa existente individualmente, especificando o ID.
+          if (etapasParaAtualizar.length > 0) {
+            for (const etapa of etapasParaAtualizar) {
+              const { error: updateError } = await supabase
+                .from('crm_etapas')
+                .update({ 
+                  nome_etapa: etapa.nome_etapa, 
+                  ordem: etapa.ordem 
+                })
+                .eq('id', etapa.id); // A cláusula 'WHERE' que faltava
+
+              if (updateError) {
+                throw new Error(`Erro ao atualizar a etapa "${etapa.nome_etapa}": ${updateError.message}`);
+              }
+            }
+          }
+
+          // Insere todas as novas etapas de uma só vez.
+          if (etapasParaInserir.length > 0) {
+            const { error: insertError } = await supabase.from('crm_etapas').insert(etapasParaInserir);
+            if (insertError) throw new Error(`Erro ao inserir novas etapas: ${insertError.message}`);
+          }
         }
       }
 
@@ -136,10 +149,8 @@ const CrmSettingsPage = () => {
             <span>Gerir Funis</span>
           </button>
         </div>
-
         {loading && <div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>}
         {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-center gap-3"><AlertTriangle className="h-6 w-6" /><p>{error}</p></div>}
-        
         {!loading && !error && (
           <div className="space-y-6">
             {funis.map(funil => (
@@ -149,13 +160,9 @@ const CrmSettingsPage = () => {
                   <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase">Etapas do Funil</h3>
                   {funil.crm_etapas.length > 0 ? (
                     <ul className="divide-y dark:divide-gray-700">
-                      {funil.crm_etapas.map(etapa => (
-                        <li key={etapa.id} className="py-2 text-gray-800 dark:text-gray-200">{etapa.nome_etapa}</li>
-                      ))}
+                      {funil.crm_etapas.map(etapa => (<li key={etapa.id} className="py-2 text-gray-800 dark:text-gray-200">{etapa.nome_etapa}</li>))}
                     </ul>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">Nenhuma etapa configurada.</p>
-                  )}
+                  ) : (<p className="text-gray-500 dark:text-gray-400 italic">Nenhuma etapa configurada.</p>)}
                 </div>
               </div>
             ))}

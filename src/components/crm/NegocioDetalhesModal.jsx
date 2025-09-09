@@ -12,7 +12,6 @@ import ContatoFormModal from './ContatoFormModal';
 import BuscaECriaContatoModal from './BuscaECriaContatoModal';
 
 
-// Função para calcular a diferença de dias
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
     const diff = new Date(dateLeft).getTime() - new Date(dateRight).getTime();
@@ -20,7 +19,6 @@ const differenceInDays = (dateLeft, dateRight) => {
     return Math.round(diff / (1000 * 60 * 60 * 24));
 };
 
-// Barra de progresso do funil
 const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     const etapaAtualIndex = etapas.findIndex(e => e.id === etapaAtualId);
     return (
@@ -37,10 +35,6 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     );
 };
 
-// --- DOCUMENTAÇÃO PASSO 1: O MODAL DE CONFIRMAÇÃO ---
-// Criamos um componente reutilizável para confirmação. Ele é genérico e pode ser
-// usado para outras ações de "tem a certeza?" no futuro.
-// Ele controla seu próprio estado de visibilidade (isOpen) e o estado de carregamento (isDeleting).
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
   if (!isOpen) return null;
   return (
@@ -66,8 +60,6 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
   );
 };
 
-
-// COMPONENTE PRINCIPAL DO MODAL
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil = [], listaDeUsers = [], onEmpresaClick }) => {
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
@@ -78,12 +70,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [novoTitulo, setNovoTitulo] = useState('');
   const [activeTab, setActiveTab] = useState('atividades');
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
-  // --- DOCUMENTAÇÃO PASSO 2: NOVOS ESTADOS ---
-  // isConfirmDeleteOpen controla a visibilidade do nosso novo modal de confirmação.
-  // isDeleting controla o estado de "carregando" do botão de confirmação.
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
   const [isEditContatoOpen, setIsEditContatoOpen] = useState(false);
   const [isAddContatoOpen, setIsAddContatoOpen] = useState(false);
   const [contatoEmEdicao, setContatoEmEdicao] = useState(null);
@@ -92,9 +80,10 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
+      // --- CORREÇÃO APLICADA AQUI ---
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:contatos(*)')
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
         .eq('id', negocioInicial.id)
         .single();
 
@@ -219,23 +208,19 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  // --- DOCUMENTAÇÃO PASSO 3: A LÓGICA DE EXCLUSÃO ---
-  // Esta função é chamada quando o usuário clica em "Confirmar Exclusão" no modal.
   const handleDeletarNegocio = async () => {
-    setIsDeleting(true); // Ativa o estado de "carregando"
+    setIsDeleting(true);
     try {
-      // Comando para deletar a linha na tabela 'crm_negocios' onde o 'id' corresponde.
       const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
-      if (error) throw error; // Se der erro, ele é capturado pelo catch.
+      if (error) throw error;
       
       alert("Negócio deletado com sucesso!");
-      onDataChange({ id: negocio.id, status: 'Deletado' }); // Avisa o componente pai para atualizar a lista
-      onClose(); // Fecha o modal de detalhes
+      onDataChange({ id: negocio.id, status: 'Deletado' });
+      onClose();
     } catch (error) {
       alert("Erro ao deletar o negócio.");
       console.error("Erro ao deletar negócio:", error);
     } finally {
-      // Independentemente de sucesso ou falha, limpamos os estados.
       setIsDeleting(false);
       setIsConfirmDeleteOpen(false);
     }
@@ -248,7 +233,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         .from('crm_negocios')
         .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
         .eq('id', negocio.id)
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:contatos(*)')
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
         .single();
 
       if (error) throw error;
@@ -319,9 +304,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                           <button onClick={handleReverterNegocio} className="bg-yellow-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-yellow-600 flex items-center disabled:bg-yellow-400" disabled={isStatusUpdating}>
                             {isStatusUpdating && <Loader2 className="animate-spin mr-2" size={16}/>} <Undo2 size={16} className="mr-1"/> Reverter para Ativo
                           </button>
-                          {/* --- DOCUMENTAÇÃO PASSO 4: O BOTÃO DE DELETAR --- */}
-                          {/* Este botão só aparece se o status NÃO for 'Ativo'. */}
-                          {/* O onClick dele apenas abre o modal de confirmação. */}
                           <button onClick={() => setIsConfirmDeleteOpen(true)} className="bg-gray-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-gray-600 flex items-center" disabled={isStatusUpdating}>
                             <Trash2 size={16} className="mr-1"/> Deletar
                           </button>
@@ -400,9 +382,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         />
       )}
 
-      {/* --- DOCUMENTAÇÃO PASSO 5: RENDERIZAÇÃO DO MODAL --- */}
-      {/* Aqui nós renderizamos o modal de confirmação e passamos todos os estados e funções
-          que ele precisa para funcionar corretamente. */}
       <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
         onClose={() => setIsConfirmDeleteOpen(false)}
@@ -418,3 +397,4 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 };
 
 export default NegocioDetalhesModal;
+}
