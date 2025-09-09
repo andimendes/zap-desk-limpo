@@ -28,7 +28,10 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
           let bgColor = isPassed ? 'bg-green-500 dark:bg-green-600' : isCurrent ? 'bg-blue-500 dark:bg-blue-600' : 'bg-gray-300 dark:bg-gray-600';
           let textColor = (isPassed || isCurrent) ? 'text-white' : 'text-gray-700 dark:text-gray-300';
           if (isCurrent) textColor += ' font-bold';
-          return (<button key={eta.id} onClick={() => onEtapaClick(eta.id)} className={`flex-1 flex items-center justify-center h-full px-2 text-sm text-center relative transition-colors duration-200 ${bgColor} ${textColor} ${!isPassed ? 'z-10' : 'z-0'} ${isCurrent ? 'shadow-lg' : ''}`}><span className="truncate">{eta.nome_etapa}</span></button>);
+          
+          // --- ALTERAÇÃO (BUG 1) ---
+          // Adicionamos o evento 'e' ao clique para podermos pará-lo.
+          return (<button key={eta.id} onClick={(e) => onEtapaClick(e, eta.id)} className={`flex-1 flex items-center justify-center h-full px-2 text-sm text-center relative transition-colors duration-200 ${bgColor} ${textColor} ${!isPassed ? 'z-10' : 'z-0'} ${isCurrent ? 'shadow-lg' : ''}`}><span className="truncate">{eta.nome_etapa}</span></button>);
         })}
       </div>
     );
@@ -76,6 +79,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [contatoEmEdicao, setContatoEmEdicao] = useState(null);
 
   const carregarDadosDetalhados = useCallback(async () => {
+    // ... (nenhuma mudança nesta função)
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -127,11 +131,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
-  // --- FUNÇÃO CORRIGIDA PARA AVANÇAR ETAPAS ---
-  const handleChangeEtapa = async (novaEtapaId) => {
+  // --- ALTERAÇÃO (BUG 1) ---
+  // A função agora recebe o evento 'e' como primeiro argumento.
+  const handleChangeEtapa = async (e, novaEtapaId) => {
+    e.stopPropagation(); // Esta é a linha mágica! Impede que o clique "borbulhe" para o fundo do modal.
+
     if (novaEtapaId === negocio.etapa_id) return;
     try {
-      // Usamos a função 'updateNegocio' do nosso serviço para manter a lógica centralizada
       const { data: negocioAtualizado, error } = await supabase
         .from('crm_negocios')
         .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
@@ -145,13 +151,27 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
       };
 
       setNegocio(negocioAtualizado);
-      onDataChange(negocioAtualizado); // Avisa o componente pai para recarregar a lista
+      if (onDataChange) {
+        onDataChange(negocioAtualizado);
+      }
     } catch (error) {
       console.error("Erro ao mudar de etapa:", error);
     }
   };
+
+  // --- NOVA FUNÇÃO (BUG 2) ---
+  // Centraliza a lógica de sucesso para garantir que o modal e a página pai sejam atualizados.
+  const handleActionSuccess = async () => {
+    // 1. Recarrega os dados dentro do modal.
+    await carregarDadosDetalhados();
+    // 2. Avisa o componente pai (KanbanView) que os dados mudaram.
+    if (onDataChange) {
+      onDataChange(); // Chamar sem argumentos pode sinalizar uma recarga geral.
+    }
+  };
   
   const handleSaveTitulo = async () => {
+    // ... (nenhuma mudança nesta função)
     const tituloTrimmed = novoTitulo.trim();
     if (!tituloTrimmed || tituloTrimmed === negocio.nome_negocio) {
       setIsTituloEditing(false);
@@ -169,6 +189,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
+  // ... (nenhuma mudança nas outras funções: handleEditarContato, handleAdicionarContato, etc.)
     const handleEditarContato = (contato) => {
     setContatoEmEdicao(contato);
     setIsEditContatoOpen(true);
@@ -266,7 +287,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-
   if (!isOpen) return null;
 
   return (
@@ -278,6 +298,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             ) : negocio && (
               <>
                 <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
+                  {/* ... (código do cabeçalho do modal sem alterações) ... */}
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
                       {isTituloEditing ? (
@@ -345,14 +366,20 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       {activeTab === 'atividades' && (
                           <>
                               {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
-                              <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+                              
+                              {/* --- ALTERAÇÃO (BUG 2) --- */}
+                              {/* Passamos a nova função 'handleActionSuccess' para o composer. */}
+                              <ActivityComposer negocioId={negocio.id} onActionSuccess={handleActionSuccess} />
+                              
                               <div>
                                 <h3 className="text-lg font-semibold mb-2">Foco</h3>
-                                <AtividadeFoco atividade={proximaAtividade} onConcluir={carregarDadosDetalhados} />
+                                {/* Passamos também a nova função para a atividade em foco */}
+                                <AtividadeFoco atividade={proximaAtividade} onConcluir={handleActionSuccess} />
                               </div>
                               <div>
                                 <h3 className="text-lg font-semibold mb-4">Histórico</h3>
-                                <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={carregarDadosDetalhados} />))}</ul>
+                                {/* E também para o histórico, garantindo consistência */}
+                                <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={handleActionSuccess} />))}</ul>
                               </div>
                           </>
                       )}
@@ -367,6 +394,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
           </div>
       </div>
       
+      {/* ... (nenhuma mudança nos modais de Contato e Confirmação) ... */}
       {isEditContatoOpen && (
         <ContatoFormModal
             isOpen={isEditContatoOpen}

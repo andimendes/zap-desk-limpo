@@ -14,6 +14,7 @@ import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2, Che
 import ErrorBoundary from '../ErrorBoundary';
 
 const PaginaCRM = () => {
+  // --- NENHUMA ALTERAÇÃO NOS ESTADOS ---
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
@@ -32,6 +33,7 @@ const PaginaCRM = () => {
   const [filtroStatus, setFiltroStatus] = useState('Ativo');
   const [dataVersion, setDataVersion] = useState(0);
 
+  // --- NENHUMA ALTERAÇÃO NOS useEffect INICIAIS ---
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
     return () => { clearTimeout(timerId); };
@@ -95,11 +97,28 @@ const PaginaCRM = () => {
   
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   
-  const handleDataChange = () => {
-    fetchDadosDoFunil();
+  // --- ALTERAÇÃO PRINCIPAL AQUI ---
+  // Substituímos a antiga 'handleDataChange' por esta versão mais inteligente.
+  const handleRefreshData = (updatedData = null) => {
+    // Se recebemos um objeto de negócio atualizado (como ao mudar de etapa)
+    if (updatedData && typeof updatedData === 'object' && updatedData.id) {
+        // Atualizamos a lista de negócios de forma eficiente, sem nova chamada à API
+        setNegocios(prevNegocios =>
+            prevNegocios.map(n => (n.id === updatedData.id ? updatedData : n))
+        );
+        // E garantimos que o negócio selecionado (no modal) também receba os novos dados
+        if (negocioSelecionado && negocioSelecionado.id === updatedData.id) {
+            setNegocioSelecionado(updatedData);
+        }
+    } else {
+        // Se não recebemos dados específicos (ex: ao adicionar nova tarefa ou novo negócio),
+        // simplesmente buscamos a lista inteira novamente.
+        fetchDadosDoFunil();
+    }
+    // Incrementamos a versão dos dados para atualizar componentes como o Dashboard
     setDataVersion(v => v + 1);
-    setNegocioSelecionado(null);
-    setEmpresaSelecionada(null);
+    
+    // O mais importante: NÃO chamamos setNegocioSelecionado(null) aqui.
   };
 
   const handleAbrirDetalhesEmpresa = (empresa) => {
@@ -110,6 +129,7 @@ const PaginaCRM = () => {
   return (
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
+        {/* Nenhuma alteração no Header */}
         <header className="mb-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-baseline gap-4">
@@ -145,6 +165,7 @@ const PaginaCRM = () => {
           </div>
         </header>
         
+        {/* Nenhuma alteração nos botões de filtro de status */}
         <div className="flex items-center gap-2 mb-6 border-b dark:border-gray-700 overflow-x-auto">
             <button onClick={() => setFiltroStatus('Ativo')} className={`flex items-center gap-2 py-3 px-4 text-sm font-medium whitespace-nowrap ${filtroStatus === 'Ativo' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                 <LayoutGrid size={16} /> Em Andamento
@@ -158,10 +179,7 @@ const PaginaCRM = () => {
         </div>
 
         <section className="mb-6">
-          <CrmDashboard 
-            funilId={funilSelecionadoId}
-            dataVersion={dataVersion}
-          />
+          <CrmDashboard funilId={funilSelecionadoId} dataVersion={dataVersion} />
         </section>
         
         <main>
@@ -169,7 +187,8 @@ const PaginaCRM = () => {
             <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div>
           ) : filtroStatus === 'Ativo' ? (
             viewMode === 'kanban' ? (
-              <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleDataChange} />
+              // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
+              <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleRefreshData} />
             ) : (
               <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />
             )
@@ -178,7 +197,9 @@ const PaginaCRM = () => {
           )}
         </main>
       </div>
-      {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleDataChange} />}
+      
+      {/* --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData */}
+      {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleRefreshData} />}
       
       {negocioSelecionado && (
         <ErrorBoundary>
@@ -186,7 +207,8 @@ const PaginaCRM = () => {
                 isOpen={!!negocioSelecionado}
                 negocio={negocioSelecionado}
                 onClose={() => setNegocioSelecionado(null)}
-                onDataChange={handleDataChange}
+                // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
+                onDataChange={handleRefreshData}
                 etapasDoFunil={etapasDoFunil}
                 listaDeUsers={listaDeUsers}
                 onEmpresaClick={handleAbrirDetalhesEmpresa}
@@ -199,7 +221,8 @@ const PaginaCRM = () => {
           isOpen={!!empresaSelecionada}
           onClose={() => setEmpresaSelecionada(null)}
           empresa={empresaSelecionada}
-          onEmpresaUpdate={handleDataChange}
+          // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
+          onEmpresaUpdate={handleRefreshData}
         />
       )}
     </>
