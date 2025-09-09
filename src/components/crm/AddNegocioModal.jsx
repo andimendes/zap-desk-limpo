@@ -71,22 +71,22 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
     setError('');
     try {
       const empresaId = await findOrCreate('crm_empresas', 'nome_fantasia', empresaSelecionada?.nome_fantasia, { status: 'Potencial' });
-      // --- CORREÇÃO APLICADA AQUI ---
+      // CORREÇÃO: Aponta para a tabela 'crm_contatos' e a coluna 'nome'
       const contatoId = await findOrCreate('crm_contatos', 'nome', contatoSelecionado?.nome, { empresa_id: empresaId });
 
       if (contatoId && empresaId) {
-          // --- CORREÇÃO APLICADA AQUI ---
+          // CORREÇÃO: Aponta para a tabela 'crm_contatos'
           const { data: contactData } = await supabase.from('crm_contatos').select('empresa_id').eq('id', contatoId).single();
           if (contactData && !contactData.empresa_id) {
               await supabase.from('crm_contatos').update({ empresa_id: empresaId }).eq('id', contatoId);
           }
       }
 
+      // Prepara o objeto do negócio com os dados e nomes de colunas corretos
       const negocioData = {
-        titulo,
+        nome_negocio: titulo, // <-- CORREÇÃO: 'titulo' para 'nome_negocio'
         valor: valor || null,
         etapa_id: etapaId,
-        user_id: session.user.id,
         responsavel_id: responsavelId || null,
         status: 'Ativo',
         empresa_id: empresaId,
@@ -135,7 +135,7 @@ const AddNegocioModal = ({ isOpen, onClose, etapas = [], onNegocioAdicionado, le
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Pessoa de Contato</label>
-                 {/* --- CORREÇÃO APLICADA AQUI --- */}
+                 {/* CORREÇÃO: Aponta para a tabela 'crm_contatos' e a coluna 'nome' */}
                 <BuscaECria tabela="crm_contatos" coluna="nome" placeholder="Busque ou crie um contato" valorInicial={contatoSelecionado?.nome} onSelecao={(valor) => setContatoSelecionado({ nome: valor })} />
               </div>
               <div>

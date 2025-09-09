@@ -27,8 +27,8 @@ const NegocioCard = ({ negocio, index, onCardClick, etapasDoFunil }) => {
           className={`bg-white dark:bg-gray-800 p-4 mb-4 rounded-lg shadow-md border-l-4 ${snapshot.isDragging ? 'border-blue-400 ring-2 ring-blue-400' : 'border-blue-500'} cursor-pointer flex flex-col gap-3`}
         >
           <div>
-            <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.titulo}</h4>
-            {/* --- ALTERAÇÃO AQUI: Exibimos o nome da empresa vindo do objeto relacionado --- */}
+            {/* --- CORREÇÃO AQUI: Trocado 'titulo' por 'nome_negocio' --- */}
+            <h4 className="font-bold text-gray-800 dark:text-gray-100">{negocio.nome_negocio}</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{negocio.empresa?.nome_fantasia || 'Sem empresa'}</p>
           </div>
           

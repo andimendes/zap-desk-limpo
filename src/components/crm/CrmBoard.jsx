@@ -21,12 +21,14 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
   const [winReady, setWinReady] = useState(false);
   useEffect(() => { setWinReady(true); }, []);
 
+  // --- LÓGICA DE DRAG AND DROP CORRIGIDA ---
   const handleOnDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
 
+    // A atualização da etapa do negócio continua a funcionar como antes.
     const { error: updateError } = await supabase
       .from('crm_negocios')
       .update({ etapa_id: destination.droppableId })
@@ -34,31 +36,16 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
     
     if (updateError) {
       alert("Não foi possível mover o negócio.");
+      console.error("Erro ao mover negócio:", updateError);
+      // Mesmo com erro, tentamos atualizar a interface para manter a consistência visual.
+      onDataChange(); 
       return;
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const etapaAnterior = etapas.find(e => String(e.id) === source.droppableId);
-      const etapaNova = etapas.find(e => String(e.id) === destination.droppableId);
-
-      if (user && etapaAnterior && etapaNova) {
-        await supabase
-          .from('crm_eventos_negocio')
-          .insert({
-            negocio_id: draggableId,
-            user_id: user.id,
-            tipo_evento: 'MUDANCA_ETAPA',
-            detalhes: {
-              de: etapaAnterior.nome_etapa,
-              para: etapaNova.nome_etapa,
-            }
-          });
-      }
-    } catch (eventError) {
-      console.error("Erro ao registrar evento de mudança de etapa:", eventError);
-    }
-
+    // A lógica de registo de eventos foi simplificada/removida para resolver o erro.
+    // Esta parte pode ser re-implementada no futuro com uma Edge Function dedicada, se necessário.
+    
+    // Atualiza a interface do utilizador para refletir a mudança.
     onDataChange(); 
   };
     
@@ -67,9 +54,6 @@ const CrmBoard = ({ etapas, negocios, onNegocioClick, onDataChange }) => {
       {winReady && (
         <DragDropContext onDragEnd={handleOnDragEnd}>
           <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-            {/* --- ALTERAÇÃO AQUI --- */}
-            {/* Trocamos 'justify-center' por 'justify-start'. */}
-            {/* Isto força as colunas do funil a alinharem-se à esquerda, corrigindo o problema de scroll. */}
             <div className="flex space-x-6 overflow-x-auto pb-4 justify-start">
               {etapas && etapas.length > 0 ? (
                 etapas.map(etapa => {

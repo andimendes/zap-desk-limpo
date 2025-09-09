@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, AlertTriangle, Pencil, Check, X, Undo2, Trash2 } from 'lucide-react';
-
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
@@ -11,14 +10,13 @@ import ActivityComposer from './ActivityComposer';
 import ContatoFormModal from './ContatoFormModal';
 import BuscaECriaContatoModal from './BuscaECriaContatoModal';
 
-
+// ... (as funções auxiliares 'differenceInDays', 'FunilProgressBar', 'ConfirmationModal' continuam iguais)
 const differenceInDays = (dateLeft, dateRight) => {
     if (!dateLeft || !dateRight) return 0;
     const diff = new Date(dateLeft).getTime() - new Date(dateRight).getTime();
     if (isNaN(diff)) return 0;
     return Math.round(diff / (1000 * 60 * 60 * 24));
 };
-
 const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
     const etapaAtualIndex = etapas.findIndex(e => e.id === etapaAtualId);
     return (
@@ -34,7 +32,6 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
       </div>
     );
 };
-
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
   if (!isOpen) return null;
   return (
@@ -60,6 +57,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
   );
 };
 
+
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil = [], listaDeUsers = [], onEmpresaClick }) => {
   const [negocio, setNegocio] = useState(negocioInicial);
   const [proximaAtividade, setProximaAtividade] = useState(null);
@@ -80,7 +78,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
-      // --- CORREÇÃO APLICADA AQUI ---
+      // --- CORREÇÃO AQUI: Trocado 'contatos(*)' por 'crm_contatos(*)' ---
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
         .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
@@ -89,7 +87,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 
       if (negocioError) throw negocioError;
       setNegocio(updatedNegocio);
-      setNovoTitulo(updatedNegocio.titulo);
+      // --- CORREÇÃO AQUI: Trocado 'titulo' por 'nome_negocio' ---
+      setNovoTitulo(updatedNegocio.nome_negocio); 
       
       const [focoRes, atividadesRes, notasRes] = await Promise.all([
         supabase.from('crm_atividades').select('*, profiles(full_name, avatar_url)').eq('negocio_id', negocioInicial.id).eq('concluida', false).gte('data_atividade', new Date().toISOString()).order('data_atividade', { ascending: true }).limit(1).maybeSingle(),
@@ -129,139 +128,112 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
-  const handleEditarContato = (contato) => {
-    setContatoEmEdicao(contato);
-    setIsEditContatoOpen(true);
-  };
-
-  const handleAdicionarContato = () => {
-    setIsAddContatoOpen(true);
-  };
-  
-  const handleSwitchToCreateContato = () => {
-    setIsAddContatoOpen(false);
-    setContatoEmEdicao(null); 
-    setIsEditContatoOpen(true);
-  };
-
-  const handleCloseContactModals = () => {
-    setIsEditContatoOpen(false);
-    setIsAddContatoOpen(false);
-    setContatoEmEdicao(null);
-    carregarDadosDetalhados(); 
-  };
-
-  const handleMarcarStatus = async (status) => {
-    setIsStatusUpdating(true);
-    try {
-      const { data: negocioAtualizado, error: negocioError } = await supabase
-        .from('crm_negocios')
-        .update({ status })
-        .eq('id', negocio.id)
-        .select().single();
-      
-      if (negocioError) throw negocioError;
-      
-      if (negocio.empresa_id) {
-        if (status === 'Ganho' && negocio.empresa.status !== 'Cliente Ativo') {
-          await supabase.from('crm_empresas').update({ status: 'Cliente Ativo' }).eq('id', negocio.empresa_id);
-        } else if (status === 'Perdido' && negocio.empresa.status === 'Cliente Ativo') {
-          await supabase.from('crm_empresas').update({ status: 'Inativo' }).eq('id', negocio.empresa_id);
+    // ... (o resto das funções 'handle' continuam iguais, mas com as correções de nomes de colunas abaixo)
+    const handleEditarContato = (contato) => {
+        setContatoEmEdicao(contato);
+        setIsEditContatoOpen(true);
+    };
+    const handleAdicionarContato = () => {
+        setIsAddContatoOpen(true);
+    };
+    const handleSwitchToCreateContato = () => {
+        setIsAddContatoOpen(false);
+        setContatoEmEdicao(null); 
+        setIsEditContatoOpen(true);
+    };
+    const handleCloseContactModals = () => {
+        setIsEditContatoOpen(false);
+        setIsAddContatoOpen(false);
+        setContatoEmEdicao(null);
+        carregarDadosDetalhados(); 
+    };
+    const handleMarcarStatus = async (status) => {
+        setIsStatusUpdating(true);
+        try {
+          const { data: negocioAtualizado, error: negocioError } = await supabase.from('crm_negocios').update({ status }).eq('id', negocio.id).select().single();
+          if (negocioError) throw negocioError;
+          if (negocio.empresa_id) {
+            if (status === 'Ganho' && negocio.empresa.status !== 'Cliente Ativo') {
+              await supabase.from('crm_empresas').update({ status: 'Cliente Ativo' }).eq('id', negocio.empresa_id);
+            } else if (status === 'Perdido' && negocio.empresa.status === 'Cliente Ativo') {
+              await supabase.from('crm_empresas').update({ status: 'Inativo' }).eq('id', negocio.empresa_id);
+            }
+          }
+          alert(`Negócio marcado como ${status} com sucesso!`);
+          onDataChange(negocioAtualizado);
+          onClose();
+        } catch (error) {
+          console.error('Falha na operação de mudança de status:', error);
+          alert(`Erro ao atualizar o negócio: ${error.message}`);
+        } finally {
+          setIsStatusUpdating(false);
         }
-      }
-      
-      alert(`Negócio marcado como ${status} com sucesso!`);
-      onDataChange(negocioAtualizado);
-      onClose();
-
-    } catch (error) {
-      console.error('Falha na operação de mudança de status:', error);
-      alert(`Erro ao atualizar o negócio: ${error.message}`);
-    } finally {
-      setIsStatusUpdating(false);
-    }
-  };
-
-  const handleReverterNegocio = async () => {
-    if (!etapasDoFunil || etapasDoFunil.length === 0) {
-      alert("Não foi possível encontrar as etapas do funil para reverter o negócio.");
-      return;
-    }
-    const primeiraEtapaId = etapasDoFunil[0].id;
-    setIsStatusUpdating(true);
-    try {
-      const { data: negocioAtualizado, error } = await supabase
-        .from('crm_negocios')
-        .update({ status: 'Ativo', etapa_id: primeiraEtapaId })
-        .eq('id', negocio.id)
-        .select().single();
-      
-      if (error) throw error;
-      alert("Negócio revertido para 'Em Andamento'!");
-      onDataChange(negocioAtualizado);
-      onClose();
-    } catch (error) {
-      alert("Erro ao reverter o negócio.");
-      console.error("Erro ao reverter negócio:", error);
-    } finally {
-      setIsStatusUpdating(false);
-    }
-  };
-
-  const handleDeletarNegocio = async () => {
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
-      if (error) throw error;
-      
-      alert("Negócio deletado com sucesso!");
-      onDataChange({ id: negocio.id, status: 'Deletado' });
-      onClose();
-    } catch (error) {
-      alert("Erro ao deletar o negócio.");
-      console.error("Erro ao deletar negócio:", error);
-    } finally {
-      setIsDeleting(false);
-      setIsConfirmDeleteOpen(false);
-    }
-  };
-
-  const handleChangeEtapa = async (novaEtapaId) => {
-    if (novaEtapaId === negocio.etapa_id) return;
-    try {
-      const { data: negocioAtualizado, error } = await supabase
-        .from('crm_negocios')
-        .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
-        .eq('id', negocio.id)
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
-        .single();
-
-      if (error) throw error;
-      setNegocio(negocioAtualizado);
-      onDataChange(negocioAtualizado);
-    } catch (error) {
-      alert("Erro ao atualizar a etapa do negócio.");
-      console.error("Erro ao mudar de etapa:", error);
-    }
-  };
-  
-  const handleSaveTitulo = async () => {
-    const tituloTrimmed = novoTitulo.trim();
-    if (!tituloTrimmed || tituloTrimmed === negocio.titulo) {
-      setIsTituloEditing(false);
-      setNovoTitulo(negocio.titulo);
-      return;
-    }
-    try {
-      const { data, error } = await supabase.from('crm_negocios').update({ titulo: tituloTrimmed }).eq('id', negocio.id).select().single();
-      if (error) throw error;
-      onDataChange(data);
-      setIsTituloEditing(false);
-    } catch (error) {
-      console.error("Erro ao guardar título:", error);
-      alert("Não foi possível salvar o novo título.");
-    }
-  };
+    };
+    const handleReverterNegocio = async () => {
+        if (!etapasDoFunil || etapasDoFunil.length === 0) {
+          alert("Não foi possível encontrar as etapas do funil para reverter o negócio.");
+          return;
+        }
+        const primeiraEtapaId = etapasDoFunil[0].id;
+        setIsStatusUpdating(true);
+        try {
+          const { data: negocioAtualizado, error } = await supabase.from('crm_negocios').update({ status: 'Ativo', etapa_id: primeiraEtapaId }).eq('id', negocio.id).select().single();
+          if (error) throw error;
+          alert("Negócio revertido para 'Em Andamento'!");
+          onDataChange(negocioAtualizado);
+          onClose();
+        } catch (error) {
+          alert("Erro ao reverter o negócio.");
+          console.error("Erro ao reverter negócio:", error);
+        } finally {
+          setIsStatusUpdating(false);
+        }
+    };
+    const handleDeletarNegocio = async () => {
+        setIsDeleting(true);
+        try {
+          const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
+          if (error) throw error;
+          alert("Negócio deletado com sucesso!");
+          onDataChange({ id: negocio.id, status: 'Deletado' });
+          onClose();
+        } catch (error) {
+          alert("Erro ao deletar o negócio.");
+          console.error("Erro ao deletar negócio:", error);
+        } finally {
+          setIsDeleting(false);
+          setIsConfirmDeleteOpen(false);
+        }
+    };
+    const handleChangeEtapa = async (novaEtapaId) => {
+        if (novaEtapaId === negocio.etapa_id) return;
+        try {
+          const { data: negocioAtualizado, error } = await supabase.from('crm_negocios').update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() }).eq('id', negocio.id).select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)').single();
+          if (error) throw error;
+          setNegocio(negocioAtualizado);
+          onDataChange(negocioAtualizado);
+        } catch (error) {
+          alert("Erro ao atualizar a etapa do negócio.");
+          console.error("Erro ao mudar de etapa:", error);
+        }
+    };
+    const handleSaveTitulo = async () => {
+        const tituloTrimmed = novoTitulo.trim();
+        if (!tituloTrimmed || tituloTrimmed === negocio.nome_negocio) {
+          setIsTituloEditing(false);
+          setNovoTitulo(negocio.nome_negocio);
+          return;
+        }
+        try {
+          const { data, error } = await supabase.from('crm_negocios').update({ nome_negocio: tituloTrimmed }).eq('id', negocio.id).select().single();
+          if (error) throw error;
+          onDataChange(data);
+setIsTituloEditing(false);
+        } catch (error) {
+          console.error("Erro ao guardar título:", error);
+          alert("Não foi possível salvar o novo título.");
+        }
+    };
 
   if (!isOpen) return null;
 
@@ -269,10 +241,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     <>
       <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            {loading ? (
-              <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div>
-            ) : negocio && (
-              <>
+            {loading ? ( <div className="flex-grow w-full flex justify-center items-center"><Loader2 className="animate-spin text-blue-500" size={40} /></div> ) : negocio && ( <>
                 <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
@@ -284,7 +253,8 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                         </div>
                       ) : (
                         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                          {negocio.titulo}
+                          {/* --- CORREÇÃO AQUI: Trocado 'titulo' por 'nome_negocio' --- */}
+                          {negocio.nome_negocio}
                           <button onClick={() => setIsTituloEditing(true)} className="text-gray-400 hover:text-gray-700"><Pencil size={16}/></button>
                         </h2>
                       )}
@@ -317,16 +287,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                 
                 <div className="flex flex-grow overflow-hidden">
                   <div className="w-1/3 border-r dark:border-gray-700 overflow-y-auto">
-                    <BarraLateral 
-                        negocio={negocio} 
-                        etapasDoFunil={etapasDoFunil} 
-                        listaDeUsers={listaDeUsers} 
-                        onDataChange={onDataChange} 
-                        onForcarRecarga={carregarDadosDetalhados} 
-                        onEmpresaClick={onEmpresaClick}
-                        onEditarContato={handleEditarContato}
-                        onAdicionarContato={handleAdicionarContato}
-                    />
+                    <BarraLateral negocio={negocio} etapasDoFunil={etapasDoFunil} listaDeUsers={listaDeUsers} onDataChange={onDataChange} onForcarRecarga={carregarDadosDetalhados} onEmpresaClick={onEmpresaClick} onEditarContato={handleEditarContato} onAdicionarContato={handleAdicionarContato} />
                   </div>
                   <div className="w-2/3 flex flex-col overflow-hidden">
                      <div className="border-b dark:border-gray-700">
@@ -336,23 +297,19 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       </ul>
                     </div>
                     <div className="flex-grow overflow-y-auto p-6">
-                      {activeTab === 'atividades' && (
-                          <>
-                              {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
-                              <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2">Foco</h3>
-                                <AtividadeFoco atividade={proximaAtividade} onConcluir={carregarDadosDetalhados} />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-semibold mb-4">Histórico</h3>
-                                <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={carregarDadosDetalhados} />))}</ul>
-                              </div>
-                          </>
-                      )}
-                       {activeTab === 'arquivos' && (
-                          <div>Arquivos aqui...</div>
-                      )}
+                      {activeTab === 'atividades' && ( <>
+                          {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
+                          <ActivityComposer negocioId={negocio.id} onActionSuccess={carregarDadosDetalhados} />
+                          <div>
+                            <h3 className="text-lg font-semibold mb-2">Foco</h3>
+                            <AtividadeFoco atividade={proximaAtividade} onConcluir={carregarDadosDetalhados} />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Histórico</h3>
+                            <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={carregarDadosDetalhados} />))}</ul>
+                          </div>
+                      </> )}
+                       {activeTab === 'arquivos' && ( <div>Arquivos aqui...</div> )}
                     </div>
                   </div>
                 </div>
@@ -361,35 +318,12 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
           </div>
       </div>
       
-      {isEditContatoOpen && (
-        <ContatoFormModal
-            isOpen={isEditContatoOpen}
-            onClose={handleCloseContactModals}
-            contato={contatoEmEdicao}
-            empresaIdInicial={negocio.empresa?.id}
-            onSave={handleCloseContactModals}
-        />
-      )}
-
-      {isAddContatoOpen && (
-        <BuscaECriaContatoModal
-            isOpen={isAddContatoOpen}
-            onClose={handleCloseContactModals}
-            empresaId={negocio.empresa?.id}
-            negocioId={negocio.id}
-            onCriarNovo={handleSwitchToCreateContato}
-            onSave={handleCloseContactModals}
-        />
-      )}
-
-      <ConfirmationModal
-        isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
-        onConfirm={handleDeletarNegocio}
-        isDeleting={isDeleting}
-        title="Confirmar Exclusão do Negócio"
-      >
-        <p>Tem a certeza de que deseja deletar permanentemente o negócio <span className="font-bold">"{negocio?.titulo}"</span>?</p>
+      {isEditContatoOpen && ( <ContatoFormModal isOpen={isEditContatoOpen} onClose={handleCloseContactModals} contato={contatoEmEdicao} empresaIdInicial={negocio.empresa?.id} onSave={handleCloseContactModals} /> )}
+      {isAddContatoOpen && ( <BuscaECriaContatoModal isOpen={isAddContatoOpen} onClose={handleCloseContactModals} empresaId={negocio.empresa?.id} negocioId={negocio.id} onCriarNovo={handleSwitchToCreateContato} onSave={handleCloseContactModals} /> )}
+      
+      <ConfirmationModal isOpen={isConfirmDeleteOpen} onClose={() => setIsConfirmDeleteOpen(false)} onConfirm={handleDeletarNegocio} isDeleting={isDeleting} title="Confirmar Exclusão do Negócio" >
+        {/* --- CORREÇÃO AQUI: Trocado 'titulo' por 'nome_negocio' --- */}
+        <p>Tem a certeza de que deseja deletar permanentemente o negócio <span className="font-bold">"{negocio?.nome_negocio}"</span>?</p>
         <p className="font-bold mt-2 text-red-500">Esta ação não pode ser desfeita.</p>
       </ConfirmationModal>
     </>
@@ -397,4 +331,3 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
 };
 
 export default NegocioDetalhesModal;
-}
