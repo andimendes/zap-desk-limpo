@@ -1,19 +1,18 @@
 import React from 'react';
 import { NavLink as RouterNavLink, Routes, Route, Navigate } from 'react-router-dom';
-import { Settings, Users, Shield, Target } from 'lucide-react';
+import { Settings, Users, Shield, Target, ShoppingBag } from 'lucide-react';
 
-// Importa as páginas de configurações que você já criou
-import GestaoDeEquipaPage from '@/pages/admin/GestaoDeEquipePage';
-import CargosEPermissoesPage from '@/pages/admin/CargosEPermissoesPage';
-import CrmSettingsPage from '@/pages/admin/CrmSettingsPage';
+// Importa as páginas de configurações
+import GestaoDeEquipePage from '../admin/GestaoDeEquipePage';
+import CargosEPermissoesPage from '../admin/CargosEPermissoesPage';
+import CrmSettingsPage from '../admin/CrmSettingsPage';
+import AdminProdutosPage from '../admin/AdminProdutosPage';
 
-// --- ESTA É A CORREÇÃO ---
-// O NavLink interno do painel de administração.
-// A lógica `className` foi ajustada para ser mais simples e eficaz.
+// Componente para os links de navegação
 const AdminNavLink = ({ to, icon, children }) => (
     <RouterNavLink
         to={to}
-        end // A propriedade 'end' garante que o link só fica ativo se o URL for exato
+        end
         className={({ isActive }) =>
             `flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 transition-all hover:bg-gray-100/80 dark:text-gray-400 dark:hover:bg-gray-800/80 ${
                 isActive ? 'bg-gray-100 font-bold text-gray-900 dark:bg-gray-800 dark:text-gray-50' : ''
@@ -27,6 +26,7 @@ const AdminNavLink = ({ to, icon, children }) => (
 
 /**
  * O componente principal do Painel de Administração.
+ * Agora ele contém apenas o layout e as sub-rotas.
  */
 const AdminPanel = () => {
     return (
@@ -40,8 +40,7 @@ const AdminPanel = () => {
                         </span>
                     </div>
                     <nav className="flex-1 overflow-auto py-4 px-2 text-sm font-medium lg:px-4">
-                        {/* As rotas aqui estão corretas, não precisam de alteração */}
-                        <AdminNavLink to="/admin/equipa" icon={<Users className="h-4 w-4" />}>
+                        <AdminNavLink to="/admin/equipe" icon={<Users className="h-4 w-4" />}>
                             Equipe
                         </AdminNavLink>
                         <AdminNavLink to="/admin/cargos" icon={<Shield className="h-4 w-4" />}>
@@ -50,16 +49,21 @@ const AdminPanel = () => {
                         <AdminNavLink to="/admin/crm" icon={<Target className="h-4 w-4" />}>
                             CRM
                         </AdminNavLink>
+                        <AdminNavLink to="/admin/produtos" icon={<ShoppingBag className="h-4 w-4" />}>
+                            Produtos e Serviços
+                        </AdminNavLink>
                     </nav>
                 </div>
             </aside>
             <main className="flex flex-col p-4 sm:py-4 sm:pl-14 lg:p-6">
                 <Routes>
-                    <Route path="equipa" element={<GestaoDeEquipaPage />} />
+                    <Route path="equipe" element={<GestaoDeEquipePage />} />
                     <Route path="cargos" element={<CargosEPermissoesPage />} />
                     <Route path="crm" element={<CrmSettingsPage />} />
-                    {/* A rota de redirecionamento está correta */}
-                    <Route path="*" element={<Navigate to="equipa" replace />} />
+                    <Route path="produtos" element={<AdminProdutosPage />} />
+                    {/* Redirecionamento padrão para a primeira página */}
+                    <Route index element={<Navigate to="equipe" replace />} />
+                    <Route path="*" element={<Navigate to="equipe" replace />} />
                 </Routes>
             </main>
         </div>

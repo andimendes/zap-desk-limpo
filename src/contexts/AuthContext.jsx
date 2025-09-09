@@ -1,5 +1,3 @@
-// src/contexts/AuthContext.jsx
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -17,11 +15,13 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
+        // SOLUÇÃO DEFINITIVA: Buscar perfil e tenant_id
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('*, tenant_id') // Garante que o tenant_id é sempre selecionado
           .eq('id', user.id)
           .single();
+
         if (profileError) throw profileError;
 
         if (profileData) {
@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
             .from('user_roles')
             .select('roles (name)')
             .eq('user_id', user.id);
+          
           if (rolesError) throw rolesError;
 
           const finalProfile = {
@@ -36,10 +37,7 @@ export function AuthProvider({ children }) {
             roles: rolesData ? rolesData.map(item => item.roles.name) : []
           };
           
-          // --- LINHA DE DEPURAÇÃO ADICIONADA AQUI ---
-          console.log('Perfil Final Carregado no Contexto:', finalProfile);
-          // ------------------------------------------
-
+          console.log('Perfil Final Carregado no Contexto (com tenant_id):', finalProfile);
           setProfile(finalProfile);
         }
       } catch (error) {
@@ -52,7 +50,9 @@ export function AuthProvider({ children }) {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
-        await fetchProfileAndRoles(currentSession?.user);
+        if (currentSession?.user) {
+            await fetchProfileAndRoles(currentSession.user);
+        }
       } catch (error) {
         console.error("Erro ao inicializar a autenticação:", error);
       } finally {

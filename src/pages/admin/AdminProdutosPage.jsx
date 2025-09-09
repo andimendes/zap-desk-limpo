@@ -1,94 +1,91 @@
-// src/pages/admin/AdminProdutosPage.jsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, AlertTriangle } from 'lucide-react';
 
 const AdminProdutosPage = () => {
-  const { session } = useAuth();
+  const { profile } = useAuth();
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // Estados para o formulário de adição/edição
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingProduto, setEditingProduto] = useState(null); // Guarda o produto a ser editado
+  const [editingProduto, setEditingProduto] = useState(null);
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [preco, setPreco] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchProdutos();
-  }, []);
-
-  const fetchProdutos = async () => {
+  const fetchProdutos = useCallback(async () => {
+    if (!profile?.tenant_id) {
+        setLoading(false);
+        return;
+    };
     setLoading(true);
+    setFeedback({ type: '', message: '' });
     const { data, error } = await supabase
       .from('produtos_servicos')
       .select('*')
+      .eq('tenant_id', profile.tenant_id) // LÓGICA SAAS
       .order('nome', { ascending: true });
 
     if (error) {
-      setError('Não foi possível carregar os produtos.');
-      console.error(error);
+      setFeedback({ type: 'error', message: 'Não foi possível carregar os produtos.' });
     } else {
       setProdutos(data);
     }
     setLoading(false);
-  };
+  }, [profile]);
+
+  useEffect(() => {
+    fetchProdutos();
+  }, [fetchProdutos]);
 
   const resetForm = () => {
-    setNome('');
-    setDescricao('');
-    setPreco('');
-    setEditingProduto(null);
-    setIsFormOpen(false);
+    setNome(''); setDescricao(''); setPreco('');
+    setEditingProduto(null); setIsFormOpen(false);
   };
 
   const handleEditClick = (produto) => {
-    setEditingProduto(produto);
-    setNome(produto.nome);
-    setDescricao(produto.descricao || '');
-    setPreco(produto.preco_padrao);
+    setEditingProduto(produto); setNome(produto.nome);
+    setDescricao(produto.descricao || ''); setPreco(produto.preco_padrao);
     setIsFormOpen(true);
   };
   
   const handleDeleteClick = async (id) => {
     if (window.confirm('Tem a certeza que quer apagar este item?')) {
-      const { error } = await supabase.from('produtos_servicos').delete().eq('id', id);
+      const { error } = await supabase.from('produtos_servicos').delete().eq('id', id).eq('tenant_id', profile.tenant_id); // LÓGICA SAAS
       if (error) {
-        alert('Erro ao apagar o item.');
+        setFeedback({ type: 'error', message: 'Erro ao apagar o item.' });
       } else {
-        fetchProdutos(); // Recarrega a lista
+        fetchProdutos();
       }
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!profile?.tenant_id) {
+        setFeedback({ type: 'error', message: 'Sessão inválida.' });
+        return;
+    }
     setIsSubmitting(true);
-
     const produtoData = {
       nome,
       descricao,
       preco_padrao: preco,
-      user_id: session.user.id,
+      tenant_id: profile.tenant_id, // LÓGICA SAAS
     };
 
     let error;
     if (editingProduto) {
-      // Estamos a editar
-      ({ error } = await supabase.from('produtos_servicos').update(produtoData).eq('id', editingProduto.id));
+      ({ error } = await supabase.from('produtos_servicos').update(produtoData).eq('id', editingProduto.id).eq('tenant_id', profile.tenant_id)); // LÓGICA SAAS
     } else {
-      // Estamos a criar um novo
       ({ error } = await supabase.from('produtos_servicos').insert(produtoData));
     }
 
     if (error) {
-      alert('Erro ao salvar o item.');
-      console.error(error);
+        setFeedback({ type: 'error', message: `Erro ao salvar o item: ${error.message}` });
     } else {
       resetForm();
       fetchProdutos();
@@ -100,14 +97,16 @@ const AdminProdutosPage = () => {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Catálogo de Produtos e Serviços</h1>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <PlusCircle size={18} />
-          Novo Item
+        <button onClick={() => setIsFormOpen(true)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+          <PlusCircle size={18} /> Novo Item
         </button>
       </div>
+
+      {feedback.message && (
+        <div className={`mb-4 p-4 rounded-md flex items-center gap-3 ${feedback.type === 'error' ? 'bg-red-100 border-l-4 border-red-500 text-red-700' : 'bg-green-100 border-l-4 border-green-500 text-green-700'}`}>
+            <AlertTriangle className="h-6 w-6" /> <p>{feedback.message}</p>
+        </div>
+      )}
 
       {isFormOpen && (
         <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -139,8 +138,6 @@ const AdminProdutosPage = () => {
 
       {loading ? (
         <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
-      ) : error ? (
-        <p className="text-red-500">{error}</p>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <table className="min-w-full">

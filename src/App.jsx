@@ -7,40 +7,42 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Páginas Públicas
 import AuthPage from '@/pages/AuthPage';
-import CadastroEmpresa from '@/pages/CadastroEmpresa.jsx'; // <-- 1. ADICIONEI A IMPORTAÇÃO AQUI
+import CadastroEmpresa from '@/pages/CadastroEmpresa';
+import UpdatePasswordPage from '@/pages/UpdatePasswordPage';
 
 // Páginas Principais
 import ChamadosPage from '@/pages/ChamadosPage';
 import EmpresasPage from '@/pages/EmpresasPage';
-import ContatosPage from '@/pages/ContatosPage.jsx';
+import ContatosPage from '@/pages/ContatosPage';
 import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage';
 import DashboardPage from '@/pages/DashboardPage';
 
 // Layouts
-import MainLayout from '@/components/layout/MainLayout.jsx';
+import MainLayout from '@/components/layout/MainLayout';
 import SettingsModal from '@/components/layout/SettingsModal';
 
-const AppContent = () => {
-  const { session, loading, profile } = useAuth();
-  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
+// Componente para proteger as rotas que precisam de autenticação
+const ProtectedRoute = ({ children }) => {
+  const { session, loading } = useAuth();
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><p>A carregar...</p></div>;
   }
 
   if (!session) {
-    // Se não há sessão, agora mostramos o AuthPage, mas a rota de cadastro continua existindo
-    return (
-        <Routes>
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/cadastro" element={<CadastroEmpresa />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-    );
+    return <Navigate to="/login" replace />;
   }
-  
+
+  return children;
+};
+
+
+const AppContent = () => {
+  const { profile, session } = useAuth();
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
+
   return (
     <ThemeProvider>
       <MainLayout onOpenSettings={() => setSettingsOpen(true)}>
@@ -51,10 +53,14 @@ const AppContent = () => {
           <Route path="/contatos" element={<ContatosPage />} />
           <Route path="/crm" element={<CrmPage />} />
           <Route path="/admin/*" element={<AdminPage />} />
+          
+          {/* Páginas de Exemplo */}
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
           <Route path="/base-conhecimento" element={<PlaceholderPage title="Base de Conhecimento" />} />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/relatorios" element={<PlaceholderPage title="Relatórios e Análises" />} />
+          
+          {/* Redirecionamento Padrão */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </MainLayout>
@@ -63,7 +69,7 @@ const AppContent = () => {
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
         userProfile={profile}
-        userAuth={session.user}
+        userAuth={session?.user}
       />
     </ThemeProvider>
   );
@@ -78,9 +84,20 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Rotas Públicas */}
           <Route path="/login" element={<AuthPage />} />
-          <Route path="/cadastro" element={<CadastroEmpresa />} /> {/* <-- 2. ADICIONEI A ROTA AQUI */}
-          <Route path="/*" element={<AppContent />} />
+          <Route path="/cadastro" element={<CadastroEmpresa />} />
+          <Route path="/update-password" element={<UpdatePasswordPage />} />
+          
+          {/* Rotas Protegidas */}
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <AppContent />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

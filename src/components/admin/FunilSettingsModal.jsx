@@ -1,9 +1,12 @@
+// src/components/admin/FunilSettingsModal.jsx
+
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext'; // 1. IMPORTAR o useAuth
+import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, PlusCircle, Loader2 } from 'lucide-react';
 
 const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) => {
-  const { profile } = useAuth(); // 2. OBTER o perfil do utilizador logado
+  // 1. OBTER o perfil para aceder ao tenant_id
+  const { profile } = useAuth();
   const [funis, setFunis] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -26,11 +29,18 @@ const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) =>
   };
 
   const addFunil = () => {
-    // 3. CORREÇÃO: Adicionar o user_id ao criar um novo funil
-    if (profile?.id) {
-      setFunis([...funis, { nome_funil: '', user_id: profile.id, crm_etapas: [] }]);
+    // 2. VERIFICAÇÃO: Garante que temos o perfil e o tenant_id
+    if (profile?.tenant_id) {
+      // 3. CORREÇÃO: Adicionar o tenant_id ao criar um novo funil
+      const newFunil = {
+        nome_funil: '',
+        user_id: profile.id,
+        tenant_id: profile.tenant_id, // <-- PONTO CHAVE DA CORREÇÃO
+        crm_etapas: []
+      };
+      setFunis([...funis, newFunil]);
     } else {
-      alert("Não foi possível identificar o utilizador. Por favor, recarregue a página.");
+      alert("Não foi possível identificar a sua empresa. Por favor, recarregue a página.");
     }
   };
 
@@ -63,6 +73,7 @@ const FunilSettingsModal = ({ isOpen, onClose, funis: initialFunis, onSave }) =>
 
   if (!isOpen) return null;
 
+  // O resto do componente (JSX) não precisa de alterações.
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-3xl">
