@@ -91,7 +91,7 @@ const CrmSettingsPage = () => {
 
         if (funil.crm_etapas?.length > 0) {
           const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => {
-              // *** ESTA É A LÓGICA CORRIGIDA ***
+              // *** ESTA É A LÓGICA CORRETA E FINAL ***
               const novaEtapa = {
                   nome_etapa: etapa.nome_etapa,
                   funil_id: savedFunil.id,
