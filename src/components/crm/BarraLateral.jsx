@@ -107,7 +107,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
     }
   };
 
-  // 1. ADICIONADA FUNÇÃO PARA REMOVER/DESVINCULAR CONTATO
   const handleRemoverContato = async (contatoId) => {
     if (window.confirm("Tem certeza que deseja desvincular este contato da empresa? A ação não remove o contato do sistema.")) {
         const { error } = await supabase
@@ -119,7 +118,7 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
             alert("Não foi possível desvincular o contato.");
             console.error(error);
         } else {
-            onForcarRecarga(); // Recarrega os dados para atualizar a lista
+            onForcarRecarga();
         }
     }
   };
@@ -142,7 +141,8 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
             <div className="space-y-4">
               <DetalheEditavel icon={<Building size={14} />} label="Empresa" valor={empresa.nome_fantasia} onSave={(val) => handleUpdateEmpresa('nome_fantasia', val)} tipoInput="text" onClick={() => onEmpresaClick(empresa)} />
               <DetalheEditavel icon={<Globe size={14} />} label="Site" valor={empresa.site} onSave={(val) => handleUpdateEmpresa('site', val)} tipoInput="url" />
-              <DetalheEditavel icon={<MapPin size={14} />} label="Endereço" valor={empresa.endereco} onSave={(val) => handleUpdateEmpresa('endereco', val)} isEditable={true} />
+              {/* --- CORREÇÃO APLICADA AQUI --- */}
+              <DetalheEditavel icon={<MapPin size={14} />} label="Endereço" valor={empresa.bairro} onSave={(val) => handleUpdateEmpresa('bairro', val)} isEditable={true} />
               <DetalheEditavel icon={<Briefcase size={14} />} label="Segmento" valor={empresa.segmento} onSave={(val) => handleUpdateEmpresa('segmento', val)} tipoInput="text" />
             </div>
         ) : ( <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhuma empresa vinculada</p> )}
@@ -150,7 +150,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
         <div>
             <div className="flex justify-between items-center mt-4">
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2"><User size={14} />Contatos</label>
-                {/* 2. O BOTÃO AGORA CHAMA A FUNÇÃO onAdicionarContato */}
                 <button onClick={onAdicionarContato} className="text-blue-600 hover:text-blue-800 p-1" title="Adicionar/Vincular Contato"><PlusCircle size={16} /></button>
             </div>
             
@@ -169,7 +168,6 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
                                 <button onClick={() => onEditarContato(contato)} className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 p-1" title="Editar Contato">
                                     <Pencil size={14} />
                                 </button>
-                                {/* 3. BOTÃO DE REMOVER ADICIONADO */}
                                 <button onClick={() => handleRemoverContato(contato.id)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 p-1" title="Desvincular Contato">
                                     <Trash2 size={14} />
                                 </button>
@@ -190,5 +188,5 @@ const BarraLateral = ({ negocio, etapasDoFunil = [], listaDeUsers = [], onDataCh
     </div>
   );
 };
-export default BarraLateral;
 
+export default BarraLateral;

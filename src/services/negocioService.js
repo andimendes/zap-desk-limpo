@@ -1,18 +1,19 @@
 import { supabase } from '../supabaseClient'; // Ajuste o caminho se necessário
 
 /**
- * Busca todos os negócios do banco de dados com base em filtros, incluindo os nomes da empresa e do contato associado.
- * @param {object} filtros - Objeto com os filtros a serem aplicados. Ex: { status, etapaIds, responsavelId, ... }
+ * Busca todos os negócios do banco de dados com base em filtros.
  */
 export async function getNegocios(filtros = {}) {
   // --- CORREÇÃO APLICADA AQUI ---
+  // A consulta agora também busca as atividades relacionadas a cada negócio.
   let query = supabase
     .from('crm_negocios')
     .select(`
       *,
       responsavel: profiles(id, full_name, avatar_url),
-      empresa: crm_empresas(id, nome_fantasia),
-      contato: crm_contatos(id, nome)
+      empresa: crm_empresas(id, nome_fantasia, bairro),
+      contato: crm_contatos(id, nome),
+      crm_atividades(data_atividade, concluida)
     `);
 
   // Aplica o filtro de status (Ativo, Ganho, Perdido)
@@ -30,7 +31,7 @@ export async function getNegocios(filtros = {}) {
     query = query.eq('responsavel_id', filtros.responsavelId);
   }
   
-  // NOVO: Filtra por ID da empresa
+  // Filtra por ID da empresa
   if (filtros.empresaId) {
     query = query.eq('empresa_id', filtros.empresaId);
   }
@@ -46,8 +47,7 @@ export async function getNegocios(filtros = {}) {
     query = query.lte('created_at', filtros.dataFim);
   }
 
-  // --- CORREÇÃO APLICADA AQUI ---
-  // Filtra por termo de pesquisa no título do negócio
+  // Filtra por termo de pesquisa no nome do negócio
   if (filtros.termoPesquisa) {
     query = query.ilike('nome_negocio', `%${filtros.termoPesquisa}%`);
   }
@@ -56,20 +56,30 @@ export async function getNegocios(filtros = {}) {
 
   if (error) {
     console.error('Erro ao buscar negócios:', error);
+    return { data, error };
   }
-  return { data, error };
+
+  // --- LÓGICA ADICIONADA PARA ATUALIZAR O CARD ---
+  // Para cada negócio, verificamos se existe alguma atividade futura não concluída.
+  const negociosComStatusDeTarefa = data.map(negocio => {
+    const temTarefaFutura = negocio.crm_atividades.some(atv => 
+        !atv.concluida && new Date(atv.data_atividade) >= new Date()
+    );
+    return { ...negocio, tem_tarefa_futura: temTarefaFutura };
+  });
+
+  return { data: negociosComStatusDeTarefa, error: null };
 }
 
 
 /**
  * Cria um novo negócio no banco de dados.
- * @param {object} negocioData - Os dados do negócio a ser criado (ex: { titulo, valor, empresa_id, contato_id, ... })
  */
 export async function createNegocio(negocioData) {
   const { data, error } = await supabase
     .from('crm_negocios')
     .insert([negocioData])
-    .select(); // .select() retorna o registro recém-criado
+    .select();
 
   if (error) {
     console.error('Erro ao criar negócio:', error);
@@ -79,8 +89,6 @@ export async function createNegocio(negocioData) {
 
 /**
  * Atualiza um negócio existente.
- * @param {string} negocioId - O ID do negócio a ser atualizado.
- * @param {object} updates - Os campos a serem atualizados (ex: { etapa_id, valor })
  */
 export async function updateNegocio(negocioId, updates) {
   const { data, error } = await supabase
@@ -97,7 +105,6 @@ export async function updateNegocio(negocioId, updates) {
 
 /**
  * Deleta um negócio do banco de dados.
- * @param {string} negocioId - O ID do negócio a ser deletado.
  */
 export async function deleteNegocio(negocioId) {
   const { data, error } = await supabase

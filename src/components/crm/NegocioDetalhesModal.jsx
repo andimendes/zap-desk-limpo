@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, AlertTriangle, Pencil, Check, X, Undo2, Trash2 } from 'lucide-react';
-
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
@@ -82,14 +81,12 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     try {
       const { data: updatedNegocio, error: negocioError } = await supabase
         .from('crm_negocios')
-        // <-- CORREÇÃO: Trocado 'contatos(*)' por 'crm_contatos(*)'
         .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
         .eq('id', negocioInicial.id)
         .single();
 
       if (negocioError) throw negocioError;
       setNegocio(updatedNegocio);
-      // <-- CORREÇÃO: Trocado 'updatedNegocio.titulo' por 'updatedNegocio.nome_negocio'
       setNovoTitulo(updatedNegocio.nome_negocio);
       
       const [focoRes, atividadesRes, notasRes] = await Promise.all([
@@ -130,7 +127,49 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
-  const handleEditarContato = (contato) => {
+  // --- FUNÇÃO CORRIGIDA PARA AVANÇAR ETAPAS ---
+  const handleChangeEtapa = async (novaEtapaId) => {
+    if (novaEtapaId === negocio.etapa_id) return;
+    try {
+      // Usamos a função 'updateNegocio' do nosso serviço para manter a lógica centralizada
+      const { data: negocioAtualizado, error } = await supabase
+        .from('crm_negocios')
+        .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
+        .eq('id', negocio.id)
+        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
+        .single();
+
+      if (error) {
+          alert("Erro ao atualizar a etapa do negócio.");
+          throw error;
+      };
+
+      setNegocio(negocioAtualizado);
+      onDataChange(negocioAtualizado); // Avisa o componente pai para recarregar a lista
+    } catch (error) {
+      console.error("Erro ao mudar de etapa:", error);
+    }
+  };
+  
+  const handleSaveTitulo = async () => {
+    const tituloTrimmed = novoTitulo.trim();
+    if (!tituloTrimmed || tituloTrimmed === negocio.nome_negocio) {
+      setIsTituloEditing(false);
+      setNovoTitulo(negocio.nome_negocio);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.from('crm_negocios').update({ nome_negocio: tituloTrimmed }).eq('id', negocio.id).select().single();
+      if (error) throw error;
+      onDataChange(data);
+      setIsTituloEditing(false);
+    } catch (error) {
+      console.error("Erro ao guardar título:", error);
+      alert("Não foi possível salvar o novo título.");
+    }
+  };
+
+    const handleEditarContato = (contato) => {
     setContatoEmEdicao(contato);
     setIsEditContatoOpen(true);
   };
@@ -227,45 +266,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  const handleChangeEtapa = async (novaEtapaId) => {
-    if (novaEtapaId === negocio.etapa_id) return;
-    try {
-      const { data: negocioAtualizado, error } = await supabase
-        .from('crm_negocios')
-        .update({ etapa_id: novaEtapaId, etapa_modificada_em: new Date().toISOString() })
-        .eq('id', negocio.id)
-        // <-- CORREÇÃO: Trocado 'contatos(*)' por 'crm_contatos(*)'
-        .select('*, responsavel:profiles(full_name), empresa:crm_empresas(*), contato:crm_contatos(*)')
-        .single();
-
-      if (error) throw error;
-      setNegocio(negocioAtualizado);
-      onDataChange(negocioAtualizado);
-    } catch (error) {
-      alert("Erro ao atualizar a etapa do negócio.");
-      console.error("Erro ao mudar de etapa:", error);
-    }
-  };
-  
-  const handleSaveTitulo = async () => {
-    const tituloTrimmed = novoTitulo.trim();
-    // <-- CORREÇÃO: Trocado 'negocio.titulo' por 'negocio.nome_negocio'
-    if (!tituloTrimmed || tituloTrimmed === negocio.nome_negocio) {
-      setIsTituloEditing(false);
-      setNovoTitulo(negocio.nome_negocio);
-      return;
-    }
-    try {
-      // <-- CORREÇÃO: Trocado 'titulo:' por 'nome_negocio:'
-      const { data, error } = await supabase.from('crm_negocios').update({ nome_negocio: tituloTrimmed }).eq('id', negocio.id).select().single();
-      if (error) throw error;
-      onDataChange(data);
-      setIsTituloEditing(false);
-    } catch (error) {
-      console.error("Erro ao guardar título:", error);
-      alert("Não foi possível salvar o novo título.");
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -288,7 +288,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                         </div>
                       ) : (
                         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                          {/* <-- CORREÇÃO: Trocado 'negocio.titulo' por 'negocio.nome_negocio' */}
                           {negocio.nome_negocio}
                           <button onClick={() => setIsTituloEditing(true)} className="text-gray-400 hover:text-gray-700"><Pencil size={16}/></button>
                         </h2>
@@ -317,7 +316,9 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       <button onClick={onClose} disabled={isStatusUpdating}><X size={24} /></button>
                     </div>
                   </div>
-                  {negocio.status === 'Ativo' && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleChangeEtapa} />)}
+                  <div className="flex justify-between items-center">
+                    {negocio.status === 'Ativo' && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleChangeEtapa} />)}
+                  </div>
                 </div>
                 
                 <div className="flex flex-grow overflow-hidden">
@@ -394,7 +395,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
         isDeleting={isDeleting}
         title="Confirmar Exclusão do Negócio"
       >
-        {/* <-- CORREÇÃO: Trocado 'negocio?.titulo' por 'negocio?.nome_negocio' */}
         <p>Tem a certeza de que deseja deletar permanentemente o negócio <span className="font-bold">"{negocio?.nome_negocio}"</span>?</p>
         <p className="font-bold mt-2 text-red-500">Esta ação não pode ser desfeita.</p>
       </ConfirmationModal>
