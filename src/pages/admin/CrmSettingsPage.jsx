@@ -5,14 +5,12 @@ import { Loader2, AlertTriangle, Edit } from 'lucide-react';
 import FunilSettingsModal from '@/components/admin/FunilSettingsModal';
 
 const CrmSettingsPage = () => {
-  // O perfil do AuthContext é a nossa fonte da verdade para saber o tenant_id
   const { profile } = useAuth();
   const [funis, setFunis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
 
-  // Função para buscar os dados, agora com filtro de tenant
   const fetchFunisComEtapas = useCallback(async () => {
     if (!profile?.tenant_id) {
       setLoading(false);
@@ -48,7 +46,6 @@ const CrmSettingsPage = () => {
     fetchFunisComEtapas();
   }, [fetchFunisComEtapas]);
 
-  // Função para salvar, agora tratando funis e etapas corretamente
   const handleSave = async (funisEditados) => {
     if (!profile?.tenant_id) {
         setError("Sessão inválida ou empresa não identificada. Por favor, recarregue a página.");
@@ -57,7 +54,6 @@ const CrmSettingsPage = () => {
     setError('');
 
     try {
-      // Lógica para apagar funis que foram removidos na edição
       const originalFunisIds = funis.map(f => f.id);
       const editadosFunisIds = funisEditados.filter(f => f.id).map(f => f.id);
       const funisParaApagar = originalFunisIds.filter(id => !editadosFunisIds.includes(id));
@@ -68,7 +64,6 @@ const CrmSettingsPage = () => {
       }
       
       for (const funil of funisEditados) {
-        // Salva ou atualiza o funil principal, garantindo a inclusão do tenant_id
         const funilDataParaSalvar = {
             id: funil.id,
             nome_funil: funil.nome_funil,
@@ -84,7 +79,6 @@ const CrmSettingsPage = () => {
 
         if (funilError) throw funilError;
 
-        // Lógica para apagar etapas que foram removidas de um funil
         const funilOriginal = funis.find(f => f.id === savedFunil.id);
         const originalEtapasIds = funilOriginal?.crm_etapas.map(e => e.id) || [];
         const editadasEtapasIds = funil.crm_etapas.filter(e => e.id).map(e => e.id);
@@ -95,9 +89,9 @@ const CrmSettingsPage = () => {
             if(deleteEtapaError) throw new Error(`Erro ao apagar etapas: ${deleteEtapaError.message}`);
         }
 
-        // Lógica para salvar ou atualizar as etapas
         if (funil.crm_etapas?.length > 0) {
           const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => {
+              // *** ESTA É A LÓGICA CORRIGIDA ***
               const novaEtapa = {
                   nome_etapa: etapa.nome_etapa,
                   funil_id: savedFunil.id,
@@ -116,7 +110,7 @@ const CrmSettingsPage = () => {
       }
 
       await fetchFunisComEtapas();
-      setModalOpen(false); // Fecha o modal após salvar com sucesso
+      setModalOpen(false);
     } catch (err) {
       console.error("Erro detalhado ao salvar:", err);
       setError(err.message);
