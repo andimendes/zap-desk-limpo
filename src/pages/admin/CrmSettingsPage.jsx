@@ -12,12 +12,10 @@ const CrmSettingsPage = () => {
   const [error, setError] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
 
-  // 1. FUNÇÃO DE BUSCA CORRIGIDA
+  // Função para buscar os dados, agora com filtro de tenant
   const fetchFunisComEtapas = useCallback(async () => {
-    // Verificação de segurança: só busca dados se o perfil (e o tenant) estiverem carregados
     if (!profile?.tenant_id) {
       setLoading(false);
-      // Podemos optar por não mostrar um erro aqui, a menos que o perfil falhe em carregar
       return;
     }
 
@@ -27,7 +25,6 @@ const CrmSettingsPage = () => {
       const { data, error } = await supabase
         .from('crm_funis')
         .select(`id, nome_funil, user_id, crm_etapas (id, nome_etapa, ordem)`)
-        // A LINHA MAIS IMPORTANTE: Filtra os funis APENAS para o tenant do utilizador logado
         .eq('tenant_id', profile.tenant_id)
         .order('created_at', { ascending: true });
 
@@ -45,25 +42,22 @@ const CrmSettingsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [profile]); // O profile é agora uma dependência para re-executar a busca se ele mudar
+  }, [profile]);
 
   useEffect(() => {
     fetchFunisComEtapas();
   }, [fetchFunisComEtapas]);
 
-
-  // 2. FUNÇÃO DE SALVAMENTO CORRIGIDA
+  // Função para salvar, agora tratando funis e etapas corretamente
   const handleSave = async (funisEditados) => {
-    // Verificação de segurança crucial antes de tentar salvar
     if (!profile?.tenant_id) {
         setError("Sessão inválida ou empresa não identificada. Por favor, recarregue a página.");
         return;
     }
-
     setError('');
 
     try {
-      // A lógica para apagar funis removidos permanece a mesma
+      // Lógica para apagar funis que foram removidos na edição
       const originalFunisIds = funis.map(f => f.id);
       const editadosFunisIds = funisEditados.filter(f => f.id).map(f => f.id);
       const funisParaApagar = originalFunisIds.filter(id => !editadosFunisIds.includes(id));
@@ -74,12 +68,12 @@ const CrmSettingsPage = () => {
       }
       
       for (const funil of funisEditados) {
-        // O PONTO CRÍTICO DA SOLUÇÃO: Adicionar o tenant_id aos dados a serem salvos
+        // Salva ou atualiza o funil principal, garantindo a inclusão do tenant_id
         const funilDataParaSalvar = {
             id: funil.id,
             nome_funil: funil.nome_funil,
             user_id: funil.user_id || profile.id,
-            tenant_id: profile.tenant_id // <-- A CORREÇÃO ESSENCIAL
+            tenant_id: profile.tenant_id
         };
         
         const { data: savedFunil, error: funilError } = await supabase
@@ -88,34 +82,47 @@ const CrmSettingsPage = () => {
             .select()
             .single();
 
-        if (funilError) {
-          // Se o erro for de RLS, a mensagem será mais clara agora
-          if (funilError.message.includes('violates row-level security policy')) {
-            throw new Error(`Erro de segurança ao salvar o funil "${funil.nome_funil}". Verifique as suas permissões.`);
-          }
-          throw funilError;
+        if (funilError) throw funilError;
+
+        // Lógica para apagar etapas que foram removidas de um funil
+        const funilOriginal = funis.find(f => f.id === savedFunil.id);
+        const originalEtapasIds = funilOriginal?.crm_etapas.map(e => e.id) || [];
+        const editadasEtapasIds = funil.crm_etapas.filter(e => e.id).map(e => e.id);
+        const etapasParaApagar = originalEtapasIds.filter(id => !editadasEtapasIds.includes(id));
+
+        if (etapasParaApagar.length > 0) {
+            const { error: deleteEtapaError } = await supabase.from('crm_etapas').delete().in('id', etapasParaApagar);
+            if(deleteEtapaError) throw new Error(`Erro ao apagar etapas: ${deleteEtapaError.message}`);
         }
 
-        // A lógica para salvar etapas permanece a mesma, pois agora ela depende de um funil corretamente salvo
+        // Lógica para salvar ou atualizar as etapas
         if (funil.crm_etapas?.length > 0) {
-          const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => ({
-              ...etapa,
-              funil_id: savedFunil.id,
-              ordem: index + 1,
-          }));
+          const etapasParaSalvar = funil.crm_etapas.map((etapa, index) => {
+              const novaEtapa = {
+                  nome_etapa: etapa.nome_etapa,
+                  funil_id: savedFunil.id,
+                  ordem: index + 1,
+              };
+              // Apenas adiciona o 'id' se ele já existir (para atualizações)
+              if (etapa.id) {
+                  novaEtapa.id = etapa.id;
+              }
+              return novaEtapa;
+          });
+
           const { error: etapaError } = await supabase.from('crm_etapas').upsert(etapasParaSalvar);
           if (etapaError) throw new Error(`Erro ao salvar etapas para o funil "${savedFunil.nome_funil}": ${etapaError.message}`);
         }
       }
 
       await fetchFunisComEtapas();
+      setModalOpen(false); // Fecha o modal após salvar com sucesso
     } catch (err) {
       console.error("Erro detalhado ao salvar:", err);
       setError(err.message);
     }
   };
 
-  // O JSX não precisa de alterações
   return (
     <>
       <FunilSettingsModal 
