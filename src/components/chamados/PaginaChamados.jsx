@@ -1,3 +1,5 @@
+// PaginaChamados.jsx com Ferramenta de Diagnóstico
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { PlusCircle, Filter, LayoutGrid, List } from 'lucide-react';
@@ -33,6 +35,10 @@ function PaginaChamados() {
         try {
             const { data: chamadosData, error: chamadosError } = await supabase.from('chamados_com_detalhes').select('*').order('created_at', { ascending: false });
             if (chamadosError) throw chamadosError;
+
+            // --- FERRAMENTA DE DIAGNÓSTICO ADICIONADA AQUI ---
+            console.log("DADOS BRUTOS RECEBIDOS DA BASE DE DADOS:", chamadosData);
+            // --- FIM DA FERRAMENTA DE DIAGNÓSTICO ---
             
             const { data: tarefasData, error: tarefasError } = await supabase.from('tarefas').select('*');
             if (tarefasError) throw tarefasError;
@@ -45,7 +51,8 @@ function PaginaChamados() {
             
             setChamados(chamadosData || []);
             setTarefas(tarefasData || []);
-        } catch (err) {
+        } catch (err)
+ {
             setError(err.message);
         } finally {
             setLoading(false);
@@ -63,22 +70,17 @@ function PaginaChamados() {
         }
     }, [fetchDados, profile]);
 
-    // --- NOVA CORREÇÃO ADICIONADA AQUI ---
-    // Este useEffect sincroniza o modal aberto com os dados mais recentes.
+    // O resto do ficheiro continua exatamente igual...
     useEffect(() => {
-        // Se houver um chamado selecionado (modal aberto)
         if (selectedChamado) {
-            // Procura a versão mais recente desse chamado na lista principal
             const updatedChamado = chamados.find(c => c.id === selectedChamado.id);
-            // Se encontrar, atualiza o estado do modal.
-            // Se não encontrar (ex: foi excluído), fecha o modal.
             if (updatedChamado) {
                 setSelectedChamado(updatedChamado);
             } else {
                 setSelectedChamado(null);
             }
         }
-    }, [chamados]); // Esta função executa sempre que a lista 'chamados' é alterada.
+    }, [chamados]);
     
     const handleChamadoDeleted = async (chamadoId) => {
         try {
@@ -119,7 +121,12 @@ function PaginaChamados() {
     
     const KanbanView = () => {
         const colunas = ['Aberto', 'Em Andamento', 'Aguardando Cliente', 'Revisão'];
-        const colunaCores = { 'Aberto': 'border-blue-500', 'Em Andamento': 'border-yellow-500', 'Aguardando Cliente': 'border-purple-500', 'Revisão': 'border-orange-500' };
+        const colunaCores = { 
+            'Aberto': 'border-blue-500', 
+            'Em Andamento': 'border-yellow-500', 
+            'Aguardando Cliente': 'border-purple-500', 
+            'Revisão': 'border-orange-500' 
+        };
         
         const chamadosPorColuna = colunas.reduce((acc, status) => {
             acc[status] = chamadosFiltrados

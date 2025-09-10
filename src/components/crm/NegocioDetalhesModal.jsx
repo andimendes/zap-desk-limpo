@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Loader2, AlertTriangle, Pencil, Check, X, Undo2, Trash2 } from 'lucide-react';
+import { Loader2, AlertTriangle, Pencil, Check, X, Undo2, Trash2, Trophy, ShieldX, FileText } from 'lucide-react'; // Adicionado mais ícones
 import BarraLateral from './BarraLateral';
 import AtividadeFoco from './AtividadeFoco';
 import ItemLinhaDoTempo from './ItemLinhaDoTempo';
@@ -18,7 +18,25 @@ const differenceInDays = (dateLeft, dateRight) => {
     return Math.round(diff / (1000 * 60 * 60 * 24));
 };
 
-const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
+// --- ALTERAÇÃO --- Adicionada lógica para exibir status "Ganho"
+const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick, statusNegocio }) => {
+    if (statusNegocio === 'Ganho') {
+        return (
+            <div className="flex w-full overflow-hidden rounded-md bg-green-500 text-white h-8 mt-2 items-center justify-center font-bold">
+                <Trophy size={16} className="mr-2" />
+                GANHO
+            </div>
+        );
+    }
+    if (statusNegocio === 'Perdido') {
+        return (
+            <div className="flex w-full overflow-hidden rounded-md bg-red-500 text-white h-8 mt-2 items-center justify-center font-bold">
+                <ShieldX size={16} className="mr-2" />
+                PERDIDO
+            </div>
+        );
+    }
+
     const etapaAtualIndex = etapas.findIndex(e => e.id === etapaAtualId);
     return (
       <div className="flex w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700 h-8 mt-2">
@@ -29,8 +47,6 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
           let textColor = (isPassed || isCurrent) ? 'text-white' : 'text-gray-700 dark:text-gray-300';
           if (isCurrent) textColor += ' font-bold';
           
-          // --- ALTERAÇÃO (BUG 1) ---
-          // Adicionamos o evento 'e' ao clique para podermos pará-lo.
           return (<button key={eta.id} onClick={(e) => onEtapaClick(e, eta.id)} className={`flex-1 flex items-center justify-center h-full px-2 text-sm text-center relative transition-colors duration-200 ${bgColor} ${textColor} ${!isPassed ? 'z-10' : 'z-0'} ${isCurrent ? 'shadow-lg' : ''}`}><span className="truncate">{eta.nome_etapa}</span></button>);
         })}
       </div>
@@ -38,6 +54,7 @@ const FunilProgressBar = ({ etapas = [], etapaAtualId, onEtapaClick }) => {
 };
 
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => {
+  // ... (código existente sem alterações)
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center" onClick={onClose}>
@@ -64,6 +81,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDele
 
 const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onDataChange, etapasDoFunil = [], listaDeUsers = [], onEmpresaClick }) => {
   const [negocio, setNegocio] = useState(negocioInicial);
+  // ... (estados existentes sem alterações)
   const [proximaAtividade, setProximaAtividade] = useState(null);
   const [historico, setHistorico] = useState([]);
   const [alertaEstagnacao, setAlertaEstagnacao] = useState(null);
@@ -79,7 +97,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   const [contatoEmEdicao, setContatoEmEdicao] = useState(null);
 
   const carregarDadosDetalhados = useCallback(async () => {
-    // ... (nenhuma mudança nesta função)
+    // ... (código existente sem alterações)
     if (!negocioInicial?.id) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -124,6 +142,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   }, [negocioInicial]);
 
   useEffect(() => {
+    // ... (código existente sem alterações)
     if (isOpen) {
         setNegocio(negocioInicial);
         setActiveTab('atividades');
@@ -131,10 +150,9 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   }, [isOpen, negocioInicial, carregarDadosDetalhados]);
   
-  // --- ALTERAÇÃO (BUG 1) ---
-  // A função agora recebe o evento 'e' como primeiro argumento.
   const handleChangeEtapa = async (e, novaEtapaId) => {
-    e.stopPropagation(); // Esta é a linha mágica! Impede que o clique "borbulhe" para o fundo do modal.
+    // ... (código existente sem alterações)
+    e.stopPropagation(); 
 
     if (novaEtapaId === negocio.etapa_id) return;
     try {
@@ -159,19 +177,16 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  // --- NOVA FUNÇÃO (BUG 2) ---
-  // Centraliza a lógica de sucesso para garantir que o modal e a página pai sejam atualizados.
   const handleActionSuccess = async () => {
-    // 1. Recarrega os dados dentro do modal.
+    // ... (código existente sem alterações)
     await carregarDadosDetalhados();
-    // 2. Avisa o componente pai (KanbanView) que os dados mudaram.
     if (onDataChange) {
-      onDataChange(); // Chamar sem argumentos pode sinalizar uma recarga geral.
+      onDataChange();
     }
   };
   
   const handleSaveTitulo = async () => {
-    // ... (nenhuma mudança nesta função)
+    // ... (código existente sem alterações)
     const tituloTrimmed = novoTitulo.trim();
     if (!tituloTrimmed || tituloTrimmed === negocio.nome_negocio) {
       setIsTituloEditing(false);
@@ -189,22 +204,19 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     }
   };
 
-  // ... (nenhuma mudança nas outras funções: handleEditarContato, handleAdicionarContato, etc.)
+  // ... (funções handle... para contatos sem alterações)
     const handleEditarContato = (contato) => {
     setContatoEmEdicao(contato);
     setIsEditContatoOpen(true);
   };
-
   const handleAdicionarContato = () => {
     setIsAddContatoOpen(true);
   };
-  
   const handleSwitchToCreateContato = () => {
     setIsAddContatoOpen(false);
     setContatoEmEdicao(null); 
     setIsEditContatoOpen(true);
   };
-
   const handleCloseContactModals = () => {
     setIsEditContatoOpen(false);
     setIsAddContatoOpen(false);
@@ -212,28 +224,53 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
     carregarDadosDetalhados(); 
   };
 
+  // --- ALTERAÇÃO PRINCIPAL AQUI ---
   const handleMarcarStatus = async (status) => {
     setIsStatusUpdating(true);
     try {
+      // 1. Atualiza o status do negócio
       const { data: negocioAtualizado, error: negocioError } = await supabase
         .from('crm_negocios')
         .update({ status })
         .eq('id', negocio.id)
-        .select().single();
+        .select()
+        .single();
       
       if (negocioError) throw negocioError;
       
-      if (negocio.empresa_id) {
-        if (status === 'Ganho' && negocio.empresa.status !== 'Cliente Ativo') {
-          await supabase.from('crm_empresas').update({ status: 'Cliente Ativo' }).eq('id', negocio.empresa_id);
-        } else if (status === 'Perdido' && negocio.empresa.status === 'Cliente Ativo') {
-          await supabase.from('crm_empresas').update({ status: 'Inativo' }).eq('id', negocio.empresa_id);
+      // 2. Se o negócio foi GANHO, executa ações adicionais
+      if (status === 'Ganho') {
+        // 2a. Atualiza o status da empresa para "Cliente Ativo"
+        if (negocio.empresa_id && negocio.empresa.status !== 'Cliente Ativo') {
+          const { error: empresaError } = await supabase
+            .from('crm_empresas')
+            .update({ status: 'Cliente Ativo' })
+            .eq('id', negocio.empresa_id);
+          if (empresaError) console.error("Aviso: Falha ao atualizar status da empresa.", empresaError.message);
+        }
+
+        // 2b. Cria uma tarefa de follow-up para o responsável pelo negócio
+        if (negocio.responsavel_id) {
+            const dataVencimento = new Date();
+            dataVencimento.setHours(23, 59, 59, 999); // Fim do dia
+
+            const { error: atividadeError } = await supabase
+                .from('crm_atividades')
+                .insert({
+                    descricao: 'Completar o cadastro para contrato',
+                    negocio_id: negocio.id,
+                    user_id: negocio.responsavel_id, // Atribui ao responsável do negócio
+                    data_atividade: dataVencimento.toISOString(),
+                    tipo: 'Tarefa',
+                    concluida: false,
+                });
+            if (atividadeError) console.error("Aviso: Falha ao criar tarefa automática.", atividadeError.message);
         }
       }
       
       alert(`Negócio marcado como ${status} com sucesso!`);
-      onDataChange(negocioAtualizado);
-      onClose();
+      onDataChange(negocioAtualizado); // Avisa a página principal para recarregar
+      onClose(); // Fecha o modal
 
     } catch (error) {
       console.error('Falha na operação de mudança de status:', error);
@@ -244,6 +281,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   };
 
   const handleReverterNegocio = async () => {
+    // ... (código existente sem alterações)
     if (!etapasDoFunil || etapasDoFunil.length === 0) {
       alert("Não foi possível encontrar as etapas do funil para reverter o negócio.");
       return;
@@ -270,6 +308,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
   };
 
   const handleDeletarNegocio = async () => {
+    // ... (código existente sem alterações)
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('crm_negocios').delete().eq('id', negocio.id);
@@ -298,8 +337,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             ) : negocio && (
               <>
                 <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col">
-                  {/* ... (código do cabeçalho do modal sem alterações) ... */}
-                  <div className="flex justify-between items-center mb-2">
+                  <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
                       {isTituloEditing ? (
                          <div className="flex items-center gap-2">
@@ -326,6 +364,12 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                         </>
                       ) : (
                         <>
+                          {/* --- NOVO BOTÃO PARA ENVIAR CONTRATO (FASE 2) --- */}
+                          {negocio.status === 'Ganho' && (
+                            <button className="bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 flex items-center disabled:bg-blue-400" disabled={isStatusUpdating}>
+                                <FileText size={16} className="mr-2"/> Enviar para Contrato
+                            </button>
+                          )}
                           <button onClick={handleReverterNegocio} className="bg-yellow-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-yellow-600 flex items-center disabled:bg-yellow-400" disabled={isStatusUpdating}>
                             {isStatusUpdating && <Loader2 className="animate-spin mr-2" size={16}/>} <Undo2 size={16} className="mr-1"/> Reverter para Ativo
                           </button>
@@ -338,11 +382,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    {negocio.status === 'Ativo' && etapasDoFunil.length > 0 && (<FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleChangeEtapa} />)}
+                    {/* Passamos o status atual para a barra de progresso */}
+                    <FunilProgressBar etapas={etapasDoFunil} etapaAtualId={negocio.etapa_id} onEtapaClick={handleChangeEtapa} statusNegocio={negocio.status} />
                   </div>
                 </div>
                 
                 <div className="flex flex-grow overflow-hidden">
+                  {/* ... (código restante sem alterações) ... */}
                   <div className="w-1/3 border-r dark:border-gray-700 overflow-y-auto">
                     <BarraLateral 
                         negocio={negocio} 
@@ -366,19 +412,13 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
                       {activeTab === 'atividades' && (
                           <>
                               {alertaEstagnacao && (<div className="flex items-center gap-2 text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md"><AlertTriangle size={16} />{alertaEstagnacao}</div>)}
-                              
-                              {/* --- ALTERAÇÃO (BUG 2) --- */}
-                              {/* Passamos a nova função 'handleActionSuccess' para o composer. */}
                               <ActivityComposer negocioId={negocio.id} onActionSuccess={handleActionSuccess} />
-                              
                               <div>
                                 <h3 className="text-lg font-semibold mb-2">Foco</h3>
-                                {/* Passamos também a nova função para a atividade em foco */}
                                 <AtividadeFoco atividade={proximaAtividade} onConcluir={handleActionSuccess} />
                               </div>
                               <div>
                                 <h3 className="text-lg font-semibold mb-4">Histórico</h3>
-                                {/* E também para o histórico, garantindo consistência */}
                                 <ul>{historico.map((item, index) => (<ItemLinhaDoTempo key={index} item={item} onAction={handleActionSuccess} />))}</ul>
                               </div>
                           </>
@@ -394,7 +434,7 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
           </div>
       </div>
       
-      {/* ... (nenhuma mudança nos modais de Contato e Confirmação) ... */}
+      {/* ... (código dos modais de contato e confirmação sem alterações) ... */}
       {isEditContatoOpen && (
         <ContatoFormModal
             isOpen={isEditContatoOpen}
@@ -404,7 +444,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             onSave={handleCloseContactModals}
         />
       )}
-
       {isAddContatoOpen && (
         <BuscaECriaContatoModal
             isOpen={isAddContatoOpen}
@@ -415,7 +454,6 @@ const NegocioDetalhesModal = ({ negocio: negocioInicial, isOpen, onClose, onData
             onSave={handleCloseContactModals}
         />
       )}
-
       <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
         onClose={() => setIsConfirmDeleteOpen(false)}

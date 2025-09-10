@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
 import { getNegocios } from '@/services/negocioService';
 import CrmBoard from './CrmBoard';
 import CrmDashboard from './CrmDashboard';
@@ -14,7 +15,9 @@ import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2, Che
 import ErrorBoundary from '../ErrorBoundary';
 
 const PaginaCRM = () => {
-  // --- NENHUMA ALTERAÇÃO NOS ESTADOS ---
+  const { profile } = useAuth();
+
+  // Estados existentes
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
@@ -33,7 +36,7 @@ const PaginaCRM = () => {
   const [filtroStatus, setFiltroStatus] = useState('Ativo');
   const [dataVersion, setDataVersion] = useState(0);
 
-  // --- NENHUMA ALTERAÇÃO NOS useEffect INICIAIS ---
+  // Hooks e outras funções
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
     return () => { clearTimeout(timerId); };
@@ -67,9 +70,7 @@ const PaginaCRM = () => {
       const { data: etapasData, error: etapasError } = await supabase.from('crm_etapas').select('*').eq('funil_id', funilSelecionadoId).order('ordem');
       if (etapasError) throw etapasError;
       setEtapasDoFunil(etapasData || []);
-      
       const etapaIds = (etapasData || []).map(e => e.id);
-
       const filtrosParaApi = {
         status: filtroStatus,
         etapaIds: etapaIds,
@@ -78,13 +79,9 @@ const PaginaCRM = () => {
         dataFim: filtros.dataFim,
         termoPesquisa: termoPesquisaDebounced,
       };
-
       const { data: negociosData, error: negociosError } = await getNegocios(filtrosParaApi);
-      
       if (negociosError) throw negociosError;
-      
       setNegocios(negociosData || []);
-
     } catch (error) {
       console.error("Ocorreu um erro ao buscar dados do funil:", error);
       setNegocios([]);
@@ -97,28 +94,18 @@ const PaginaCRM = () => {
   
   const handleAplicaFiltros = (novosFiltros) => { setFiltros(novosFiltros); setIsFiltrosOpen(false); };
   
-  // --- ALTERAÇÃO PRINCIPAL AQUI ---
-  // Substituímos a antiga 'handleDataChange' por esta versão mais inteligente.
   const handleRefreshData = (updatedData = null) => {
-    // Se recebemos um objeto de negócio atualizado (como ao mudar de etapa)
     if (updatedData && typeof updatedData === 'object' && updatedData.id) {
-        // Atualizamos a lista de negócios de forma eficiente, sem nova chamada à API
         setNegocios(prevNegocios =>
             prevNegocios.map(n => (n.id === updatedData.id ? updatedData : n))
         );
-        // E garantimos que o negócio selecionado (no modal) também receba os novos dados
         if (negocioSelecionado && negocioSelecionado.id === updatedData.id) {
             setNegocioSelecionado(updatedData);
         }
     } else {
-        // Se não recebemos dados específicos (ex: ao adicionar nova tarefa ou novo negócio),
-        // simplesmente buscamos a lista inteira novamente.
         fetchDadosDoFunil();
     }
-    // Incrementamos a versão dos dados para atualizar componentes como o Dashboard
     setDataVersion(v => v + 1);
-    
-    // O mais importante: NÃO chamamos setNegocioSelecionado(null) aqui.
   };
 
   const handleAbrirDetalhesEmpresa = (empresa) => {
@@ -126,10 +113,42 @@ const PaginaCRM = () => {
     setNegocioSelecionado(null);
   };
 
+  const handleEnviarContrato = async (negocio) => {
+    if (!confirm(`Tem a certeza de que deseja gerar um chamado de contrato para o cliente "${negocio.empresa?.nome_fantasia}"?`)) {
+      return;
+    }
+    
+    if (!profile) {
+        alert("Não foi possível identificar o seu utilizador. Por favor, recarregue a página.");
+        return;
+    }
+
+    try {
+      const novoChamado = {
+        titulo: `Preparar contrato para: ${negocio.empresa?.nome_fantasia}`,
+        descricao: `Negócio ganho: "${negocio.nome_negocio}".\nValor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}.\n\nPor favor, preparar e enviar o contrato para o cliente.`,
+        status: 'Aberto', // <-- AJUSTE APLICADO AQUI
+        prioridade: 'Normal',
+        cliente_id: negocio.empresa_id,
+        tenant_id: negocio.tenant_id,
+        atendente_id: profile.id,
+      };
+
+      const { error } = await supabase.from('chamados').insert([novoChamado]);
+
+      if (error) throw error;
+
+      alert('Chamado para elaboração de contrato criado com sucesso!');
+
+    } catch (error) {
+      console.error("Erro detalhado ao criar chamado:", error);
+      alert(`Ocorreu um erro ao criar o chamado: ${error.message}`);
+    }
+  };
+
   return (
     <>
       <div className="bg-gray-50 dark:bg-gray-900/80 min-h-screen w-full p-4 sm:p-6 lg:p-8">
-        {/* Nenhuma alteração no Header */}
         <header className="mb-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-baseline gap-4">
@@ -165,7 +184,6 @@ const PaginaCRM = () => {
           </div>
         </header>
         
-        {/* Nenhuma alteração nos botões de filtro de status */}
         <div className="flex items-center gap-2 mb-6 border-b dark:border-gray-700 overflow-x-auto">
             <button onClick={() => setFiltroStatus('Ativo')} className={`flex items-center gap-2 py-3 px-4 text-sm font-medium whitespace-nowrap ${filtroStatus === 'Ativo' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                 <LayoutGrid size={16} /> Em Andamento
@@ -187,18 +205,28 @@ const PaginaCRM = () => {
             <div className="text-center p-10"><Loader2 className="h-8 w-8 animate-spin inline-block text-blue-500" /></div>
           ) : filtroStatus === 'Ativo' ? (
             viewMode === 'kanban' ? (
-              // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
               <CrmBoard etapas={etapasDoFunil} negocios={negocios} onNegocioClick={setNegocioSelecionado} onDataChange={handleRefreshData} />
             ) : (
-              <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />
+              <CrmListView 
+                negocios={negocios} 
+                etapas={etapasDoFunil} 
+                onNegocioClick={setNegocioSelecionado} 
+                onEnviarContrato={handleEnviarContrato}
+                filtroStatus={filtroStatus}
+              />
             )
           ) : (
-            <CrmListView negocios={negocios} etapas={etapasDoFunil} onNegocioClick={setNegocioSelecionado} />
+            <CrmListView 
+              negocios={negocios} 
+              etapas={etapasDoFunil} 
+              onNegocioClick={setNegocioSelecionado}
+              onEnviarContrato={handleEnviarContrato}
+              filtroStatus={filtroStatus}
+            />
           )}
         </main>
       </div>
       
-      {/* --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData */}
       {isAddModalOpen && <AddNegocioModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} etapas={etapasDoFunil} onNegocioAdicionado={handleRefreshData} />}
       
       {negocioSelecionado && (
@@ -207,7 +235,6 @@ const PaginaCRM = () => {
                 isOpen={!!negocioSelecionado}
                 negocio={negocioSelecionado}
                 onClose={() => setNegocioSelecionado(null)}
-                // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
                 onDataChange={handleRefreshData}
                 etapasDoFunil={etapasDoFunil}
                 listaDeUsers={listaDeUsers}
@@ -221,7 +248,6 @@ const PaginaCRM = () => {
           isOpen={!!empresaSelecionada}
           onClose={() => setEmpresaSelecionada(null)}
           empresa={empresaSelecionada}
-          // --- ALTERAÇÃO AQUI --- Passamos a nova função handleRefreshData
           onEmpresaUpdate={handleRefreshData}
         />
       )}
