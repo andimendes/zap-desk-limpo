@@ -15,9 +15,8 @@ import { Plus, Search, LayoutGrid, List, SlidersHorizontal, Filter, Loader2, Che
 import ErrorBoundary from '../ErrorBoundary';
 
 const PaginaCRM = () => {
-  const { profile } = useAuth();
+  const { profile } = useAuth(); 
 
-  // Estados existentes
   const [viewMode, setViewMode] = useState('kanban');
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [isFiltrosOpen, setIsFiltrosOpen] = useState(false);
@@ -36,7 +35,6 @@ const PaginaCRM = () => {
   const [filtroStatus, setFiltroStatus] = useState('Ativo');
   const [dataVersion, setDataVersion] = useState(0);
 
-  // Hooks e outras funções
   useEffect(() => {
     const timerId = setTimeout(() => { setTermoPesquisaDebounced(termoPesquisa); }, 500);
     return () => { clearTimeout(timerId); };
@@ -127,11 +125,12 @@ const PaginaCRM = () => {
       const novoChamado = {
         titulo: `Preparar contrato para: ${negocio.empresa?.nome_fantasia}`,
         descricao: `Negócio ganho: "${negocio.nome_negocio}".\nValor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negocio.valor || 0)}.\n\nPor favor, preparar e enviar o contrato para o cliente.`,
-        status: 'Aberto', // <-- AJUSTE APLICADO AQUI
+        status: 'Aberto',
         prioridade: 'Normal',
         cliente_id: negocio.empresa_id,
         tenant_id: negocio.tenant_id,
         atendente_id: profile.id,
+        sla_resolucao_horas: 24, // <-- AJUSTE APLICADO AQUI
       };
 
       const { error } = await supabase.from('chamados').insert([novoChamado]);
