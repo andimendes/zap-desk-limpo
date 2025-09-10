@@ -44,6 +44,30 @@ function CadastroEmpresa() {
     }
   };
 
+  // --- FERRAMENTA DE DIAGNÓSTICO ADICIONADA AQUI ---
+  const handleSimpleSignUpTest = async () => {
+    try {
+      console.log("Iniciando teste de cadastro simples...");
+      // IMPORTANTE: Mude o e-mail abaixo para um que NUNCA foi usado antes no seu sistema.
+      let { data, error } = await supabase.auth.signUp({
+        email: 'teste-definitivo-12345@exemplo.com', // <-- MUDE ESTE E-MAIL
+        password: 'password-de-teste-123'
+      });
+
+      if (error) {
+        console.error('ERRO NO TESTE DE CADASTRO SIMPLES:', error);
+        alert('O teste de cadastro simples FALHOU. O problema está na configuração do Supabase. Verifique a consola para o erro.');
+      } else {
+        console.log('SUCESSO NO TESTE DE CADASTRO SIMPLES:', data);
+        alert('O teste de cadastro simples FUNCIONOU! O problema está na nossa função SQL "signup_new_tenant".');
+      }
+    } catch (e) {
+        console.error('ERRO INESPERADO:', e);
+    }
+  };
+  // --- FIM DA FERRAMENTA DE DIAGNÓSTICO ---
+
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 space-y-6">
@@ -65,7 +89,6 @@ function CadastroEmpresa() {
             <input id="cnpj" type="text" value={cnpj} onChange={(e) => setCnpj(e.target.value)} required className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <hr/>
-          {/* --- TEXTOS ATUALIZADOS AQUI --- */}
           <div>
             <label htmlFor="userName" className="text-sm font-medium text-gray-700">Seu Nome Completo</label>
             <input id="userName" type="text" value={userName} onChange={(e) => setUserName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
@@ -78,7 +101,6 @@ function CadastroEmpresa() {
             <label htmlFor="email" className="text-sm font-medium text-gray-700">Seu E-mail</label>
             <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
           </div>
-          {/* ----------------------------- */}
           <div>
             <label htmlFor="password" className="text-sm font-medium text-gray-700">Sua Senha</label>
             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength="6" className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
@@ -90,6 +112,18 @@ function CadastroEmpresa() {
             {loading ? 'Cadastrando...' : 'Criar Conta'}
           </button>
         </form>
+
+        {/* --- BOTÃO DE DIAGNÓSTICO ADICIONADO AQUI --- */}
+        <div className="mt-4 border-t pt-4">
+            <button 
+                type="button" 
+                onClick={handleSimpleSignUpTest} 
+                className="w-full justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600"
+            >
+                Teste de Cadastro Simples (Diagnóstico)
+            </button>
+        </div>
+        {/* --- FIM DO BOTÃO DE DIAGNÓSTICO --- */}
 
         <div className="text-center text-sm">
             <p>
