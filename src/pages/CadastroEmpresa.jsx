@@ -15,26 +15,53 @@ function CadastroEmpresa() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', content: '' });
 
+  // --- FUNÇÃO DE CADASTRO TOTALMENTE REFATORADA ---
   const handleSignUp = async (event) => {
     event.preventDefault();
     setLoading(true);
     setMessage({ type: '', content: '' });
 
     try {
-      const { error: rpcError } = await supabase.rpc('signup_new_tenant', {
+      // Passo 1: Criar o utilizador com a função padrão da Supabase
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+      });
+
+      if (signUpError) {
+        // Se houver um erro aqui (ex: e-mail já existe), lança o erro
+        throw signUpError;
+      }
+      
+      // Se o utilizador for criado, mas a sessão não for iniciada, algo está errado
+      if (!authData.user) {
+          throw new Error("Não foi possível criar o utilizador. Tente novamente.");
+      }
+
+      // Passo 2: Chamar a nova função SQL para criar o tenant e o perfil
+      const { error: rpcError } = await supabase.rpc('create_tenant_and_profile', {
+        user_id: authData.user.id,
         company_name: companyName,
         company_cnpj: cnpj,
         user_name: userName,
-        user_email: email,
-        user_password: password,
         user_celular: celular
       });
 
       if (rpcError) {
+        // Se a segunda parte falhar, lança o erro
         throw rpcError;
       }
 
-      setMessage({ type: 'success', content: 'Empresa cadastrada com sucesso! Verifique seu e-mail para confirmação e depois faça o login.' });
+      // Se tudo correu bem
+      setMessage({ type: 'success', content: 'Conta criada com sucesso! A redirecionar para o login...' });
+      
+      // Opcional: Deslogar o utilizador para forçar um login limpo
+      await supabase.auth.signOut();
+      
+      // Redirecionar para o login após um breve momento
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
 
     } catch (error) {
       console.error('Erro no cadastro:', error.message);
@@ -43,30 +70,6 @@ function CadastroEmpresa() {
       setLoading(false);
     }
   };
-
-  // --- FERRAMENTA DE DIAGNÓSTICO ADICIONADA AQUI ---
-  const handleSimpleSignUpTest = async () => {
-    try {
-      console.log("Iniciando teste de cadastro simples...");
-      // IMPORTANTE: Mude o e-mail abaixo para um que NUNCA foi usado antes no seu sistema.
-      let { data, error } = await supabase.auth.signUp({
-        email: 'teste-definitivo-12345@exemplo.com', // <-- MUDE ESTE E-MAIL
-        password: 'password-de-teste-123'
-      });
-
-      if (error) {
-        console.error('ERRO NO TESTE DE CADASTRO SIMPLES:', error);
-        alert('O teste de cadastro simples FALHOU. O problema está na configuração do Supabase. Verifique a consola para o erro.');
-      } else {
-        console.log('SUCESSO NO TESTE DE CADASTRO SIMPLES:', data);
-        alert('O teste de cadastro simples FUNCIONOU! O problema está na nossa função SQL "signup_new_tenant".');
-      }
-    } catch (e) {
-        console.error('ERRO INESPERADO:', e);
-    }
-  };
-  // --- FIM DA FERRAMENTA DE DIAGNÓSTICO ---
-
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
@@ -109,21 +112,9 @@ function CadastroEmpresa() {
           {message.content && (<div className={`p-3 rounded-md text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message.content}</div>)}
           
           <button type="submit" disabled={loading} className="w-full justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300">
-            {loading ? 'Cadastrando...' : 'Criar Conta'}
+            {loading ? 'Aguarde...' : 'Criar Conta'}
           </button>
         </form>
-
-        {/* --- BOTÃO DE DIAGNÓSTICO ADICIONADO AQUI --- */}
-        <div className="mt-4 border-t pt-4">
-            <button 
-                type="button" 
-                onClick={handleSimpleSignUpTest} 
-                className="w-full justify-center py-2 px-4 border rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600"
-            >
-                Teste de Cadastro Simples (Diagnóstico)
-            </button>
-        </div>
-        {/* --- FIM DO BOTÃO DE DIAGNÓSTICO --- */}
 
         <div className="text-center text-sm">
             <p>
@@ -133,7 +124,6 @@ function CadastroEmpresa() {
                 </Link>
             </p>
         </div>
-
       </div>
     </div>
   );
