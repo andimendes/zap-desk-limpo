@@ -7,7 +7,6 @@ import InputMask from 'react-input-mask';
 
 
 const InputField = ({ icon, mask, ...props }) => {
-    // ... (este componente não precisa de alterações)
     const inputComponent = mask ? (
         <InputMask mask={mask} {...props}>
             {(inputProps) => <input {...inputProps} />}
@@ -36,7 +35,6 @@ const MODULOS_ESTRATEGICO = [
 ];
 
 const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo }) => {
-    // ... (toda a lógica inicial permanece a mesma) ...
     const [formData, setFormData] = useState({});
     const [contatosVinculados, setContatosVinculados] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -75,27 +73,57 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
         fetchTodosContatos();
     }, [initialData]);
     
-    // ... (funções handleCnpjBlur, handleChange, etc. permanecem as mesmas) ...
     const handleCnpjBlur = async (e) => {
-        const cnpj = e.target.value.replace(/\D/g, '');
+        const cnpjLimpo = e.target.value.replace(/\D/g, '');
         setCnpjError('');
-        if (cnpj.length !== 14) {
-            if (e.target.value.length > 0) setCnpjError('O CNPJ deve ter 14 dígitos.');
+
+        if (cnpjLimpo.length === 0) return;
+
+        if (cnpjLimpo.length !== 14) {
+            setCnpjError('O CNPJ deve ter 14 dígitos.');
             return;
         }
+
         setLoading(true);
+
         try {
-            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+            let query = supabase.from('crm_empresas').select('id').eq('cnpj', cnpjLimpo).single();
+            
+            if (initialData.id) {
+                query = query.neq('id', initialData.id);
+            }
+
+            const { data: existingCnpj, error: cnpjCheckError } = await query;
+
+            if (cnpjCheckError && cnpjCheckError.code !== 'PGRST116') { 
+                throw cnpjCheckError;
+            }
+
+            if (existingCnpj) {
+                setCnpjError('Este CNPJ já está cadastrado no sistema.');
+                setLoading(false);
+                return;
+            }
+
+            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
             if (response.ok) {
                 const data = await response.json();
                 setFormData(prev => ({ ...prev, razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || '', cep: data.cep || '', rua: data.logradouro || '', numero: data.numero || '', complemento: data.complemento || '', bairro: data.bairro || '', cidade: data.municipio || '', estado: data.uf || '', email_principal: data.email || '', telefone_principal: `${data.ddd_telefone_1 || ''}` }));
-            } else { setCnpjError('CNPJ inválido ou não encontrado.'); }
-        } catch (error) { console.error("Erro ao buscar CNPJ:", error); setCnpjError('Erro ao buscar CNPJ.'); }
-        setLoading(false);
+            } else { setCnpjError('CNPJ inválido ou não encontrado na API externa.'); }
+
+        } catch (error) {
+            console.error("Erro na validação do CNPJ:", error);
+            setCnpjError('Erro ao validar o CNPJ. Tente novamente.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (name === 'cnpj') {
+            setCnpjError(''); 
+        }
         if (name === 'plano' && value !== 'Plano Estratégico') {
             setFormData(prev => ({ ...prev, plano: value, modulos_contratados: [] }));
         } else {
@@ -133,12 +161,25 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (cnpjError) {
+            alert("Não é possível salvar. Por favor, corrija os erros no formulário.");
+            return;
+        }
+
         setLoading(true);
+
+        // --- ALTERAÇÃO PRINCIPAL AQUI ---
+        // Limpa o CNPJ e o telefone, removendo caracteres não numéricos.
+        const cnpjLimpo = formData.cnpj ? formData.cnpj.replace(/\D/g, '') : '';
+        const telefoneLimpo = formData.telefone_principal ? formData.telefone_principal.replace(/\D/g, '') : '';
+
         const dadosParaSalvar = { 
             id: formData.id, 
             razao_social: formData.razao_social, 
             nome_fantasia: formData.nome_fantasia, 
-            cnpj: formData.cnpj.replace(/\D/g, ''), 
+            // Se o CNPJ limpo tiver mais de 0 caracteres, usa o valor. Senão, envia null.
+            cnpj: cnpjLimpo.length > 0 ? cnpjLimpo : null, 
             status: formData.status, 
             inscricao_estadual: formData.inscricao_estadual, 
             inscricao_municipal: formData.inscricao_municipal, 
@@ -146,7 +187,7 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             plano: formData.plano, 
             modulos_contratados: formData.modulos_contratados, 
             email_principal: formData.email_principal, 
-            telefone_principal: formData.telefone_principal.replace(/\D/g, ''), // Salva apenas números
+            telefone_principal: telefoneLimpo.length > 0 ? telefoneLimpo : null,
             rua: formData.rua, 
             numero: formData.numero, 
             complemento: formData.complemento, 
@@ -155,38 +196,43 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
             estado: formData.estado, 
             cep: formData.cep 
         };
+        
         let empresaSalva;
-        if (dadosParaSalvar.id) {
-            const { data, error } = await supabase.from(tabelaAlvo).update(dadosParaSalvar).eq('id', dadosParaSalvar.id).select().single();
-            if (error) { console.error('Erro ao atualizar empresa:', error); alert('Erro ao atualizar empresa: ' + error.message); setLoading(false); return; }
-            empresaSalva = data;
-        } else {
-            const { id, ...dadosInserir } = dadosParaSalvar;
-            const { data, error } = await supabase.from(tabelaAlvo).insert(dadosInserir).select().single();
-            if (error) { console.error('Erro ao criar empresa:', error); alert('Erro ao criar empresa: ' + error.message); setLoading(false); return; }
-            empresaSalva = data;
+        try {
+            if (dadosParaSalvar.id) {
+                const { data, error } = await supabase.from(tabelaAlvo).update(dadosParaSalvar).eq('id', dadosParaSalvar.id).select().single();
+                if (error) throw error;
+                empresaSalva = data;
+            } else {
+                const { id, ...dadosInserir } = dadosParaSalvar;
+                const { data, error } = await supabase.from(tabelaAlvo).insert(dadosInserir).select().single();
+                if (error) throw error;
+                empresaSalva = data;
+            }
+            await supabase.from('empresa_contato_junction').delete().eq('empresa_id', empresaSalva.id);
+            const junctionData = contatosVinculados.map(contato => ({ empresa_id: empresaSalva.id, contato_id: contato.id, is_principal: !!contato.is_principal }));
+            if (junctionData.length > 0) {
+                const { error: junctionError } = await supabase.from('empresa_contato_junction').insert(junctionData);
+                if (junctionError) throw junctionError;
+            }
+            onSave();
+        } catch (error) {
+            console.error('Erro ao salvar empresa:', error);
+            if (error.code === '23505') {
+                 setCnpjError('Este CNPJ já está cadastrado no sistema.'); // Mostra o erro no campo CNPJ
+                 alert('Erro ao salvar: O CNPJ informado já existe no sistema.');
+            } else {
+                 alert('Erro ao salvar empresa: ' + error.message);
+            }
+        } finally {
+            setLoading(false);
         }
-        await supabase.from('empresa_contato_junction').delete().eq('empresa_id', empresaSalva.id);
-        const junctionData = contatosVinculados.map(contato => ({ empresa_id: empresaSalva.id, contato_id: contato.id, is_principal: !!contato.is_principal }));
-        if (junctionData.length > 0) {
-            const { error: junctionError } = await supabase.from('empresa_contato_junction').insert(junctionData);
-            if (junctionError) { alert('Erro ao vincular contatos: ' + junctionError.message); }
-        }
-        onSave();
-        setLoading(false);
     };
     
     const filteredContacts = searchTerm ? todosContatos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())) : [];
 
-    // Esta máscara muda dinamicamente de (99) 9999-9999 para (99) 99999-9999
-    const telefoneMask = formData.telefone_principal && formData.telefone_principal.replace(/\D/g, '').length > 10 
-        ? "(99) 99999-9999" 
-        : "(99) 9999-9999";
-
-
     return (
         <form onSubmit={handleSubmit} className="space-y-6 text-sm p-8 rounded-lg max-h-[90vh] overflow-y-auto w-full max-w-4xl relative bg-white dark:bg-gray-800 border dark:border-gray-700">
-            {/* ... (cabeçalho do formulário) ... */}
              <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{formData.id ? 'Editar Empresa' : 'Nova Empresa'}</h2>
                 <button type="button" onClick={onClose} className="p-2 rounded-full transition-colors text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"><X size={24} /></button>
@@ -212,19 +258,16 @@ const EmpresaFormUnificado = ({ onSave, initialData = {}, onClose, tabelaAlvo })
                     <InputField icon={<FileText size={16} />} name="inscricao_municipal" value={formData.inscricao_municipal || ''} onChange={handleChange} placeholder="Inscrição Municipal" />
                     <InputField icon={<Briefcase size={16} />} name="enquadramento_fiscal" value={formData.enquadramento_fiscal || ''} onChange={handleChange} placeholder="Enquadramento Fiscal" />
                     <InputField icon={<Mail size={16} />} name="email_principal" type="email" value={formData.email_principal || ''} onChange={handleChange} placeholder="E-mail Principal" />
-                    
-                    {/* <-- ALTERAÇÃO 5: Adicionamos a prop 'mask' ao campo de telefone --> */}
                     <InputField 
                         icon={<Phone size={16} />} 
                         name="telefone_principal" 
                         value={formData.telefone_principal || ''} 
                         onChange={handleChange} 
                         placeholder="Telefone Principal"
-                        mask={telefoneMask} // <-- Máscara dinâmica aplicada aqui
+                        mask="(99) 99999-9999"
                     />
                 </div>
             </div>
-            {/* ... (O restante do formulário continua exatamente igual) ... */}
             <div>
                 <h3 className="font-semibold mb-3 text-lg text-gray-700 dark:text-gray-300">Endereço</h3>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">

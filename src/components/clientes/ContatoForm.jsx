@@ -43,7 +43,7 @@ const ContatoForm = ({ onClose, contatoInicial, onSave }) => {
 
     const dadosParaSalvar = {
         ...formData,
-        telefone: formData.telefone.replace(/\D/g, ''),
+        telefone: formData.telefone ? formData.telefone.replace(/\D/g, '') : '',
     };
 
     try {
@@ -70,6 +70,12 @@ const ContatoForm = ({ onClose, contatoInicial, onSave }) => {
     }
   };
 
+  // --- MÁSCARA DE TELEFONE DINÂMICA ---
+  // Esta máscara muda automaticamente para se adaptar a telemóveis com 8 ou 9 dígitos.
+  const telefoneMask = formData.telefone && formData.telefone.replace(/\D/g, '').length > 10 
+    ? "(99) 99999-9999" 
+    : "(99) 9999-9999";
+
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
       <h2 className="text-2xl font-bold mb-6">{isEditing ? 'Editar Contato' : 'Criar Novo Contato'}</h2>
@@ -85,10 +91,9 @@ const ContatoForm = ({ onClose, contatoInicial, onSave }) => {
         </div>
         <div>
           <label htmlFor="telefone" className="block font-semibold mb-1">Telefone</label>
-          {/* <-- ALTERAÇÃO APLICADA AQUI --> */}
-          {/* Usamos a máscara fixa para 9 dígitos, que também funciona para 8. */}
+          {/* --- MÁSCARA APLICADA AQUI --- */}
           <InputMask
-            mask="(99) 99999-9999"
+            mask={telefoneMask}
             value={formData.telefone}
             onChange={handleChange}
           >

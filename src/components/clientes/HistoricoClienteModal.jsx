@@ -1,9 +1,24 @@
+// src/components/clientes/HistoricoClienteModal.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { getNegocios } from '../../services/negocioService';
-// --- NOVO: Importamos os ícones que vamos usar nos botões e o nosso modal ---
 import { X, Building, Mail, Phone, Loader2, User, FileText, DollarSign, Briefcase, PlusCircle, Edit } from 'lucide-react';
 import ContatoFormModal from '../crm/ContatoFormModal';
+
+// --- FUNÇÃO DE FORMATAÇÃO DE TELEFONE ADICIONADA AQUI ---
+const formatarTelefoneExibicao = (telefone) => {
+    if (!telefone) return '';
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    
+    if (telefoneLimpo.length === 11) {
+        return telefoneLimpo.replace(/(\d{2})(\d{1})(\d{4})(\d{4})/, '($1) $2 $3-$4');
+    }
+    if (telefoneLimpo.length === 10) {
+        return telefoneLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    }
+    return telefone;
+};
 
 const TabButton = ({ active, onClick, children }) => (
     <button
@@ -19,12 +34,12 @@ const TabButton = ({ active, onClick, children }) => (
 );
 
 const InfoTab = ({ empresa }) => (
-    // ... (Componente InfoTab sem alterações)
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 p-6">
         <div className="flex items-start gap-3"><Building className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">Razão Social</p><p className="font-semibold text-gray-800 dark:text-gray-200">{empresa.razao_social}</p></div></div>
         <div className="flex items-start gap-3"><FileText className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">CNPJ</p><p className="font-semibold text-gray-800 dark:text-gray-200">{empresa.cnpj}</p></div></div>
         <div className="flex items-start gap-3"><Mail className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">E-mail Principal</p><p className="font-semibold text-gray-800 dark:text-gray-200">{empresa.email_principal || 'Não informado'}</p></div></div>
-        <div className="flex items-start gap-3"><Phone className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">Telefone Principal</p><p className="font-semibold text-gray-800 dark:text-gray-200">{empresa.telefone_principal || 'Não informado'}</p></div></div>
+        {/* --- MÁSCARA APLICADA AQUI --- */}
+        <div className="flex items-start gap-3"><Phone className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">Telefone Principal</p><p className="font-semibold text-gray-800 dark:text-gray-200">{formatarTelefoneExibicao(empresa.telefone_principal) || 'Não informado'}</p></div></div>
         <div className="flex items-start gap-3 col-span-full"><DollarSign className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">Plano</p><p className="font-semibold text-gray-800 dark:text-gray-200">{empresa.plano || 'Nenhum plano contratado'}</p></div></div>
         {empresa.plano === 'Plano Estratégico' && empresa.modulos_contratados?.length > 0 && (
             <div className="flex items-start gap-3 col-span-full"><Briefcase className="w-5 h-5 mt-1 text-gray-500" /><div><p className="text-xs text-gray-500">Módulos Contratados</p><ul className="list-disc list-inside mt-1">{empresa.modulos_contratados.map(m => <li key={m}>{m}</li>)}</ul></div></div>
@@ -32,7 +47,6 @@ const InfoTab = ({ empresa }) => (
     </div>
 );
 
-// --- ALTERADO: O componente agora recebe props para abrir o modal ---
 const ContatosTab = ({ contatos, loading, error, onAddContato, onEditContato }) => {
     if (loading) return <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
@@ -56,7 +70,6 @@ const ContatosTab = ({ contatos, loading, error, onAddContato, onEditContato }) 
                             </div>
                             <div className="flex items-center">
                                 {contato.is_principal && <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full mr-2">Principal</span>}
-                                {/* --- NOVO: Botão de editar que chama a função do componente pai --- */}
                                 <button onClick={() => onEditContato(contato.crm_contatos)} className="p-2 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Edit size={16} />
                                 </button>
@@ -64,7 +77,8 @@ const ContatosTab = ({ contatos, loading, error, onAddContato, onEditContato }) 
                          </div>
                          <div className="mt-3 pt-3 border-t text-sm space-y-2">
                              <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Mail size={14}/> {contato.crm_contatos.email || 'E-mail não informado'}</p>
-                             <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Phone size={14}/> {contato.crm_contatos.telefone || 'Telefone não informado'}</p>
+                             {/* --- MÁSCARA APLICADA AQUI --- */}
+                             <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Phone size={14}/> {formatarTelefoneExibicao(contato.crm_contatos.telefone) || 'Telefone não informado'}</p>
                          </div>
                      </div>
                 )) : <p className="text-center text-gray-500 py-4">Nenhum contato vinculado a esta empresa.</p>}
@@ -73,7 +87,6 @@ const ContatosTab = ({ contatos, loading, error, onAddContato, onEditContato }) 
     );
 };
 
-// ... (Componentes ChamadosTab, NegociosTab, PlaceholderTab sem alterações) ...
 const ChamadosTab = ({ chamados, loading, error }) => { /* ... código ... */ };
 const NegociosTab = ({ negocios, loading, error }) => { /* ... código ... */ };
 const PlaceholderTab = ({ title }) => { /* ... código ... */ };
@@ -83,12 +96,9 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
     const [data, setData] = useState({ contatos: [], chamados: [], negocios: [] });
     const [loading, setLoading] = useState({ contatos: true, chamados: true, negocios: true });
     const [errors, setErrors] = useState({ contatos: null, chamados: null, negocios: null });
-
-    // --- NOVO: Estados para controlar o modal de contatos ---
     const [isContatoModalOpen, setIsContatoModalOpen] = useState(false);
     const [contatoEmEdicao, setContatoEmEdicao] = useState(null);
 
-    // --- NOVO: Funções para abrir/fechar o modal de contatos ---
     const handleOpenContatoModal = (contato) => {
       setContatoEmEdicao(contato);
       setIsContatoModalOpen(true);
@@ -99,8 +109,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
       setContatoEmEdicao(null);
     };
 
-    // --- ALTERADO: A lógica de buscar dados foi movida para uma função `useCallback` ---
-    // Isso permite que a gente chame a função para recarregar os dados após salvar um contato.
     const fetchData = useCallback(async () => {
         if (!empresa?.id) return;
 
@@ -133,10 +141,9 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
         fetchData();
     }, [fetchData]);
     
-    // --- NOVO: Função que é chamada quando o modal de contato salva com sucesso ---
     const handleSaveContato = () => {
       handleCloseContatoModal();
-      fetchData(); // Recarrega todos os dados do modal para exibir o contato novo/atualizado
+      fetchData();
     };
 
     if (!empresa) return null;
@@ -146,7 +153,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
             case 'info':
                 return <InfoTab empresa={empresa} />;
             case 'contatos':
-                // --- ALTERADO: Passamos as funções de controle para a aba de Contatos ---
                 return <ContatosTab 
                             contatos={data.contatos} 
                             loading={loading.contatos} 
@@ -166,7 +172,7 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
     };
 
     return (
-        <> {/* Envolvemos em um Fragment para poder adicionar o segundo modal */}
+        <>
             <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in-up">
                     <header className="p-5 border-b flex justify-between items-center">
@@ -193,7 +199,6 @@ export default function HistoricoClienteModal({ empresa, onClose }) {
                 </div>
             </div>
 
-            {/* --- NOVO: Renderizamos nosso modal de contato unificado aqui --- */}
             {isContatoModalOpen && (
               <ContatoFormModal
                 isOpen={isContatoModalOpen}

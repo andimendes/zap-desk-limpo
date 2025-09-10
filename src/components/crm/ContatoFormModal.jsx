@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
 import { Loader2, X, Search, PlusCircle, Link as LinkIcon, MessageSquare } from 'lucide-react';
+// --- ALTERAÇÃO 1: Importamos a biblioteca de máscara ---
+import InputMask from 'react-input-mask';
 
 const TransferList = ({ allItems, selectedItems, onSelectionChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,7 +70,6 @@ const ContatoFormModal = ({ isOpen, onClose, onSave, contato, empresaIdInicial }
       const options = ed.map(e => ({ value: e.id, label: e.nome_fantasia }));
       setEmpresasDisponiveis(options);
       if (contato?.id) {
-        // Limpa a propriedade 'empresasVinculadas' que vem do componente pai
         const { empresasVinculadas, ...contatoLimpo } = contato;
         setFormData({ ...initialState, ...contatoLimpo });
 
@@ -91,10 +92,11 @@ const ContatoFormModal = ({ isOpen, onClose, onSave, contato, empresaIdInicial }
     setLoading(true);
     setError('');
     try {
-      // --- CORREÇÃO AQUI ---
-      // Usamos a desestruturação para remover a propriedade 'empresasVinculadas'
-      // antes de enviar o objeto para a base de dados.
-      const { empresasVinculadas, ...dadosParaSalvar } = formData;
+      // --- ALTERAÇÃO 2: Limpamos os dados do telefone antes de salvar ---
+      const dadosParaSalvar = {
+          ...formData,
+          telefone: formData.telefone ? String(formData.telefone).replace(/\D/g, '') : null,
+      };
 
       let contatoSalvo;
       if (contato?.id) {
@@ -125,6 +127,11 @@ const ContatoFormModal = ({ isOpen, onClose, onSave, contato, empresaIdInicial }
 
   if (!isOpen) return null;
 
+  // --- ALTERAÇÃO 3: Criamos a lógica da máscara dinâmica ---
+  const telefoneMask = formData.telefone && String(formData.telefone).replace(/\D/g, '').length === 11
+    ? "(99) 9 9999-9999"
+    : "(99) 9999-9999";
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex justify-center items-center p-4">
       <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-4xl" onClick={e => e.stopPropagation()}>
@@ -140,7 +147,21 @@ const ContatoFormModal = ({ isOpen, onClose, onSave, contato, empresaIdInicial }
               <div><label htmlFor="nome" className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200">Nome*</label><input id="nome" name="nome" type="text" value={formData.nome || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600" required /></div>
               <div><label htmlFor="cargo" className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200">Cargo</label><input id="cargo" name="cargo" type="text" value={formData.cargo || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600" /></div>
               <div><label htmlFor="email" className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200">E-mail</label><input id="email" name="email" type="email" value={formData.email || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600" /></div>
-              <div><label htmlFor="telefone" className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200">Telefone</label><input id="telefone" name="telefone" type="tel" value={formData.telefone || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600" /></div>
+              
+              {/* --- ALTERAÇÃO 4: Substituímos o <input> por <InputMask> --- */}
+              <div>
+                <label htmlFor="telefone" className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200">Telefone</label>
+                <InputMask
+                  mask={telefoneMask}
+                  id="telefone"
+                  name="telefone"
+                  type="tel"
+                  value={formData.telefone || ''}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+
             </div>
           </fieldset>
           <fieldset>

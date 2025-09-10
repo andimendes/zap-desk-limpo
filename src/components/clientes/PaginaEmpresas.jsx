@@ -4,30 +4,34 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../supabaseClient';
 import EmpresaFormUnificado from './EmpresaFormUnificado';
 import HistoricoClienteModal from './HistoricoClienteModal';
-// <-- ALTERAÇÃO 1: Importamos o novo modal de importação -->
 import ImportacaoModal from './ImportacaoModal';
 import { Plus, Edit, Trash2, Building, Star, ChevronDown, ChevronUp, User, Mail, Phone, Upload, Download, Loader2 } from 'lucide-react';
 import Papa from 'papaparse';
 
-// ... (as funções formatCNPJ, formatTelefone e o componente EmpresaCard continuam aqui, sem alterações) ...
 const formatCNPJ = (cnpj) => {
   if (!cnpj) return '';
   const cnpjLido = cnpj.replace(/\D/g, '');
   return cnpjLido.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
 };
-const formatTelefone = (telefone) => {
-  if (!telefone) return '';
-  const telefoneLimpo = telefone.replace(/\D/g, '');
-  if (telefoneLimpo.length === 11) {
-    return telefoneLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  }
-  if (telefoneLimpo.length === 10) {
-    return telefoneLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-  }
-  return telefone;
+
+// --- FUNÇÃO DE FORMATAÇÃO DE TELEFONE ATUALIZADA ---
+const formatarTelefoneExibicao = (telefone) => {
+    if (!telefone) return '';
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    
+    // Formato para celular com 9º dígito: (xx) x xxxx-xxxx
+    if (telefoneLimpo.length === 11) {
+        return telefoneLimpo.replace(/(\d{2})(\d{1})(\d{4})(\d{4})/, '($1) $2 $3-$4');
+    }
+    // Formato para telefone fixo ou celular antigo: (xx) xxxx-xxxx
+    if (telefoneLimpo.length === 10) {
+        return telefoneLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    }
+    // Retorna o número original se não se encaixar nos padrões
+    return telefone;
 };
+
 const EmpresaCard = ({ empresa, onEdit, onDelete, onHistory }) => {
-    // ... código do card ...
     if (!empresa || typeof empresa !== 'object') return null;
     
     const [isExpanded, setIsExpanded] = useState(false);
@@ -59,7 +63,8 @@ const EmpresaCard = ({ empresa, onEdit, onDelete, onHistory }) => {
                             <>
                                 <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><User size={14} className="mr-2" /> {principal.nome}</div>
                                 {principal.email && <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><Mail size={14} className="mr-2" /> {principal.email}</div>}
-                                {principal.telefone && <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><Phone size={14} className="mr-2" /> {formatTelefone(principal.telefone)}</div>}
+                                {/* --- MÁSCARA APLICADA AQUI --- */}
+                                {principal.telefone && <div className="flex items-center text-sm text-gray-600 mt-1 dark:text-gray-300"><Phone size={14} className="mr-2" /> {formatarTelefoneExibicao(principal.telefone)}</div>}
                             </>
                         ) : <p className="text-sm text-gray-500 mt-1 italic">Nenhum contato principal.</p>}
                     </div>
@@ -76,7 +81,8 @@ const EmpresaCard = ({ empresa, onEdit, onDelete, onHistory }) => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm">
                         <div><p className="font-medium text-gray-500">CNPJ</p><p>{empresa.cnpj ? formatCNPJ(empresa.cnpj) : 'Não informado'}</p></div>
                         <div><p className="font-medium text-gray-500">E-mail da Empresa</p><p>{empresa.email_principal || 'Não informado'}</p></div>
-                        <div><p className="font-medium text-gray-500">Telefone da Empresa</p><p>{empresa.telefone_principal ? formatTelefone(empresa.telefone_principal) : 'Não informado'}</p></div>
+                        {/* --- MÁSCARA APLICADA AQUI --- */}
+                        <div><p className="font-medium text-gray-500">Telefone da Empresa</p><p>{formatarTelefoneExibicao(empresa.telefone_principal) || 'Não informado'}</p></div>
                         {empresa.status === 'Cliente Ativo' && <>
                             <div><p className="font-medium text-gray-500">Plano</p><p>{empresa.plano || 'Não definido'}</p></div>
                             {empresa.plano === 'Plano Estratégico' && <div className="md:col-span-2"><p className="font-medium">Módulos</p><ul className="list-disc list-inside mt-1">{empresa.modulos_contratados?.map(m => <li key={m}>{m}</li>)}</ul></div>}
@@ -97,12 +103,10 @@ export default function PaginaEmpresas() {
     const [isModalEmpresaOpen, setIsModalEmpresaOpen] = useState(false);
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    // <-- ALTERAÇÃO 2: Adicionamos um estado para controlar a visibilidade do modal de importação -->
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
 
     const fetchData = useCallback(async () => {
-        // ... (código da função fetchData sem alterações)
         setLoading(true);
         let query = supabase
             .from('crm_empresas')
@@ -160,7 +164,6 @@ export default function PaginaEmpresas() {
     };
 
     const handleDelete = async (empresaId) => {
-        // ... (código da função handleDelete sem alterações)
         if (window.confirm('Tem a certeza de que quer excluir esta empresa e todos os seus contatos associados?')) {
             await supabase.from('empresa_contato_junction').delete().eq('empresa_id', empresaId);
             const { error } = await supabase.from('crm_empresas').delete().eq('id', empresaId);
@@ -179,7 +182,6 @@ export default function PaginaEmpresas() {
     ), [empresas, searchTerm]);
     
     const handleExport = () => { 
-        // ... (código da função handleExport sem alterações)
         const csv = Papa.unparse(empresas.map(e => ({
             nome_fantasia: e.nome_fantasia,
             razao_social: e.razao_social,
@@ -200,10 +202,9 @@ export default function PaginaEmpresas() {
         document.body.removeChild(link);
     };
 
-    // <-- ALTERAÇÃO 3: Criamos uma função para fechar o modal e atualizar os dados -->
     const handleImportComplete = () => {
         setIsImportModalOpen(false);
-        fetchData(); // Atualiza a lista de empresas após a importação
+        fetchData();
     };
 
 
@@ -220,14 +221,12 @@ export default function PaginaEmpresas() {
                             <button onClick={() => setView('clientes')} className={`px-3 py-1 rounded-md text-sm font-semibold ${view === 'clientes' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300'}`}>Clientes</button>
                             <button onClick={() => setView('potenciais')} className={`px-3 py-1 rounded-md text-sm font-semibold ${view === 'potenciais' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300'}`}>Potenciais</button>
                         </div>
-                        {/* <-- ALTERAÇÃO 4: O onClick agora abre o modal de importação --> */}
                         <button onClick={() => setIsImportModalOpen(true)} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 text-gray-600 dark:text-gray-300"><Upload size={16}/></button>
                         <button onClick={handleExport} className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 text-gray-600 dark:text-gray-300"><Download size={16}/></button>
                         <button onClick={() => handleOpenEmpresaModal()} className="flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm hover:bg-blue-700"><Plus size={20} className="mr-2" /> Nova Empresa</button>
                     </div>
                 </header>
 
-                {/* ... (resto do JSX da página sem alterações) ... */}
                 <div className="mb-4">
                     <input type="text" placeholder="Buscar por nome, razão social ou CNPJ..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"/>
                 </div>
@@ -258,7 +257,6 @@ export default function PaginaEmpresas() {
             
             {isHistoryOpen && <HistoricoClienteModal empresa={selectedEmpresa} onClose={() => setIsHistoryOpen(false)} />}
 
-            {/* <-- ALTERAÇÃO 5: Renderizamos o modal de importação condicionalmente --> */}
             {isImportModalOpen && (
                 <ImportacaoModal 
                     onClose={() => setIsImportModalOpen(false)}

@@ -9,15 +9,20 @@ import { Plus, Edit, Trash2, Loader2, List, LayoutGrid, Upload, Download, Buildi
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';
 
-const formatTelefone = (telefone) => {
+// --- FUNÇÃO DE FORMATAÇÃO DE TELEFONE ATUALIZADA ---
+const formatarTelefoneExibicao = (telefone) => {
   if (!telefone) return 'Sem telefone';
   const telefoneLimpo = String(telefone).replace(/\D/g, '');
+  
+  // Formato para celular com 9º dígito: (xx) x xxxx-xxxx
   if (telefoneLimpo.length === 11) {
-    return telefoneLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+      return telefoneLimpo.replace(/(\d{2})(\d{1})(\d{4})(\d{4})/, '($1) $2 $3-$4');
   }
+  // Formato para telefone fixo ou celular antigo: (xx) xxxx-xxxx
   if (telefoneLimpo.length === 10) {
-    return telefoneLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+      return telefoneLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   }
+  // Retorna o número original se não se encaixar nos padrões
   return telefone;
 };
 
@@ -47,7 +52,8 @@ const ContatoCard = ({ contato, onEdit, onDelete, isSelected, onToggleSelecao })
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 my-3">
                 <p className="truncate">{contato.email || 'Sem e-mail'}</p>
-                <p>{formatTelefone(contato.telefone)}</p>
+                {/* --- MÁSCARA APLICADA AQUI --- */}
+                <p>{formatarTelefoneExibicao(contato.telefone)}</p>
             </div>
             {contato.empresasVinculadas && contato.empresasVinculadas.length > 0 && (
                 <div className="pt-3 border-t dark:border-gray-700">
@@ -74,7 +80,8 @@ const ContatoListItem = ({ contato, onEdit, onDelete, isSelected, onToggleSeleca
         <td className="w-4 px-6 py-4"><input type="checkbox" checked={isSelected} onChange={() => onToggleSelecao(contato.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/></td>
         <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center"><div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0">{contato.nome.charAt(0).toUpperCase()}</div><div><div className="text-sm font-medium text-gray-900 dark:text-gray-100">{contato.nome}</div><div className="text-sm text-gray-500 dark:text-gray-400">{contato.cargo || 'Sem cargo'}</div></div></div></td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{contato.email}</td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatTelefone(contato.telefone)}</td>
+        {/* --- MÁSCARA APLICADA AQUI --- */}
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatarTelefoneExibicao(contato.telefone)}</td>
         <td className="px-6 py-4 whitespace-nowrap"><div className="flex flex-wrap gap-1">{contato.empresasVinculadas && contato.empresasVinculadas.map(empresa => (<span key={empresa.id} className="px-2 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded-full dark:bg-gray-700 dark:text-gray-300">{empresa.nome_fantasia}</span>))}</div></td>
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button onClick={() => onEdit(contato)} className="p-2 text-gray-500 hover:text-blue-600"><Edit size={16} /></button><button onClick={() => onDelete(contato)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button></td>
     </tr>
