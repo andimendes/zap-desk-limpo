@@ -8,18 +8,22 @@ import {
 
 const Sidebar = ({ profile, activePage, setActivePage, isExpanded, setIsExpanded, onOpenSettings }) => {
   
+  // FUNÇÃO CORRIGIDA PARA VERIFICAR A PERMISSÃO DE ADMIN CORRETAMENTE
   const getVisibleSections = () => {
-    // --- DIAGNÓSTICO FINAL ---
-    console.log(`--- Verificando permissão: profile.role é '${profile?.role}' ---`);
+    // Lógica de permissão corrigida, que verifica a lista 'roles'
+    const isUserAdmin = profile && profile.roles && profile.roles.some(role => role.toLowerCase() === 'admin');
     
-    // Verificação direta e robusta
-    if (profile && typeof profile.role === 'string' && profile.role.trim().toUpperCase() === 'ADM') {
-      console.log("--- Permissão de ADM CONCEDIDA. Mostrando todos os menus. ---");
+    // Ferramenta de diagnóstico para a consola do browser
+    console.log(`--- [Sidebar] Verificando permissão: o utilizador é admin? ${isUserAdmin} ---`);
+    console.log(`--- [Sidebar] Roles encontradas no perfil:`, profile?.roles);
+
+    if (isUserAdmin) {
+      // Se for admin, mostra todas as seções, incluindo 'ADMIN'
       return ['MENU', 'FUTUROS MÓDULOS', 'ADMIN'];
     }
     
-    console.log("--- Permissão de ADM NEGADA. Mostrando menu padrão. ---");
-    return ['MENU'];
+    // Se não for admin, mostra as seções padrão
+    return ['MENU', 'FUTUROS MÓDULOS'];
   };
   
   const SidebarItem = ({ icon, text, active, onClick }) => (

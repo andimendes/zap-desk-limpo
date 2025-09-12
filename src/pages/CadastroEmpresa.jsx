@@ -1,8 +1,7 @@
 // src/pages/CadastroEmpresa.jsx
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
 
 function CadastroEmpresa() {
   const navigate = useNavigate();
@@ -15,54 +14,52 @@ function CadastroEmpresa() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', content: '' });
 
-  // --- FUNÇÃO DE CADASTRO TOTALMENTE REFATORADA ---
   const handleSignUp = async (event) => {
     event.preventDefault();
     setLoading(true);
     setMessage({ type: '', content: '' });
 
     try {
-      // Passo 1: Criar o utilizador com a função padrão da Supabase
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: email,
         password: password,
       });
 
       if (signUpError) {
-        // Se houver um erro aqui (ex: e-mail já existe), lança o erro
         throw signUpError;
       }
       
-      // Se o utilizador for criado, mas a sessão não for iniciada, algo está errado
       if (!authData.user) {
           throw new Error("Não foi possível criar o utilizador. Tente novamente.");
       }
 
-      // Passo 2: Chamar a nova função SQL para criar o tenant e o perfil
       const { error: rpcError } = await supabase.rpc('create_tenant_and_profile', {
-        user_id: authData.user.id,
-        company_name: companyName,
-        company_cnpj: cnpj,
-        user_name: userName,
-        user_celular: celular
+        p_user_id: authData.user.id,
+        p_company_name: companyName,
+        p_company_cnpj: cnpj,
+        p_user_name: userName,
+        p_user_celular: celular
       });
 
       if (rpcError) {
-        // Se a segunda parte falhar, lança o erro
         throw rpcError;
       }
 
-      // Se tudo correu bem
-      setMessage({ type: 'success', content: 'Conta criada com sucesso! A redirecionar para o login...' });
-      
-      // Opcional: Deslogar o utilizador para forçar um login limpo
-      await supabase.auth.signOut();
-      
-      // Redirecionar para o login após um breve momento
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      // --- ALTERAÇÃO PRINCIPAL AQUI ---
+      // Agora, em vez de redirecionar, mostramos uma mensagem clara para o utilizador.
+      setMessage({ 
+        type: 'success', 
+        content: 'Conta criada com sucesso! Por favor, verifique a sua caixa de entrada para confirmar o seu e-mail antes de fazer o login.' 
+      });
 
+      // Limpa os campos do formulário após o sucesso
+      setCompanyName('');
+      setCnpj('');
+      setUserName('');
+      setCelular('');
+      setEmail('');
+      setPassword('');
+      
     } catch (error) {
       console.error('Erro no cadastro:', error.message);
       setMessage({ type: 'error', content: `Erro ao cadastrar: ${error.message}` });
