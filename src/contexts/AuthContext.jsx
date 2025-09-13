@@ -15,10 +15,10 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
-        // Consulta Otimizada com nomes mais claros
+        // ALTERAÇÃO FINAL: Listamos os campos explicitamente, incluindo 'is_super_admin'
         const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('*, user_roles!inner(roles!inner(name, permissions))') // Alteração de nome aqui para clareza
+          .select('id, full_name, tenant_id, is_super_admin, user_roles:user_roles!inner(roles:roles!inner(name, permissions))')
           .eq('id', user.id)
           .single();
 
@@ -34,13 +34,9 @@ export function AuthProvider({ children }) {
           });
           const permissionsList = Array.from(permissionsSet);
           
-          const finalProfile = {
-            ...profileData,
-            roles: rolesList,
-            permissions: permissionsList
-          };
+          const finalProfile = { ...profileData, roles: rolesList, permissions: permissionsList };
           
-          console.log('--- Perfil Final Carregado (Lógica Definitiva) ---', finalProfile);
+          console.log('--- Perfil Final Carregado (Lógica Explícita) ---', finalProfile);
           setProfile(finalProfile);
         }
       } catch (error) {
