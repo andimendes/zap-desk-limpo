@@ -6,11 +6,11 @@ import { useAccess } from '../../contexts/useAccess';
 import Can from '../../contexts/Can';
 import { 
     MessageSquare, DollarSign, BarChart2, User as UserIcon, LogOut,
-    Settings, LayoutDashboard, Building, Users, Target,
+    Settings, LayoutDashboard, Building, Users, Target, Shield,
     ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-const SidebarItem = ({ icon, text, to, isExpanded, onClick }) => {
+const SidebarItem = ({ icon, text, to, isExpanded, onClick = () => {} }) => {
     const location = useLocation();
     const isActive = location.pathname.startsWith(to);
 
@@ -32,7 +32,6 @@ const SidebarItem = ({ icon, text, to, isExpanded, onClick }) => {
         </li>
     );
 };
-
 
 export default function MainLayout({ children, onOpenSettings }) {
     const { profile } = useAuth();
@@ -67,8 +66,7 @@ export default function MainLayout({ children, onOpenSettings }) {
                     </div>
                 </div>
                 
-                {/* Botão de recolher/expandir agora está posicionado de forma inteligente */}
-                <button onClick={() => setIsExpanded(c => !c)} className="absolute top-[62px] -right-3 p-1.5 bg-white border rounded-full text-gray-600 shadow-md hover:bg-gray-100 transition">
+                <button onClick={() => setIsExpanded(c => !c)} className="absolute top-[62px] -right-3 p-1.5 bg-white border rounded-full text-gray-600 shadow-md hover:bg-gray-100 transition z-10">
                     {isExpanded ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}
                 </button>
 
@@ -88,6 +86,14 @@ export default function MainLayout({ children, onOpenSettings }) {
                 </nav>
 
                 <div className="p-3 border-t dark:border-gray-700">
+                    {/* Link para o Painel Master, visível apenas para Super Admin */}
+                    {profile?.is_super_admin && (
+                        <ul>
+                           <SidebarItem to="/master-admin" icon={<Shield size={20} />} isExpanded={isExpanded} text="Painel Master" />
+                        </ul>
+                    )}
+
+                    {/* Link para o Painel Admin do Tenant, visível para admins do tenant */}
                     <Can>
                         <ul>
                            <SidebarItem to="/admin/equipa" icon={<Settings size={20} />} isExpanded={isExpanded} text="Painel Admin" />

@@ -18,6 +18,7 @@ import CrmPage from '@/pages/CrmPage';
 import PlaceholderPage from '@/pages/PlaceholderPage';
 import AdminPage from '@/pages/admin/AdminPage';
 import DashboardPage from '@/pages/DashboardPage';
+import MasterAdminPage from '@/pages/admin/MasterAdminPage'; // NOVO: Importa a nova página
 
 // Layouts
 import MainLayout from '@/components/layout/MainLayout';
@@ -53,6 +54,11 @@ const AppContent = () => {
           <Route path="/contatos" element={<ContatosPage />} />
           <Route path="/crm" element={<CrmPage />} />
           <Route path="/admin/*" element={<AdminPage />} />
+          
+          {/* NOVO: Rota protegida para a página do Admin Master */}
+          {profile?.is_super_admin && (
+            <Route path="/master-admin" element={<MasterAdminPage />} />
+          )}
           
           {/* Páginas de Exemplo */}
           <Route path="/atendimento" element={<PlaceholderPage title="Atendimento" />} />
