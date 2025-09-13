@@ -1,10 +1,9 @@
 // src/pages/CadastroEmpresa.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function CadastroEmpresa() {
-  const navigate = useNavigate();
   const [companyName, setCompanyName] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [userName, setUserName] = useState('');
@@ -20,6 +19,7 @@ function CadastroEmpresa() {
     setMessage({ type: '', content: '' });
 
     try {
+      // Passo 1: Cria o utilizador no sistema de autenticação do Supabase
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: email,
         password: password,
@@ -33,6 +33,9 @@ function CadastroEmpresa() {
           throw new Error("Não foi possível criar o utilizador. Tente novamente.");
       }
 
+      // Passo 2: Chama a função SQL para criar o tenant (empresa) e o perfil
+      // A chave aqui é que os nomes dos parâmetros (p_user_id, etc.)
+      // correspondem exatamente aos da função no banco de dados.
       const { error: rpcError } = await supabase.rpc('create_tenant_and_profile', {
         p_user_id: authData.user.id,
         p_company_name: companyName,
@@ -42,11 +45,11 @@ function CadastroEmpresa() {
       });
 
       if (rpcError) {
+        // Se a função SQL falhar, lança o erro.
         throw rpcError;
       }
 
-      // --- ALTERAÇÃO PRINCIPAL AQUI ---
-      // Agora, em vez de redirecionar, mostramos uma mensagem clara para o utilizador.
+      // Mostra uma mensagem de sucesso clara para o utilizador.
       setMessage({ 
         type: 'success', 
         content: 'Conta criada com sucesso! Por favor, verifique a sua caixa de entrada para confirmar o seu e-mail antes de fazer o login.' 

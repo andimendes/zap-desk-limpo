@@ -15,33 +15,55 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
-        // SOLUÇÃO DEFINITIVA: Buscar perfil e tenant_id
+        // Passo 1: Buscar o perfil do utilizador
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*, tenant_id') // Garante que o tenant_id é sempre selecionado
+          .select('*')
           .eq('id', user.id)
           .single();
 
         if (profileError) throw profileError;
+        if (!profileData) {
+          setProfile(null);
+          return;
+        }
 
-        if (profileData) {
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('roles (name)')
-            .eq('user_id', user.id);
+        // Passo 2: Buscar os VÍNCULOS de permissão diretamente da tabela 'user_roles'
+        const { data: userRolesLinks, error: userRolesError } = await supabase
+          .from('user_roles')
+          .select('role_id')
+          .eq('user_id', user.id);
+        
+        if (userRolesError) throw userRolesError;
+
+        let roleNames = [];
+        if (userRolesLinks && userRolesLinks.length > 0) {
+          const roleIds = userRolesLinks.map(link => link.role_id);
           
+          // Passo 3: Buscar os NOMES das permissões na tabela 'roles' usando os IDs
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('roles')
+            .select('name')
+            .in('id', roleIds);
+
           if (rolesError) throw rolesError;
 
-          const finalProfile = {
-            ...profileData,
-            roles: rolesData ? rolesData.map(item => item.roles.name) : []
-          };
-          
-          console.log('Perfil Final Carregado no Contexto (com tenant_id):', finalProfile);
-          setProfile(finalProfile);
+          if (rolesData) {
+            roleNames = rolesData.map(role => role.name);
+          }
         }
+        
+        // Passo 4: Construir o perfil final
+        const finalProfile = {
+          ...profileData,
+          roles: roleNames
+        };
+        
+        console.log('Perfil Final Carregado no Contexto (Lógica Nova):', finalProfile);
+        setProfile(finalProfile);
+        
       } catch (error) {
-        console.error("Erro ao buscar o perfil do usuário:", error.message);
+        console.error("Erro ao buscar o perfil do usuário (Lógica Nova):", error.message);
         setProfile(null);
       }
     };
