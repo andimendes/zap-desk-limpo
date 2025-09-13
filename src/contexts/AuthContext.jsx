@@ -9,77 +9,54 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfileAndRoles = async (user) => {
+    const fetchProfileAndData = async (user) => {
       if (!user) {
         setProfile(null);
         return;
       }
       try {
-        // Passo 1: Buscar o perfil do utilizador
-        const { data: profileData, error: profileError } = await supabase
+        // Consulta Otimizada com nomes mais claros
+        const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('*, user_roles!inner(roles!inner(name, permissions))') // Alteração de nome aqui para clareza
           .eq('id', user.id)
           .single();
 
-        if (profileError) throw profileError;
-        if (!profileData) {
-          setProfile(null);
-          return;
-        }
+        if (error) throw error;
 
-        // Passo 2: Buscar os VÍNCULOS de permissão diretamente da tabela 'user_roles'
-        const { data: userRolesLinks, error: userRolesError } = await supabase
-          .from('user_roles')
-          .select('role_id')
-          .eq('user_id', user.id);
-        
-        if (userRolesError) throw userRolesError;
-
-        let roleNames = [];
-        if (userRolesLinks && userRolesLinks.length > 0) {
-          const roleIds = userRolesLinks.map(link => link.role_id);
+        if (profileData) {
+          const rolesList = profileData.user_roles.map(item => item.roles.name);
+          const permissionsSet = new Set();
+          profileData.user_roles.forEach(item => {
+            if (item.roles.permissions && Array.isArray(item.roles.permissions)) {
+              item.roles.permissions.forEach(p => permissionsSet.add(p));
+            }
+          });
+          const permissionsList = Array.from(permissionsSet);
           
-          // Passo 3: Buscar os NOMES das permissões na tabela 'roles' usando os IDs
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('roles')
-            .select('name')
-            .in('id', roleIds);
-
-          if (rolesError) throw rolesError;
-
-          if (rolesData) {
-            roleNames = rolesData.map(role => role.name);
-          }
+          const finalProfile = {
+            ...profileData,
+            roles: rolesList,
+            permissions: permissionsList
+          };
+          
+          console.log('--- Perfil Final Carregado (Lógica Definitiva) ---', finalProfile);
+          setProfile(finalProfile);
         }
-        
-        // Passo 4: Construir o perfil final
-        const finalProfile = {
-          ...profileData,
-          roles: roleNames
-        };
-        
-        console.log('Perfil Final Carregado no Contexto (Lógica Nova):', finalProfile);
-        setProfile(finalProfile);
-        
       } catch (error) {
-        console.error("Erro ao buscar o perfil do usuário (Lógica Nova):", error.message);
+        console.error("--- Erro ao buscar dados da sessão do utilizador ---", error.message);
         setProfile(null);
       }
     };
 
     const initializeSession = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        if (currentSession?.user) {
-            await fetchProfileAndRoles(currentSession.user);
-        }
-      } catch (error) {
-        console.error("Erro ao inicializar a autenticação:", error);
-      } finally {
-        setLoading(false);
+      setLoading(true);
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      if (currentSession?.user) {
+        await fetchProfileAndData(currentSession.user);
       }
+      setLoading(false);
     };
 
     initializeSession();
@@ -87,7 +64,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        fetchProfileAndRoles(session?.user);
+        fetchProfileAndData(session?.user);
       }
     );
 
