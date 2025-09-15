@@ -2,7 +2,7 @@
 import React from 'react';
 import { Clock, CheckSquare, Flag, Building } from 'lucide-react';
 import { getSlaStatus } from '../../utils/sla';
-import { Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // Avatar agora também mostra a imagem se ela existir
 const Avatar = ({ nome, imageUrl }) => {

@@ -16,7 +16,6 @@
     "lucide-react": "^0.395.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0",
     "react-input-mask": "^2.0.4",
