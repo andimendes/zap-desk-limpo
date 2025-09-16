@@ -59,7 +59,7 @@ serve(async (req)=>{
 
     const newUser = inviteData.user;
     
-    // A criação do perfil já estava correta, associando o utilizador ao tenant e cargo.
+    // ✅ LÓGICA ESSENCIAL: Garante que o perfil seja criado no momento do convite
     const { error: createProfileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -70,6 +70,7 @@ serve(async (req)=>{
       });
 
     if (createProfileError) {
+        // Se a criação do perfil falhar, apaga o usuário convidado para evitar inconsistências
         await supabaseAdmin.auth.admin.deleteUser(newUser.id);
         throw createProfileError;
     }
