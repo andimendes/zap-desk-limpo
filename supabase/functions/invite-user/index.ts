@@ -11,24 +11,22 @@ serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role: role_id } = await req.json(); // Renomeado para role_id
+    const { email, fullName, role: role_id } = await req.json();
     if (!email || !fullName || !role_id) {
       throw new Error('Email, nome completo (fullName) e ID do cargo (role_id) são obrigatórios.');
     }
 
-    // --- LÓGICA DE SEGURANÇA ADICIONADA ---
-    const supabaseClient = createClient(
+    const supabaseAdmin = createClient(
+      Deno.env.get('PROJECT_URL') ?? '',
+      Deno.env.get('PROJECT_SERVICE_ROLE_KEY') ?? ''
+    );
+     const supabaseClient = createClient(
       Deno.env.get('PROJECT_URL') ?? '',
       Deno.env.get('PROJECT_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
     const { data: { user: adminUser } } = await supabaseClient.auth.getUser();
     if (!adminUser) throw new Error('Administrador não autenticado.');
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('PROJECT_URL') ?? '',
-      Deno.env.get('PROJECT_SERVICE_ROLE_KEY') ?? ''
-    );
 
     const { data: adminProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -38,12 +36,9 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
     const tenantId = adminProfile.tenant_id;
-    // --- FIM DA LÓGICA DE SEGURANÇA ---
 
-
-    // 4. Convida o novo usuário
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName }, // O 'role' não precisa ir aqui
+      data: { full_name: fullName },
     });
 
     if (inviteError) {
@@ -56,31 +51,45 @@ serve(async (req) => {
       throw inviteError;
     }
 
-    // --- PASSO CRÍTICO ADICIONADO ---
-    // 5. Cria o perfil do novo usuário, ligando-o ao tenant e ao cargo
     const newUser = inviteData.user;
-    const { error: createProfileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: newUser.id,
-        tenant_id: tenantId,
-        full_name: fullName,
-        role_id: role_id, // <-- ADICIONADO A ASSOCIAÇÃO DO CARGO
-      });
+    
+    // --- LÓGICA DE ROBUSTEZ ADICIONADA ---
+    // Verifica se já existe um perfil para este novo utilizador
+    const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('id', newUser.id)
+        .single();
 
-    if (createProfileError) {
-        // Se a criação do perfil falhar, apaga o usuário convidado para evitar inconsistências
-        await supabaseAdmin.auth.admin.deleteUser(newUser.id);
-        throw createProfileError;
+    // Só cria o perfil se ele não existir
+    if (!existingProfile) {
+        const { error: createProfileError } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+            id: newUser.id,
+            tenant_id: tenantId,
+            full_name: fullName,
+            role_id: role_id,
+          });
+
+        if (createProfileError) {
+            await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+            throw createProfileError;
+        }
     }
-    // --- FIM DO PASSO CRÍTICO ---
+    // --- FIM DA LÓGICA DE ROBUSTEZ ---
 
     return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: newUser }), {
       headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('ERRO DETALHADO NA FUNÇÃO:', error); 
+    const errorMessage = error.details 
+      ? `${error.message} | DETALHES: ${error.details}` 
+      : error.message;
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
     });
