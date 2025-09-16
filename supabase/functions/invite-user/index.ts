@@ -1,8 +1,28 @@
 // supabase/functions/invite-user/index.ts
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+
+// --- FUNÇÃO AUXILIAR PARA CRIAR O CLIENTE ADMIN ---
+// Esta é a forma mais segura e recomendada de criar um cliente com privilégios de administrador.
+function createAdminClient(req: Request): SupabaseClient {
+  return createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization')! },
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+// --- FIM DA FUNÇÃO AUXILIAR ---
+
 
 serve(async (req) => {
   const origin = req.headers.get('origin') || '';
@@ -16,16 +36,11 @@ serve(async (req) => {
       throw new Error('Email, nome completo (fullName) e ID do cargo (role_id) são obrigatórios.');
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('PROJECT_URL') ?? '',
-      Deno.env.get('PROJECT_SERVICE_ROLE_KEY') ?? ''
-    );
-     const supabaseClient = createClient(
-      Deno.env.get('PROJECT_URL') ?? '',
-      Deno.env.get('PROJECT_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
-    const { data: { user: adminUser } } = await supabaseClient.auth.getUser();
+    // --- USO DA NOVA FUNÇÃO ---
+    const supabaseAdmin = createAdminClient(req);
+    // -------------------------
+
+    const { data: { user: adminUser } } = await supabaseAdmin.auth.getUser();
     if (!adminUser) throw new Error('Administrador não autenticado.');
 
     const { data: adminProfile, error: profileError } = await supabaseAdmin
@@ -53,15 +68,12 @@ serve(async (req) => {
 
     const newUser = inviteData.user;
     
-    // --- LÓGICA DE ROBUSTEZ ADICIONADA ---
-    // Verifica se já existe um perfil para este novo utilizador
     const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id')
         .eq('id', newUser.id)
         .single();
 
-    // Só cria o perfil se ele não existir
     if (!existingProfile) {
         const { error: createProfileError } = await supabaseAdmin
           .from('profiles')
@@ -77,7 +89,6 @@ serve(async (req) => {
             throw createProfileError;
         }
     }
-    // --- FIM DA LÓGICA DE ROBUSTEZ ---
 
     return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: newUser }), {
       headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
