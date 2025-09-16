@@ -59,20 +59,19 @@ serve(async (req)=>{
 
     const newUser = inviteData.user;
     
-    // ✅ LÓGICA CORRIGIDA: Atualiza o perfil criado pelo gatilho em vez de tentar inserir um novo.
-    const { error: updateProfileError } = await supabaseAdmin
+    // A criação do perfil já estava correta, associando o utilizador ao tenant e cargo.
+    const { error: createProfileError } = await supabaseAdmin
       .from('profiles')
-      .update({
+      .insert({
+        id: newUser.id,
         tenant_id: tenantId,
         full_name: fullName,
         role_id: role_id,
-      })
-      .eq('id', newUser.id); // Encontra o perfil com o ID do novo utilizador
+      });
 
-    if (updateProfileError) {
-        // Se a ATUALIZAÇÃO do perfil falhar, apaga o usuário convidado para evitar inconsistências
+    if (createProfileError) {
         await supabaseAdmin.auth.admin.deleteUser(newUser.id);
-        throw updateProfileError;
+        throw createProfileError;
     }
 
     return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: newUser }), {
