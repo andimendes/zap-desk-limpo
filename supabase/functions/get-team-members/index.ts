@@ -72,8 +72,9 @@ Deno.serve(async (req) => {
       };
     });
     
-    // ✅ LÓGICA ADICIONADA: Encontra e adiciona utilizadores convidados que ainda não têm perfil
+    // ✅ LÓGICA CORRIGIDA: Encontra utilizadores convidados para este tenant
     const memberIds = new Set(teamMembers.map(m => m.id));
+    // Filtra utilizadores que não têm perfil E que pertencem ao tenant correto
     const invitedUsersWithoutProfile = allAuthUsers.filter(u => 
         !memberIds.has(u.id) && u.user_metadata?.tenant_id === tenantId
     );
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
             id: invitedUser.id,
             name: invitedUser.user_metadata?.full_name || 'Nome pendente',
             email: invitedUser.email,
-            role: 'Convidado',
+            role: 'Convidado', // Temporário até o perfil ser criado
             status: 'Pendente'
         });
     }
