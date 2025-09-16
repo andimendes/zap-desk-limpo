@@ -3,7 +3,8 @@
 // =====================================================================================
 // OBJETIVO:
 // Esta função busca de forma segura todos os membros da equipe que pertencem
-// à mesma empresa (tenant) do usuário que está fazendo a requisição.
+// à mesma empresa (tenant) do usuário que está fazendo a requisição,
+// incluindo os que ainda têm convites pendentes.
 // =====================================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -16,30 +17,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Cria um cliente Supabase com permissões de administrador para poder ler
-    // os dados necessários de forma segura.
+    // Cria um cliente Supabase com permissões de administrador
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Cria um cliente Supabase para verificar a sessão do usuário que fez a chamada.
+    // Cria um cliente Supabase para verificar a sessão do usuário que fez a chamada
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          // ✅ CORREÇÃO: Removido o '!' extra que causava o erro de sintaxe.
           headers: { Authorization: req.headers.get('Authorization') },
         },
       }
     );
 
-    // 1. Pega os dados do usuário que está logado e fazendo a requisição.
+    // 1. Pega os dados do usuário logado
     const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
     if (!currentUser) throw new Error('Utilizador não autenticado.');
 
-    // 2. Busca o perfil do usuário logado para descobrir a qual empresa (tenant) ele pertence.
+    // 2. Descobre a qual empresa (tenant) o usuário logado pertence
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('tenant_id')
@@ -49,7 +48,7 @@ Deno.serve(async (req) => {
     if (profileError || !profile) throw new Error('Perfil do utilizador não encontrado.');
     const tenantId = profile.tenant_id;
 
-    // 3. Busca todos os perfis do tenant, incluindo o nome do cargo associado.
+    // 3. Busca todos os perfis que já pertencem ao tenant
     const { data: teamProfiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('id, full_name, roles(name)')
@@ -57,31 +56,44 @@ Deno.serve(async (req) => {
 
     if (profilesError) throw profilesError;
 
-    // 4. Busca os dados de autenticação para todos os usuários do projeto.
-    //    (A filtragem para o tenant específico é feita no passo 5).
+    // 4. Busca todos os utilizadores (da autenticação)
     const { data: { users: allAuthUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     if (authError) throw authError;
 
-    // 5. Combina os dados dos perfis com os dados de autenticação.
-    const teamMembers = teamProfiles.map((profile) => {
-      const authUser = allAuthUsers.find((u) => u.id === profile.id);
+    // 5. Mapeia os perfis existentes para o formato final
+    const teamMembers = teamProfiles.map((p) => {
+      const authUser = allAuthUsers.find((u) => u.id === p.id);
       return {
-        id: profile.id,
-        name: profile.full_name,
-        email: authUser?.email || 'Email não encontrado',
-        role: profile.roles?.name || 'Sem cargo',
-        // O status é 'Aceite' se o usuário já fez login alguma vez.
+        id: p.id,
+        name: p.full_name,
+        email: authUser?.email || 'N/A',
+        role: p.roles?.name || 'Sem cargo',
         status: authUser?.last_sign_in_at ? 'Aceite' : 'Pendente',
       };
     });
     
+    // ✅ LÓGICA ADICIONADA: Encontra e adiciona utilizadores convidados que ainda não têm perfil
+    const memberIds = new Set(teamMembers.map(m => m.id));
+    const invitedUsersWithoutProfile = allAuthUsers.filter(u => 
+        !memberIds.has(u.id) && u.user_metadata?.tenant_id === tenantId
+    );
+
+    for (const invitedUser of invitedUsersWithoutProfile) {
+        teamMembers.push({
+            id: invitedUser.id,
+            name: invitedUser.user_metadata?.full_name || 'Nome pendente',
+            email: invitedUser.email,
+            role: 'Convidado',
+            status: 'Pendente'
+        });
+    }
+
     return new Response(JSON.stringify({ teamMembers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      // ✅ CORREÇÃO: Adicionados os cabeçalhos de CORS à resposta de erro
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
