@@ -11,28 +11,25 @@ serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role } = await req.json();
-    if (!email || !fullName || !role) {
-      throw new Error('Email, nome completo (fullName) e cargo (role) são obrigatórios.');
+    const { email, fullName, role: role_id } = await req.json(); // Renomeado para role_id
+    if (!email || !fullName || !role_id) {
+      throw new Error('Email, nome completo (fullName) e ID do cargo (role_id) são obrigatórios.');
     }
 
     // --- LÓGICA DE SEGURANÇA ADICIONADA ---
-    // 1. Identifica o admin que está fazendo o convite através do token de acesso
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('PROJECT_URL') ?? '',
+      Deno.env.get('PROJECT_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
     const { data: { user: adminUser } } = await supabaseClient.auth.getUser();
     if (!adminUser) throw new Error('Administrador não autenticado.');
 
-    // 2. Cria o cliente com permissões de super-administrador para as próximas etapas
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('PROJECT_URL') ?? '',
+      Deno.env.get('PROJECT_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 3. Descobre a qual tenant o admin pertence
     const { data: adminProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('tenant_id')
@@ -44,9 +41,9 @@ serve(async (req) => {
     // --- FIM DA LÓGICA DE SEGURANÇA ---
 
 
-    // 4. Convida o novo usuário (lógica que você já tinha)
+    // 4. Convida o novo usuário
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName, role: role },
+      data: { full_name: fullName }, // O 'role' não precisa ir aqui
     });
 
     if (inviteError) {
@@ -60,14 +57,15 @@ serve(async (req) => {
     }
 
     // --- PASSO CRÍTICO ADICIONADO ---
-    // 5. Cria o perfil do novo usuário, ligando-o ao tenant do admin
+    // 5. Cria o perfil do novo usuário, ligando-o ao tenant e ao cargo
     const newUser = inviteData.user;
     const { error: createProfileError } = await supabaseAdmin
       .from('profiles')
       .insert({
         id: newUser.id,
         tenant_id: tenantId,
-        full_name: fullName
+        full_name: fullName,
+        role_id: role_id, // <-- ADICIONADO A ASSOCIAÇÃO DO CARGO
       });
 
     if (createProfileError) {

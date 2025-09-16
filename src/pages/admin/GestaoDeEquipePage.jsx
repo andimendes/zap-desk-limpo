@@ -6,6 +6,7 @@ import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send, K
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => { if (!isOpen) return null; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6"><div className="flex items-start"><div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" /></div><div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"><h3 className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">{title}</h3><div className="mt-2"><p className="text-sm text-gray-500 dark:text-gray-400">{children}</p></div></div></div><div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3"><button type="button" onClick={onConfirm} disabled={isDeleting} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm disabled:bg-red-400">{isDeleting ? 'Apagando...' : 'Sim, Apagar'}</button><button type="button" onClick={onClose} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancelar</button></div></div></div> ); };
 
 // --- Componente EditUserModal (não muda) ---
+// ... (O código deste componente permanece o mesmo) ...
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [selectedRole, setSelectedRole] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false);
   useEffect(() => { if (user) { setName(user.name || ''); setEmail(user.email || ''); setSelectedRole(user.role || ''); setPassword(''); setShowPassword(false); } }, [user]);
@@ -64,7 +65,6 @@ const GestaoDeEquipaPage = () => {
         setUserToDelete(null);
     };
 
-    // ✅ LÓGICA CORRIGIDA para reenviar o convite
     const handleResendInvite = async (member) => {
         setResendingInvite(member.id);
         const { error } = await supabase.functions.invoke('resend-invite', { 
@@ -137,7 +137,8 @@ const GestaoDeEquipaPage = () => {
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
     const [fullName, setFullName] = useState('');
-    const [selectedRole, setSelectedRole] = useState(roles[0]?.name || '');
+    // ALTERADO: O estado agora guarda o ID do cargo, não o nome.
+    const [selectedRole, setSelectedRole] = useState(roles[0]?.id || '');
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
 
@@ -146,9 +147,9 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         setIsSending(true);
         setFeedback({ type: '', message: '' });
         try {
-            // Chama a função correta que envia o email oficial do Supabase
+            // A chamada de função agora envia o ID do cargo corretamente.
             const { error } = await supabase.functions.invoke('invite-user', { 
-                body: { email, fullName, role: selectedRole },
+                body: { email, fullName, role: selectedRole }, // 'selectedRole' agora é um ID
             });
             if (error) throw new Error(error.message);
             setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
@@ -169,7 +170,13 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
                         <div className="space-y-4">
                             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div>
                             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail do Convidado</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div>
-                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label><select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">{roles.map(role => (<option key={role.id} value={role.name}>{role.name}</option>))}</select></div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label>
+                                <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                                    {/* ALTERADO: O `value` da option agora é o `role.id` */}
+                                    {roles.map(role => (<option key={role.id} value={role.id}>{role.name}</option>))}
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">{feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}{<button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>}<button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button></div>
