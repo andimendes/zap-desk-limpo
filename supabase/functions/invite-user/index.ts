@@ -1,30 +1,9 @@
 // supabase/functions/invite-user/index.ts
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
-// --- FUNÇÃO AUXILIAR PARA CRIAR O CLIENTE ADMIN ---
-// Esta é a forma mais segura e recomendada de criar um cliente com privilégios de administrador.
-function createAdminClient(req: Request): SupabaseClient {
-  return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    {
-      global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
-      },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-}
-// --- FIM DA FUNÇÃO AUXILIAR ---
-
-
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '';
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders(origin) });
@@ -35,12 +14,21 @@ serve(async (req) => {
     if (!email || !fullName || !role_id) {
       throw new Error('Email, nome completo (fullName) e ID do cargo (role_id) são obrigatórios.');
     }
+    
+    const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '', 
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '', 
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization')! }
+      }
+    });
 
-    // --- USO DA NOVA FUNÇÃO ---
-    const supabaseAdmin = createAdminClient(req);
-    // -------------------------
-
-    const { data: { user: adminUser } } = await supabaseAdmin.auth.getUser();
+    const { data: { user: adminUser } } = await supabaseClient.auth.getUser();
     if (!adminUser) throw new Error('Administrador não autenticado.');
 
     const { data: adminProfile, error: profileError } = await supabaseAdmin
@@ -48,12 +36,15 @@ serve(async (req) => {
       .select('tenant_id')
       .eq('id', adminUser.id)
       .single();
-
     if (profileError) throw profileError;
     const tenantId = adminProfile.tenant_id;
 
+    // ✅ CORREÇÃO CRÍTICA: Adicionado tenant_id aos metadados do convite
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
+      data: { 
+        full_name: fullName,
+        tenant_id: tenantId // Esta linha resolve o problema
+      },
     });
 
     if (inviteError) {
@@ -68,26 +59,19 @@ serve(async (req) => {
 
     const newUser = inviteData.user;
     
-    const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('id', newUser.id)
-        .single();
+    // A criação do perfil já estava correta, associando o utilizador ao tenant e cargo.
+    const { error: createProfileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: newUser.id,
+        tenant_id: tenantId,
+        full_name: fullName,
+        role_id: role_id,
+      });
 
-    if (!existingProfile) {
-        const { error: createProfileError } = await supabaseAdmin
-          .from('profiles')
-          .insert({
-            id: newUser.id,
-            tenant_id: tenantId,
-            full_name: fullName,
-            role_id: role_id,
-          });
-
-        if (createProfileError) {
-            await supabaseAdmin.auth.admin.deleteUser(newUser.id);
-            throw createProfileError;
-        }
+    if (createProfileError) {
+        await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+        throw createProfileError;
     }
 
     return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: newUser }), {
@@ -95,7 +79,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('ERRO DETALHADO NA FUNÇÃO:', error); 
+    console.error('ERRO DETALHADO NA FUNÇÃO:', error);
     const errorMessage = error.details 
       ? `${error.message} | DETALHES: ${error.details}` 
       : error.message;
