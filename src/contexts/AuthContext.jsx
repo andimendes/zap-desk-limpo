@@ -9,72 +9,40 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Esta é a função final e definitiva, com uma lógica de busca explícita
+    // ✅ LÓGICA DE BUSCA SIMPLIFICADA E CORRIGIDA
     const fetchFullUserProfile = async (user) => {
       if (!user) {
         setProfile(null);
         return;
       }
       try {
-        // PASSO 1: Buscar o perfil básico do utilizador. Já sabemos que isto funciona.
-        const { data: profileData, error: profileError } = await supabase
+        // Faz uma ÚNICA consulta para buscar o perfil e o cargo associado
+        const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(`
+            *,
+            roles ( id, name, permissions )
+          `)
           .eq('id', user.id)
           .single();
 
-        if (profileError) throw profileError;
-        if (!profileData) {
+        if (error) throw error;
+        
+        // Monta o objeto final do perfil com todos os dados
+        if (profileData) {
+          const finalProfile = {
+            ...profileData,
+            // Extrai as permissões do cargo para o nível principal do perfil
+            permissions: profileData.roles?.permissions || []
+          };
+          console.log('--- Perfil Final Carregado (Lógica Simplificada) ---', finalProfile);
+          setProfile(finalProfile);
+        } else {
           setProfile(null);
-          return;
         }
-
-        // PASSO 2: Buscar os VÍNCULOS de permissão (as ligações na tabela user_roles)
-        const { data: userRolesLinks, error: userRolesError } = await supabase
-          .from('user_roles')
-          .select('role_id')
-          .eq('user_id', user.id);
-        
-        if (userRolesError) throw userRolesError;
-
-        let roleNames = [];
-        let permissionsSet = new Set();
-
-        // PASSO 3: Se encontrarmos vínculos, buscamos os detalhes dos cargos
-        if (userRolesLinks && userRolesLinks.length > 0) {
-          const roleIds = userRolesLinks.map(link => link.role_id);
-          
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('roles')
-            .select('name, permissions')
-            .in('id', roleIds);
-
-          if (rolesError) throw rolesError;
-
-          if (rolesData) {
-            // Guardamos os nomes dos cargos
-            roleNames = rolesData.map(role => role.name);
-            // Consolidamos todas as permissões de todos os cargos numa única lista
-            rolesData.forEach(role => {
-              if (role.permissions && Array.isArray(role.permissions)) {
-                role.permissions.forEach(p => permissionsSet.add(p));
-              }
-            });
-          }
-        }
-        
-        // PASSO 4: Montar o objeto final do perfil com todos os dados
-        const finalProfile = {
-          ...profileData,
-          roles: roleNames,
-          permissions: Array.from(permissionsSet)
-        };
-        
-        console.log('--- Perfil Final Carregado (Lógica Definitiva e Explícita) ---', finalProfile);
-        setProfile(finalProfile);
         
       } catch (error) {
-        console.error("--- Erro final ao buscar dados da sessão do utilizador ---", error.message);
+        console.error("--- Erro ao buscar dados da sessão do utilizador ---", error.message);
         setProfile(null);
       }
     };
