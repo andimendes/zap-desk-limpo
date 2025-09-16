@@ -6,7 +6,6 @@ import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send, K
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => { if (!isOpen) return null; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6"><div className="flex items-start"><div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" /></div><div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"><h3 className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">{title}</h3><div className="mt-2"><p className="text-sm text-gray-500 dark:text-gray-400">{children}</p></div></div></div><div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3"><button type="button" onClick={onConfirm} disabled={isDeleting} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm disabled:bg-red-400">{isDeleting ? 'Apagando...' : 'Sim, Apagar'}</button><button type="button" onClick={onClose} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancelar</button></div></div></div> ); };
 
 // --- Componente EditUserModal (não muda) ---
-// ... (O código deste componente permanece o mesmo) ...
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [selectedRole, setSelectedRole] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false);
   useEffect(() => { if (user) { setName(user.name || ''); setEmail(user.email || ''); setSelectedRole(user.role || ''); setPassword(''); setShowPassword(false); } }, [user]);
@@ -137,7 +136,6 @@ const GestaoDeEquipaPage = () => {
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
     const [fullName, setFullName] = useState('');
-    // ALTERADO: O estado agora guarda o ID do cargo, não o nome.
     const [selectedRole, setSelectedRole] = useState(roles[0]?.id || '');
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -146,10 +144,15 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
         e.preventDefault();
         setIsSending(true);
         setFeedback({ type: '', message: '' });
+        
+        // --- PASSO DE DEPURAÇÃO ADICIONADO ---
+        const payload = { email, fullName, role: selectedRole };
+        console.log("DEBUG: Enviando para a Edge Function:", payload);
+        // ------------------------------------
+
         try {
-            // A chamada de função agora envia o ID do cargo corretamente.
             const { error } = await supabase.functions.invoke('invite-user', { 
-                body: { email, fullName, role: selectedRole }, // 'selectedRole' agora é um ID
+                body: payload, // Usar o payload que acabámos de logar
             });
             if (error) throw new Error(error.message);
             setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
@@ -173,7 +176,6 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label>
                                 <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
-                                    {/* ALTERADO: O `value` da option agora é o `role.id` */}
                                     {roles.map(role => (<option key={role.id} value={role.id}>{role.name}</option>))}
                                 </select>
                             </div>
