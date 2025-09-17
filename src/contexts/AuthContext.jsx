@@ -9,12 +9,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFullUserProfile = async (user) => {
+    const fetchUserProfile = async (user) => {
       if (!user) {
         setProfile(null);
         return;
       }
       try {
+        // 1. Busca o perfil básico do utilizador
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -22,54 +23,31 @@ export function AuthProvider({ children }) {
           .single();
 
         if (profileError) throw profileError;
-        if (!profileData) {
-          setProfile(null);
-          return;
-        }
+        if (!profileData) { setProfile(null); return; }
 
+        // 2. Busca os nomes dos cargos (roles) associados ao utilizador
         const { data: userRolesLinks, error: userRolesError } = await supabase
           .from('user_roles')
-          .select('role_id')
+          .select('roles ( name )') // Busca o nome do cargo diretamente
           .eq('user_id', user.id);
         
         if (userRolesError) throw userRolesError;
 
-        let roleNames = [];
-        let permissionsSet = new Set();
-
-        if (userRolesLinks && userRolesLinks.length > 0) {
-          const roleIds = userRolesLinks.map(link => link.role_id);
-          
-          // Busca os cargos e as permissões associadas a eles
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('roles')
-            .select('name, permissions:permissions ( name )') // Assumindo uma tabela 'permissions' e uma de junção 'role_permissions'
-            .in('id', roleIds);
-
-          if (rolesError) throw rolesError;
-
-          if (rolesData) {
-            roleNames = rolesData.map(role => role.name);
-            rolesData.forEach(role => {
-              if (role.permissions && Array.isArray(role.permissions)) {
-                // Supondo que permissions é uma lista de objetos { name: 'permissao:acao' }
-                role.permissions.forEach(p => permissionsSet.add(p.name));
-              }
-            });
-          }
-        }
+        const roleNames = userRolesLinks ? userRolesLinks.map(link => link.roles.name) : [];
         
+        // 3. Monta o objeto final do perfil com os nomes dos cargos
         const finalProfile = {
           ...profileData,
-          roles: roleNames,
-          permissions: Array.from(permissionsSet)
+          roles: roleNames, // Ex: ['Atendente']
+          // Deixamos as permissões detalhadas de fora por enquanto
+          permissions: []
         };
         
-        console.log('--- Perfil Final Carregado ---', finalProfile);
+        console.log('--- Perfil Simplificado Carregado ---', finalProfile);
         setProfile(finalProfile);
         
       } catch (error) {
-        console.error("--- Erro ao buscar dados completos do perfil ---", error.message);
+        console.error("--- Erro ao buscar dados do perfil ---", error.message);
         setProfile(null);
       }
     };
@@ -78,7 +56,7 @@ export function AuthProvider({ children }) {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       if (currentSession?.user) {
-        await fetchFullUserProfile(currentSession.user);
+        await fetchUserProfile(currentSession.user);
       }
       setLoading(false);
     };
@@ -88,7 +66,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        fetchFullUserProfile(session?.user);
+        fetchUserProfile(session?.user);
       }
     );
 
