@@ -16,14 +16,21 @@ export const useAccess = () => {
     const userRoles = profile.roles.map(r => r.toUpperCase());
     const upperModuleName = moduleName.toUpperCase();
 
+    // --- PERSONALIZE SUAS REGRAS DE ACESSO AQUI ---
+
     if (upperModuleName === 'ATENDIMENTO') { // Módulo "Chamados"
       return userRoles.includes('ATENDENTE') || userRoles.includes('GERENTE') || userRoles.includes('ADMIN');
     }
 
-    if (upperModuleName === 'CRM') {
-      return userRoles.includes('GERENTE') || userRoles.includes('ADMIN');
+    if (upperModuleName === 'CRM') { // Módulo "CRM"
+      // ✅ ADICIONADO "VENDEDOR"
+      return userRoles.includes('VENDEDOR') || userRoles.includes('GERENTE') || userRoles.includes('ADMIN');
     }
     
+    if (upperModuleName === 'FINANCEIRO') { // Módulo "Financeiro"
+      return userRoles.includes('GERENTE') || userRoles.includes('ADMIN');
+    }
+
     return false;
   }, [profile]);
 
