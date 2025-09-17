@@ -2,19 +2,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Lida com a requisição de pré-verificação CORS (padrão)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Cria um cliente Supabase com SUPERPODERES de administrador
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // 2. Descobre QUEM está enviando o convite para pegar o tenant_id dele
     const userClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -29,17 +26,20 @@ Deno.serve(async (req) => {
     const tenantId = profile.tenant_id;
     if (!tenantId) throw new Error("Administrador não está associado a uma empresa.");
 
-    // 3. Pega os dados do novo convidado (email e nome) que vieram do seu React
-    const { email, fullName } = await req.json()
-    if (!email || !fullName) throw new Error("Email e Nome Completo são obrigatórios.");
+    // ✅ CORREÇÃO: Agora também esperamos o role_id e validamos
+    const { email, fullName, role_id } = await req.json()
+    if (!email || !fullName || !role_id) {
+        throw new Error("Email, Nome Completo e ID do cargo (role_id) são obrigatórios.")
+    }
 
-    // 4. ENVIA O CONVITE usando a API de Admin, agora com o tenant_id correto!
+    // ✅ CORREÇÃO: Incluímos o role_id nos metadados do convite
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         data: {
           tenant_id: tenantId,
-          full_name: fullName
+          full_name: fullName,
+          role_id: role_id
         }
       }
     )

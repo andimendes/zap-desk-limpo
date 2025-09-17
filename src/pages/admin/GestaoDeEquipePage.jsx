@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { UserPlus, X, Save, LoaderCircle, Pencil, Trash2, AlertTriangle, Send, KeyRound } from 'lucide-react';
 
-// --- Componente ConfirmationModal (não muda) ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, children, isDeleting }) => { if (!isOpen) return null; return ( <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6"><div className="flex items-start"><div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" /></div><div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"><h3 className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">{title}</h3><div className="mt-2"><p className="text-sm text-gray-500 dark:text-gray-400">{children}</p></div></div></div><div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3"><button type="button" onClick={onConfirm} disabled={isDeleting} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm disabled:bg-red-400">{isDeleting ? 'Apagando...' : 'Sim, Apagar'}</button><button type="button" onClick={onClose} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancelar</button></div></div></div> ); };
 
-// --- Componente EditUserModal (não muda) ---
 const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [selectedRole, setSelectedRole] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false);
   useEffect(() => { if (user) { setName(user.name || ''); setEmail(user.email || ''); setSelectedRole(user.role || ''); setPassword(''); setShowPassword(false); } }, [user]);
@@ -14,7 +12,6 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   return ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}><form onSubmit={handleSubmit}><div className="p-6"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Utilizador</h3><button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} className="text-gray-500 dark:text-gray-400" /></button></div><div className="space-y-4 mb-6"><div><label htmlFor="userName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label><input id="userName" type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label htmlFor="userEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label><input id="userEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Atribuir Cargo</label><select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">{allRoles.map((role) => (<option key={role.id} value={role.name}>{role.name}</option>))}</select></div>{!showPassword ? (<button type="button" onClick={() => setShowPassword(true)} className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"><KeyRound size={16} /> Alterar Senha</button>) : (<div><label htmlFor="userPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nova Senha (mín. 6 caracteres)</label><input id="userPassword" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="Deixe em branco para não alterar" /></div>)}</div></div><div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">Cancelar</button><button type="submit" disabled={isSaving} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? <><LoaderCircle size={16} className="animate-spin" /> Salvando...</> : <><Save size={16} /> Salvar Alterações</>}</button></div></form></div></div> );
 };
 
-// --- Componente Principal da Página ---
 const GestaoDeEquipaPage = () => {
     const [team, setTeam] = useState([]); const [roles, setRoles] = useState([]); const [loading, setLoading] = useState(true); const [isInviteModalOpen, setInviteModalOpen] = useState(false); const [editingUser, setEditingUser] = useState(null); const [isSaving, setIsSaving] = useState(false); const [userToDelete, setUserToDelete] = useState(null); const [isDeleting, setIsDeleting] = useState(false); const [resendingInvite, setResendingInvite] = useState(null);
     
@@ -132,7 +129,6 @@ const GestaoDeEquipaPage = () => {
     );
 };
 
-// --- Componente InviteUserModal (ATUALIZADO E CORRIGIDO) ---
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState('');
     const [fullName, setFullName] = useState('');
@@ -140,14 +136,12 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-    // ✅ ESTA É A FUNÇÃO ATUALIZADA
     const handleInvite = async (e) => {
         e.preventDefault();
         setIsSending(true);
         setFeedback({ type: '', message: '' });
 
         try {
-            // ✅ CORREÇÃO: Adicionamos o 'role_id' ao payload para satisfazer a validação da Edge Function.
             const payload = {
                 email: email,
                 fullName: fullName,
