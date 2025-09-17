@@ -1,102 +1,70 @@
-// =====================================================================================
-// CÓDIGO DA EDGE FUNCTION: get-team-members
-// =====================================================================================
-// OBJETIVO:
-// Esta função busca de forma segura todos os membros da equipe que pertencem
-// à mesma empresa (tenant) do usuário que está fazendo a requisição,
-// incluindo os que ainda têm convites pendentes.
-// =====================================================================================
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Trata a requisição OPTIONS para CORS (necessário para o navegador)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Cria um cliente Supabase com permissões de administrador
+    // Crie um cliente de ADMIN que ignora as regras de segurança para poder ler todos os perfis.
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
 
-    // Cria um cliente Supabase para verificar a sessão do usuário que fez a chamada
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization') },
-        },
-      }
-    );
+    // Crie um cliente com o token do usuário para descobrir quem ele é.
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+    const { data: { user } } = await supabaseUser.auth.getUser()
+    if (!user) throw new Error("Usuário não encontrado.")
 
-    // 1. Pega os dados do usuário logado
-    const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
-    if (!currentUser) throw new Error('Utilizador não autenticado.');
-
-    // 2. Descobre a qual empresa (tenant) o usuário logado pertence
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // Busque o perfil do usuário que fez a requisição para encontrar o tenant_id dele.
+    const { data: adminProfile, error: adminProfileError } = await supabaseAdmin
       .from('profiles')
       .select('tenant_id')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (profileError || !profile) throw new Error('Perfil do utilizador não encontrado.');
-    const tenantId = profile.tenant_id;
-
-    // 3. Busca todos os perfis que já pertencem ao tenant
-    const { data: teamProfiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, full_name, roles(name)')
-      .eq('tenant_id', tenantId);
-
-    if (profilesError) throw profilesError;
-
-    // 4. Busca todos os utilizadores (da autenticação)
-    const { data: { users: allAuthUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-    if (authError) throw authError;
-
-    // 5. Mapeia os perfis existentes para o formato final
-    const teamMembers = teamProfiles.map((p) => {
-      const authUser = allAuthUsers.find((u) => u.id === p.id);
-      return {
-        id: p.id,
-        name: p.full_name,
-        email: authUser?.email || 'N/A',
-        role: p.roles?.name || 'Sem cargo',
-        status: authUser?.last_sign_in_at ? 'Aceite' : 'Pendente',
-      };
-    });
+      .eq('id', user.id)
+      .single()
+    if (adminProfileError) throw adminProfileError
     
-    // ✅ LÓGICA CORRIGIDA: Encontra utilizadores convidados para este tenant
-    const memberIds = new Set(teamMembers.map(m => m.id));
-    // Filtra utilizadores que não têm perfil E que pertencem ao tenant correto
-    const invitedUsersWithoutProfile = allAuthUsers.filter(u => 
-        !memberIds.has(u.id) && u.user_metadata?.tenant_id === tenantId
-    );
+    const tenantId = adminProfile.tenant_id
 
-    for (const invitedUser of invitedUsersWithoutProfile) {
-        teamMembers.push({
-            id: invitedUser.id,
-            name: invitedUser.user_metadata?.full_name || 'Nome pendente',
-            email: invitedUser.email,
-            role: 'Convidado', // Temporário até o perfil ser criado
-            status: 'Pendente'
-        });
-    }
+    // Usando o cliente ADMIN, busque todos os perfis que pertencem ao mesmo tenant.
+    // Também fazemos um "join" com a tabela auth.users para pegar o email.
+    const { data: teamMembers, error: teamError } = await supabaseAdmin
+      .from('profiles')
+      .select(`
+        id,
+        full_name,
+        cargo,
+        users:users ( email, last_sign_in_at )
+      `)
+      .eq('tenant_id', tenantId)
 
-    return new Response(JSON.stringify({ teamMembers }), {
+    if (teamError) throw teamError
+
+    // O resultado do Supabase vem um pouco aninhado, então vamos formatá-lo
+    // para ficar exatamente como o seu frontend espera.
+    const formattedTeamMembers = teamMembers.map(member => ({
+        id: member.id,
+        name: member.full_name,
+        role: member.cargo, // ✅ Lendo a coluna 'cargo' e enviando como 'role'
+        email: member.users.email,
+        status: member.users.last_sign_in_at ? 'Aceite' : 'Pendente' // Determina o status
+    }));
+
+    return new Response(JSON.stringify({ teamMembers: formattedTeamMembers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
+
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 400,
     })
   }
 })
