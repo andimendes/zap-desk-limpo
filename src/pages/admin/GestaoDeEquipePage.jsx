@@ -133,44 +133,43 @@ const GestaoDeEquipaPage = () => {
 };
 
 // --- Componente InviteUserModal (ATUALIZADO COM A LÓGICA CORRETA) ---
-const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
-    const [email, setEmail] = useState('');
-    const [fullName, setFullName] = useState('');
-    // A lógica de role aqui parece estar usando o ID, o que é ótimo. Vamos manter.
-    const [selectedRole, setSelectedRole] = useState(roles[0]?.id || '');
-    const [isSending, setIsSending] = useState(false);
-    const [feedback, setFeedback] = useState({ type: '', message: '' });
+const handleInvite = async (e) => {
+    e.preventDefault();
+    setIsSending(true);
+    setFeedback({ type: '', message: '' });
 
-    // ✅ ESTA É A FUNÇÃO ATUALIZADA
-    const handleInvite = async (e) => {
-        e.preventDefault();
-        setIsSending(true);
-        setFeedback({ type: '', message: '' });
+    try {
+        // O payload agora só precisa enviar os dados do formulário.
+        // A nossa Edge Function cuidará de descobrir o tenant_id.
+        const payload = {
+            email: email,
+            fullName: fullName,
+        };
 
-        try {
-            // ---- INÍCIO DA NOVA LÓGICA ----
-            // 1. Obter o utilizador atualmente logado
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                throw new Error("Utilizador não autenticado. Por favor, faça login novamente.");
-            }
+        // Chamando a Edge Function (como seu código original já fazia)
+        const { error } = await supabase.functions.invoke('invite-user', {
+            body: payload,
+        });
 
-            // 2. Usar o ID do utilizador para buscar o seu perfil e encontrar o tenant_id
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('tenant_id')
-                .eq('id', user.id)
-                .single();
+        if (error) {
+            // Se a Edge Function retornar um erro, ele será capturado aqui
+            throw new Error(error.message);
+        }
 
-            if (profileError || !profile) {
-                throw new Error("Não foi possível encontrar o perfil do administrador.");
-            }
-            
-            const tenantId = profile.tenant_id;
-            if (!tenantId) {
-                throw new Error("Sua conta de administrador não está associada a nenhuma empresa.");
-            }
-            // ---- FIM DA NOVA LÓGICA ----
+        setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
+        setTimeout(() => { 
+            onClose(); 
+            onInviteSent(); 
+        }, 2000);
+
+    } catch (error) {
+        console.error("DEBUG: Erro detalhado ao enviar convite:", error);
+        // A mensagem de erro agora virá diretamente da nossa Edge Function
+        setFeedback({ type: 'error', message: `Erro: ${error.message}` });
+    } finally {
+        setIsSending(false);
+    }
+};
 
             // 3. Chamar a função RPC segura 'invite_team_member' que criámos no Supabase
             const { error: rpcError } = await supabase.rpc('invite_team_member', {
