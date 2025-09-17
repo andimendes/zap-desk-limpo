@@ -14,7 +14,7 @@ const EditUserModal = ({ user, allRoles, onClose, onSave, isSaving }) => {
   return ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}><form onSubmit={handleSubmit}><div className="p-6"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Utilizador</h3><button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} className="text-gray-500 dark:text-gray-400" /></button></div><div className="space-y-4 mb-6"><div><label htmlFor="userName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label><input id="userName" type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label htmlFor="userEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label><input id="userEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Atribuir Cargo</label><select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">{allRoles.map((role) => (<option key={role.id} value={role.name}>{role.name}</option>))}</select></div>{!showPassword ? (<button type="button" onClick={() => setShowPassword(true)} className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"><KeyRound size={16} /> Alterar Senha</button>) : (<div><label htmlFor="userPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nova Senha (mín. 6 caracteres)</label><input id="userPassword" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="Deixe em branco para não alterar" /></div>)}</div></div><div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">Cancelar</button><button type="submit" disabled={isSaving} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? <><LoaderCircle size={16} className="animate-spin" /> Salvando...</> : <><Save size={16} /> Salvar Alterações</>}</button></div></form></div></div> );
 };
 
-// --- Componente Principal da Página (não muda) ---
+// --- Componente Principal da Página ---
 const GestaoDeEquipaPage = () => {
     const [team, setTeam] = useState([]); const [roles, setRoles] = useState([]); const [loading, setLoading] = useState(true); const [isInviteModalOpen, setInviteModalOpen] = useState(false); const [editingUser, setEditingUser] = useState(null); const [isSaving, setIsSaving] = useState(false); const [userToDelete, setUserToDelete] = useState(null); const [isDeleting, setIsDeleting] = useState(false); const [resendingInvite, setResendingInvite] = useState(null);
     
@@ -132,67 +132,41 @@ const GestaoDeEquipaPage = () => {
     );
 };
 
-// --- Componente InviteUserModal (ATUALIZADO COM A LÓGICA CORRETA) ---
-const handleInvite = async (e) => {
-    e.preventDefault();
-    setIsSending(true);
-    setFeedback({ type: '', message: '' });
+// --- Componente InviteUserModal (ATUALIZADO E CORRIGIDO) ---
+const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
+    const [email, setEmail] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [selectedRole, setSelectedRole] = useState(roles[0]?.id || '');
+    const [isSending, setIsSending] = useState(false);
+    const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-    try {
-        // O payload agora só precisa enviar os dados do formulário.
-        // A nossa Edge Function cuidará de descobrir o tenant_id.
-        const payload = {
-            email: email,
-            fullName: fullName,
-        };
+    const handleInvite = async (e) => {
+        e.preventDefault();
+        setIsSending(true);
+        setFeedback({ type: '', message: '' });
 
-        // Chamando a Edge Function (como seu código original já fazia)
-        const { error } = await supabase.functions.invoke('invite-user', {
-            body: payload,
-        });
+        try {
+            const payload = {
+                email: email,
+                fullName: fullName,
+            };
 
-        if (error) {
-            // Se a Edge Function retornar um erro, ele será capturado aqui
-            throw new Error(error.message);
-        }
-
-        setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
-        setTimeout(() => { 
-            onClose(); 
-            onInviteSent(); 
-        }, 2000);
-
-    } catch (error) {
-        console.error("DEBUG: Erro detalhado ao enviar convite:", error);
-        // A mensagem de erro agora virá diretamente da nossa Edge Function
-        setFeedback({ type: 'error', message: `Erro: ${error.message}` });
-    } finally {
-        setIsSending(false);
-    }
-};
-
-            // 3. Chamar a função RPC segura 'invite_team_member' que criámos no Supabase
-            const { error: rpcError } = await supabase.rpc('invite_team_member', {
-                user_email: email,
-                tenant_id: tenantId,
-                user_full_name: fullName
-                // Nota: A atribuição de cargo (role) deve ser tratada pelo seu gatilho `handle_new_user`
-                // ou por outra função, se necessário, pois a função de convite padrão não a define.
+            const { error } = await supabase.functions.invoke('invite-user', {
+                body: payload,
             });
 
-            if (rpcError) {
-                throw rpcError;
+            if (error) {
+                throw new Error(error.message);
             }
 
             setFeedback({ type: 'success', message: 'Convite enviado com sucesso!' });
-            setTimeout(() => { 
-                onClose(); 
-                onInviteSent(); 
+            setTimeout(() => {
+                onClose();
+                onInviteSent();
             }, 2000);
-
         } catch (error) {
             console.error("DEBUG: Erro detalhado ao enviar convite:", error);
-            setFeedback({ type: 'error', message: `Erro ao enviar convite: ${error.message}` });
+            setFeedback({ type: 'error', message: `Erro: ${error.message}` });
         } finally {
             setIsSending(false);
         }
@@ -215,7 +189,11 @@ const handleInvite = async (e) => {
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">{feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}{<button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>}<button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button></div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">
+                        {feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}
+                        <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
+                        <button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button>
+                    </div>
                 </form>
             </div>
         </div>
