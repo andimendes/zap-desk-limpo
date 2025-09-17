@@ -140,15 +140,18 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [isSending, setIsSending] = useState(false);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
 
+    // ✅ ESTA É A FUNÇÃO ATUALIZADA
     const handleInvite = async (e) => {
         e.preventDefault();
         setIsSending(true);
         setFeedback({ type: '', message: '' });
 
         try {
+            // ✅ CORREÇÃO: Adicionamos o 'role_id' ao payload para satisfazer a validação da Edge Function.
             const payload = {
                 email: email,
                 fullName: fullName,
+                role_id: selectedRole 
             };
 
             const { error } = await supabase.functions.invoke('invite-user', {
