@@ -41,10 +41,18 @@ const GestaoDeEquipaPage = ({}) => {
 };
 const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     const [email, setEmail] = useState(''); const [fullName, setFullName] = useState('');
-    // ✅ MUDANÇA 1: O estado agora é inicializado com o ID do primeiro cargo.
-    const [selectedRole, setSelectedRole] = useState(roles[0]?.id || '');
+    // ✅ MUDANÇA 1: Inicializa o estado como uma string vazia.
+    const [selectedRole, setSelectedRole] = useState('');
     const [isSending, setIsSending] = useState(false); const [feedback, setFeedback] = useState({ type: '', message: '' });
-    
+
+    // ✅ MUDANÇA 2: Adicionado um useEffect para definir um valor padrão
+    // assim que a lista de 'roles' for carregada.
+    useEffect(() => {
+        if (roles && roles.length > 0 && !selectedRole) {
+            setSelectedRole(roles[0].id);
+        }
+    }, [roles, selectedRole]);
+
     const handleInvite = async (e) => {
         e.preventDefault();
         setIsSending(true);
@@ -53,7 +61,6 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error("Sessão não encontrada, faça login novamente.");
             
-            // ✅ MUDANÇA 2: Enviando 'role_id' com o ID do cargo do estado.
             const payload = { email: email, fullName: fullName, role_id: selectedRole };
             
             const response = await fetch('/api/invite-user', {
@@ -72,11 +79,13 @@ const InviteUserModal = ({ roles, onClose, onInviteSent }) => {
     };
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4"><div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md"><form onSubmit={handleInvite}><div className="p-6"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Convidar Novo Utilizador</h3><button type="button" onClick={onClose}><X className="text-gray-500 dark:text-gray-400" /></button></div><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Completo</label><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail do Convidado</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" /></div><div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuir Cargo</label>
-                                {/* ✅ MUDANÇA 3: O valor de cada opção agora é o ID do cargo */}
-                                <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                                <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} disabled={!roles.length} className="mt-1 w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 disabled:bg-gray-200">
                                     {roles.map(role => (<option key={role.id} value={role.id}>{role.name}</option>))}
                                 </select>
-                            </div></div></div><div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">{feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}<button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button><button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button></div></form></div></div>
+                            </div></div></div><div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end items-center gap-4">{feedback.message && <p className={`text-sm ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{feedback.message}</p>}<button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
+                        {/* ✅ MUDANÇA 3: O botão Enviar fica desativado se não houver um cargo selecionado */}
+                        <button type="submit" disabled={isSending || !fullName || !email || !selectedRole} className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:bg-blue-300">{isSending ? 'Enviando...' : 'Enviar Convite'}</button>
+                    </div></form></div></div>
     );
 };
 export default GestaoDeEquipaPage;
